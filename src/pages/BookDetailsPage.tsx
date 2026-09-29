@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Flag, Heart, Mail, MapPin, Phone } from 'lucide-react'
 import { Button } from '../components/Button'
+import { BookShareSection } from '../components/BookShareSection'
 import { EmptyState } from '../components/EmptyState'
+import { ImageWithSkeleton } from '../components/ImageWithSkeleton'
 import { useAuth } from '../hooks/useAuthState'
 import { useFavorites } from '../hooks/useFavorites'
 import { useToast } from '../hooks/useToast'
@@ -88,7 +90,16 @@ export function BookDetailsPage() {
       <article className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.9fr)]">
         <div className="glass-card overflow-hidden rounded-[1.5rem]">
           {book.imageUrls[0] ? (
-            <img src={book.imageUrls[0]} alt={`Bìa sách ${book.title}`} className="max-h-[680px] min-h-72 w-full bg-[rgb(var(--color-interactive-surface)/.7)] object-contain" loading="lazy" />
+            <ImageWithSkeleton
+              src={book.imageUrls[0]}
+              alt={`Bìa sách ${book.title}`}
+              width={800}
+              height={1067}
+              loading="eager"
+              fetchPriority="high"
+              wrapperClassName="aspect-[3/4] w-full bg-[rgb(var(--color-interactive-surface)/.7)]"
+              className="h-full w-full object-contain"
+            />
           ) : (
             <div className="flex aspect-[4/3] items-center justify-center bg-[rgb(var(--color-interactive-surface)/.7)] text-text-muted">Chưa có ảnh bìa</div>
           )}
@@ -137,6 +148,8 @@ export function BookDetailsPage() {
           </div>
         </div>
       </article>
+
+      <BookShareSection bookId={book.id} title={book.title} />
 
       {reportOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-dark/85 p-4" role="presentation">

@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { BookCard } from '../components/BookCard'
 import { EmptyState } from '../components/EmptyState'
 import { Button } from '../components/Button'
+import { ImageWithSkeleton } from '../components/ImageWithSkeleton'
 import { useAuth } from '../hooks/useAuthState'
 import { useMyBooks } from '../hooks/useBooks'
 import { getAdapterMode } from '../lib/dataAdapter'
@@ -21,10 +22,14 @@ export function ProfilePage() {
       <section className="glass-card relative flex flex-col gap-6 overflow-hidden rounded-[1.75rem] p-5 sm:flex-row sm:items-center sm:p-8">
         <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full bg-accent-yellow/[0.07] blur-3xl" aria-hidden="true" />
         {user.avatarUrl ? (
-          <img
+          <ImageWithSkeleton
             src={user.avatarUrl}
             alt=""
-            className="relative h-24 w-24 shrink-0 rounded-[1.65rem] border border-glass/10 object-cover shadow-lg"
+            width={96}
+            height={96}
+            loading="eager"
+            wrapperClassName="relative h-24 w-24 shrink-0 rounded-[1.65rem]"
+            className="h-full w-full rounded-[1.65rem] border border-glass/10 object-cover shadow-lg"
             referrerPolicy="no-referrer"
           />
         ) : (

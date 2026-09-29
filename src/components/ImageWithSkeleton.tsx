@@ -22,18 +22,30 @@ export function ImageWithSkeleton({
   const [loadedSource, setLoadedSource] = useState<string | null>(null)
   const currentSrc = failedSource === src && fallbackSrc ? fallbackSrc : src
   const loaded = loadedSource === currentSrc
+  const failed = failedSource === currentSrc
+  const loading = props.loading ?? 'lazy'
 
   return (
     <span className={clsx('relative block overflow-hidden', wrapperClassName)}>
-      {!loaded && (
+      {!loaded && !failed && (
         <span
           className={clsx('absolute inset-0 animate-pulse bg-[rgb(var(--color-interactive-surface)/.75)]', skeletonClassName)}
           aria-hidden="true"
         />
       )}
+      {failed && (
+        <span
+          className="absolute inset-0 flex items-center justify-center bg-[rgb(var(--color-interactive-surface)/.75)] px-3 text-center text-xs text-text-muted"
+          role="status"
+        >
+          Không thể tải ảnh
+        </span>
+      )}
       <img
         {...props}
         src={currentSrc}
+        loading={loading}
+        decoding={props.decoding ?? 'async'}
         onLoad={(event) => {
           setLoadedSource(currentSrc)
           onLoad?.(event)
@@ -43,12 +55,12 @@ export function ImageWithSkeleton({
             setFailedSource(src)
             return
           }
-          setLoadedSource(currentSrc)
+          setFailedSource(currentSrc)
           onError?.(event)
         }}
         className={clsx(
           className,
-          'transition-opacity duration-500',
+          'transition-opacity duration-200',
           loaded ? 'opacity-100' : 'opacity-0',
         )}
       />

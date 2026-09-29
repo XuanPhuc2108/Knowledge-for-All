@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { AnimatedText } from '../components/AnimatedText'
 import { FadeIn } from '../components/FadeIn'
 import { GradientButton } from '../components/GradientButton'
+import { ImageWithSkeleton } from '../components/ImageWithSkeleton'
 import { GsapMorphText } from '../components/GsapMorphText'
 import { Magnetic } from '../components/Magnetic'
 import { Button } from '../components/Button'
@@ -108,12 +109,17 @@ export function HeroSection() {
         <FadeIn delay={0.4} className="relative mx-auto w-full max-w-lg lg:max-w-none">
           <div ref={visualRef} className="relative h-[420px] w-full">
             <div className="absolute inset-0 flex items-center justify-center" style={{ perspective: '1200px' }}>
-              <img
+              <ImageWithSkeleton
                 src={ILLUSTRATIONS.heroBooks}
                 alt="Thư viện sách"
-                className="hero-card absolute left-1/2 top-1/2 h-56 w-44 -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-glass/20 object-cover shadow-[0_32px_80px_rgb(0_0_0_/_0.42)]"
-                style={{ transform: 'translate(-50%, -50%) rotate(-3deg)' }}
+                width={800}
+                height={1024}
+                sizes="(max-width: 1024px) 176px, 220px"
+                wrapperClassName="hero-card absolute left-1/2 top-1/2 h-56 w-44 -translate-x-1/2 -translate-y-1/2 rounded-2xl"
+                className="h-full w-full rounded-2xl border border-glass/20 object-cover shadow-[0_32px_80px_rgb(0_0_0_/_0.42)]"
                 loading="eager"
+                fetchPriority="high"
+                style={{ transform: 'rotate(-3deg)' }}
               />
               {ABSTRACT_CARDS.map((card, i) => {
                 const Icon = card.icon
@@ -139,10 +145,14 @@ export function HeroSection() {
                 )
               })}
             </div>
-            <img
+            <ImageWithSkeleton
               src={ILLUSTRATIONS.reading}
               alt="Đọc sách"
-              className="hero-card absolute -bottom-2 right-0 hidden h-24 w-24 rounded-xl border-2 border-accent-yellow/30 object-cover shadow-lg sm:block"
+              width={96}
+              height={96}
+              sizes="96px"
+              wrapperClassName="hero-card absolute -bottom-2 right-0 hidden h-24 w-24 rounded-xl sm:block"
+              className="h-full w-full rounded-xl border-2 border-accent-yellow/30 object-cover shadow-lg"
               loading="lazy"
             />
           </div>

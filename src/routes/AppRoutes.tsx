@@ -3,6 +3,7 @@ import { AnimatePresence } from 'framer-motion'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppLayout } from '../components/AppLayout'
 import { AuthGuard } from '../components/AuthGuard'
+import { Navbar } from '../components/Navbar'
 import { PageTransition } from '../components/PageTransition'
 
 function InitialRouteReady({ onReady }: { onReady: () => void }) {
@@ -66,6 +67,19 @@ export function AppRoutes({ onInitialRouteReady }: { onInitialRouteReady: () => 
             element={
               <PageTransition>
                 <RegisterPage />
+              </PageTransition>
+            }
+          />
+          <Route
+            path="/books/:id"
+            element={
+              <PageTransition>
+                <div className="app-shell min-h-screen bg-dark">
+                  <Navbar variant="app" />
+                  <main className="mx-auto max-w-7xl px-5 pb-16 pt-24 sm:px-8 lg:px-16">
+                    <BookDetailsPage />
+                  </main>
+                </div>
               </PageTransition>
             }
           />

@@ -39,7 +39,10 @@ export function BookCard({
           src={imageUrl}
           fallbackSrc={ILLUSTRATIONS.defaultCover}
           alt={`Bìa sách ${book.title}`}
+          width={600}
+          height={800}
           loading="lazy"
+          sizes="(max-width: 640px) 92vw, (max-width: 1280px) 44vw, 360px"
           wrapperClassName="h-full w-full"
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.035]"
         />
