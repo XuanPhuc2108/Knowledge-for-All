@@ -10,7 +10,7 @@ export default {
         glass: 'rgb(var(--color-glass) / <alpha-value>)',
         'text-primary': 'rgb(var(--color-text-primary) / <alpha-value>)',
         'text-muted': 'rgb(var(--color-text-muted) / <alpha-value>)',
-        'accent-yellow': '#FBBF24',
+        'accent-yellow': 'rgb(var(--color-accent) / <alpha-value>)',
         'accent-orange': '#F97316',
         'accent-rose': '#FB7185',
         'accent-purple': '#8B5CF6',
@@ -63,7 +63,7 @@ export default {
       },
       backgroundImage: {
         'hero-mesh':
-          'radial-gradient(ellipse 80% 50% at 18% 40%, rgba(251,191,36,0.13), transparent), radial-gradient(ellipse 60% 40% at 84% 18%, rgba(255,255,255,0.055), transparent), radial-gradient(ellipse 50% 50% at 52% 90%, rgba(251,191,36,0.045), transparent)',
+          'radial-gradient(ellipse 80% 50% at 18% 40%, rgb(var(--color-page-glow) / 0.15), transparent), radial-gradient(ellipse 60% 40% at 84% 18%, rgb(var(--color-glass) / 0.055), transparent), radial-gradient(ellipse 50% 50% at 52% 90%, rgb(var(--color-accent) / 0.045), transparent)',
       },
     },
   },

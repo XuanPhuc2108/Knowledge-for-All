@@ -7,6 +7,7 @@ import type {
   UpdateBookInput,
 } from '../types/book'
 import type { LoginInput, RegisterInput, UpdateProfileInput, UserProfile } from '../types/user'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { getSupabaseClient, isSupabaseConfigured } from './supabase'
 import { localAdapter } from './localAdapter'
 
@@ -89,6 +90,54 @@ function mapBook(row: Record<string, unknown>): Book {
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   }
+}
+
+async function mapBooksWithPublicProfiles(
+  supabase: SupabaseClient,
+  rows: Record<string, unknown>[],
+): Promise<Book[]> {
+  const ownerIds = [...new Set(rows
+    .map((row) => row.owner_id)
+    .filter((ownerId): ownerId is string => typeof ownerId === 'string'))]
+  const profilesById = new Map<string, Record<string, unknown>>()
+
+  if (ownerIds.length > 0) {
+    const { data, error } = await supabase
+      .from('public_profiles')
+      .select('id, full_name, avatar_url, area_label, contact_phone, contact_email')
+      .in('id', ownerIds)
+    if (error) throw new Error(`Không thể tải thông tin người đăng: ${error.message}`)
+    for (const profile of data ?? []) {
+      profilesById.set(profile.id, profile)
+    }
+  }
+
+  return rows.map((row) => {
+    const book = mapBook(row)
+    const profile = profilesById.get(row.owner_id as string)
+    if (!profile) return book
+    return {
+      ...book,
+      ownerName: optionalText(profile.full_name) ?? book.ownerName,
+      ownerAvatarUrl: optionalText(profile.avatar_url),
+      ownerAreaLabel: optionalText(profile.area_label),
+      contactPhone: book.contactPhone ?? optionalText(profile.contact_phone),
+      contactEmail: book.contactEmail ?? optionalText(profile.contact_email),
+    }
+  })
+}
+
+function favoriteTableError(error: { code?: string; message: string }): Error {
+  if (
+    error.code === 'PGRST205' ||
+    (error.message.includes('book_favorites') && error.message.includes('schema cache'))
+  ) {
+    return new Error(
+      'Bảng yêu thích chưa có trong Supabase hoặc schema cache chưa cập nhật. ' +
+      'Chạy supabase-migration-book-favorites.sql trong Supabase SQL Editor rồi tải lại trang.',
+    )
+  }
+  return new Error(error.message)
 }
 
 const supabaseAdapter: DataAdapter = {
@@ -223,24 +272,25 @@ const supabaseAdapter: DataAdapter = {
     const supabase = getSupabaseClient()!
     let query = supabase
       .from('books')
-      .select('*, public_profiles!books_owner_id_fkey(full_name, avatar_url, area_label, contact_phone, contact_email)')
+      .select('*')
       .order('created_at', { ascending: false })
     if (limit) query = query.limit(limit)
     const { data, error } = await query
     if (error) throw new Error(error.message)
-    return (data ?? []).map(mapBook)
+    return mapBooksWithPublicProfiles(supabase, data ?? [])
   },
 
   async getBookById(id) {
     const supabase = getSupabaseClient()!
     const { data, error } = await supabase
       .from('books')
-      .select('*, public_profiles!books_owner_id_fkey(full_name, avatar_url, area_label, contact_phone, contact_email)')
+      .select('*')
       .eq('id', id)
       .maybeSingle()
     if (error) throw new Error(error.message)
     if (!data) return null
-    return mapBook(data)
+    const [book] = await mapBooksWithPublicProfiles(supabase, [data])
+    return book
   },
 
   async createBook(ownerId, ownerName, input) {
@@ -306,11 +356,11 @@ const supabaseAdapter: DataAdapter = {
     const supabase = getSupabaseClient()!
     const { data, error } = await supabase
       .from('books')
-      .select('*, public_profiles!books_owner_id_fkey(full_name, avatar_url, area_label, contact_phone, contact_email)')
+      .select('*')
       .eq('owner_id', ownerId)
       .order('created_at', { ascending: false })
     if (error) throw new Error(error.message)
-    return (data ?? []).map(mapBook)
+    return mapBooksWithPublicProfiles(supabase, data ?? [])
   },
 
   async getFavoriteBookIds(userId) {
@@ -319,7 +369,7 @@ const supabaseAdapter: DataAdapter = {
       .from('book_favorites')
       .select('book_id')
       .eq('user_id', userId)
-    if (error) throw new Error(error.message)
+    if (error) throw favoriteTableError(error)
     return (data ?? []).map((row) => row.book_id)
   },
 
@@ -335,7 +385,7 @@ const supabaseAdapter: DataAdapter = {
           .delete()
           .eq('user_id', userId)
           .eq('book_id', bookId)
-    if (result.error) throw new Error(result.error.message)
+    if (result.error) throw favoriteTableError(result.error)
   },
 
   async reportBook(userId, bookId, reason, details) {

@@ -61,7 +61,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       document.documentElement.dataset.theme = effectiveTheme
       document.querySelector('meta[name="theme-color"]')?.setAttribute(
         'content',
-        effectiveTheme === 'light' ? '#F6F5F1' : '#0D0F12',
+        effectiveTheme === 'light' ? '#F3F1EB' : effectiveTheme === 'aurora' ? '#090D1A' : '#0B0D10',
       )
     }
     applyTheme()

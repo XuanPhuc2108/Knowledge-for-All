@@ -41,7 +41,7 @@ export function GsapMorphText({
 
   const parts =
     splitBy === 'word'
-      ? text.split(' ').map((w, i, arr) => (i < arr.length - 1 ? `${w} ` : w))
+      ? text.split(' ')
       : text.split('').map((c) => (c === ' ' ? '\u00A0' : c))
 
   useEffect(() => {
@@ -52,23 +52,21 @@ export function GsapMorphText({
     const ctx = gsap.context(() => {
       if (reveal === 'mount') {
         gsap.from(chars, {
-          yPercent: 110,
+          yPercent: 42,
           opacity: 0,
-          rotateX: -55,
-          filter: 'blur(8px)',
-          duration: 1.05,
-          stagger: splitBy === 'char' ? 0.035 : 0.12,
-          ease: 'power4.out',
+          filter: 'blur(3px)',
+          duration: 0.42,
+          stagger: splitBy === 'char' ? 0.02 : 0.05,
+          ease: 'power3.out',
         })
       } else if (reveal === 'scroll') {
         gsap.from(chars, {
-          yPercent: 110,
+          yPercent: 42,
           opacity: 0,
-          rotateX: -55,
-          filter: 'blur(8px)',
-          duration: 1.05,
-          stagger: splitBy === 'char' ? 0.035 : 0.12,
-          ease: 'power4.out',
+          filter: 'blur(3px)',
+          duration: 0.42,
+          stagger: splitBy === 'char' ? 0.02 : 0.05,
+          ease: 'power3.out',
           scrollTrigger: {
             trigger: rootRef.current,
             start: 'top 88%',
@@ -118,6 +116,7 @@ export function GsapMorphText({
             style={{
               transformOrigin: '50% 100%',
               transformStyle: 'preserve-3d',
+              marginRight: splitBy === 'word' && i < parts.length - 1 ? '0.15em' : undefined,
               ...(morph ? GRADIENT_STYLE : { color: 'rgb(var(--color-text-primary))' }),
             }}
           >

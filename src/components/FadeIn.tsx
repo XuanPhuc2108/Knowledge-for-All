@@ -26,9 +26,9 @@ const motionComponents = {
 export function FadeIn<T extends ElementType = 'div'>({
   as = 'div' as T,
   delay = 0,
-  duration = 0.7,
+  duration = 0.42,
   x = 0,
-  y = 30,
+  y = 18,
   once = true,
   children,
   className,

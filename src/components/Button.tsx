@@ -16,9 +16,9 @@ export function Button({
   return (
     <button
       className={clsx(
-        'inline-flex items-center justify-center gap-2 rounded-xl font-semibold tracking-[-0.01em] transition-[background-color,border-color,color,transform,box-shadow] duration-200 active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-dark disabled:pointer-events-none disabled:opacity-50',
+        'app-button inline-flex items-center justify-center gap-2 rounded-xl font-semibold tracking-[-0.01em] transition-[background-color,border-color,color,transform,box-shadow] duration-200 active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-dark disabled:pointer-events-none disabled:opacity-50',
         {
-          'bg-accent-yellow text-[#242117] shadow-[0_5px_18px_rgb(251_191_36_/_0.12)] hover:bg-amber-300 hover:shadow-[0_8px_24px_rgb(251_191_36_/_0.18)]': variant === 'primary',
+          'bg-accent-yellow text-[rgb(var(--color-accent-contrast))] shadow-[0_5px_18px_rgb(var(--color-accent)/.12)]': variant === 'primary',
           'border border-glass/10 bg-[rgb(var(--color-interactive-surface)/.9)] text-text-primary hover:bg-[rgb(var(--color-interactive-hover)/.95)]': variant === 'secondary',
           'text-text-muted hover:bg-[rgb(var(--color-interactive-surface)/.8)] hover:text-text-primary': variant === 'ghost',
           'border border-glass/10 bg-transparent text-text-primary hover:border-glass/20 hover:bg-[rgb(var(--color-interactive-surface)/.7)]': variant === 'outline',

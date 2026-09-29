@@ -46,7 +46,7 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
     <>
       <header
         className={clsx(
-          'fixed left-0 right-0 top-0 z-50 transition-[background-color,border-color] duration-200',
+          'site-header fixed left-0 right-0 top-0 z-50 transition-[background-color,border-color] duration-200',
           scrolled || variant === 'app'
             ?             'border-b border-glass/10 bg-dark/85 shadow-[0_8px_28px_rgb(0_0_0_/_0.12)] backdrop-blur-xl'
             : 'bg-transparent',
@@ -70,14 +70,14 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
                     <button
                       type="button"
                       onClick={() => navigate('/app/add-book')}
-                      className="text-sm text-text-muted transition-colors duration-150 hover:text-text-primary hover:underline hover:decoration-accent-yellow hover:underline-offset-4"
+                      className="landing-nav-link text-sm text-text-muted transition-colors duration-150 hover:text-text-primary"
                     >
                       {link.label}
                     </button>
                   ) : (
                     <a
                       href={link.href}
-                      className="text-sm text-text-muted transition-colors duration-150 hover:text-text-primary hover:underline hover:decoration-accent-yellow hover:underline-offset-4"
+                      className="landing-nav-link text-sm text-text-muted transition-colors duration-150 hover:text-text-primary"
                     >
                       {link.label}
                     </a>

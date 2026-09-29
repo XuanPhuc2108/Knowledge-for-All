@@ -20,19 +20,19 @@ export function AppLayout() {
   const { user } = useAuth()
 
   return (
-    <div className="min-h-screen bg-dark">
+    <div className="app-shell min-h-screen bg-dark">
       <Navbar variant="app" />
       <div className="mx-auto flex max-w-[1400px] gap-8 px-4 pb-28 pt-24 sm:px-6 lg:px-10">
         <aside className="hidden w-60 shrink-0 lg:block">
-          <nav className="glass-card sticky top-28 space-y-1 rounded-2xl p-2">
+          <nav className="app-sidebar glass-card sticky top-28 space-y-1 rounded-2xl p-2">
             {SIDEBAR_LINKS.map(({ to, icon: Icon, label }) => (
               <Link
                 key={to}
                 to={to}
                 className={clsx(
-                  'flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-[background-color,color,transform] duration-200',
+                  'app-sidebar-link flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-[background-color,color,transform] duration-200',
                   location.pathname === to || (to !== '/app' && location.pathname.startsWith(to))
-                    ? 'bg-accent-yellow/10 text-accent-yellow'
+                    ? 'is-active bg-accent-yellow/10 text-accent-yellow'
                     : 'text-text-muted hover:translate-x-0.5 hover:bg-[rgb(var(--color-interactive-surface)/.8)] hover:text-text-primary',
                 )}
               >
@@ -53,7 +53,7 @@ export function AppLayout() {
         </main>
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-glass/10 bg-dark/90 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_36px_rgb(0_0_0_/_0.16)] backdrop-blur-xl lg:hidden">
+      <nav className="app-mobile-nav fixed bottom-0 left-0 right-0 z-50 border-t border-glass/10 bg-dark/90 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_36px_rgb(0_0_0_/_0.16)] backdrop-blur-xl lg:hidden">
         <div className="mx-auto flex max-w-xl justify-around px-2 py-2">
           {MOBILE_LINKS.map(({ to, icon: Icon, label }) => (
             <Link
@@ -61,8 +61,8 @@ export function AppLayout() {
               to={to}
               aria-current={location.pathname === to ? 'page' : undefined}
               className={clsx(
-                'flex w-1/5 flex-col items-center gap-1 rounded-xl px-1 py-1.5 text-[10px] font-medium transition-[background-color,color,transform] duration-200',
-                location.pathname === to ? 'bg-accent-yellow/10 text-accent-yellow' : 'text-text-muted hover:text-text-primary',
+                'app-mobile-nav-link flex w-1/5 flex-col items-center gap-1 rounded-xl px-1 py-1.5 text-[10px] font-medium transition-[background-color,color,transform] duration-200',
+                location.pathname === to ? 'is-active bg-accent-yellow/10 text-accent-yellow' : 'text-text-muted hover:text-text-primary',
               )}
             >
               <Icon className="h-[18px] w-[18px]" aria-hidden="true" />

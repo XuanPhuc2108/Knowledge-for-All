@@ -317,6 +317,7 @@ export function SettingsPage() {
             {([
               { value: 'dark', label: 'Tối', description: 'Dịu mắt khi thiếu sáng', icon: Moon },
               { value: 'light', label: 'Sáng', description: 'Rõ nét trong ban ngày', icon: Sun },
+              { value: 'aurora', label: 'Aurora', description: 'Sắc lam tím có chiều sâu', icon: Sparkles },
               { value: 'system', label: 'Theo thiết bị', description: 'Tự động theo hệ thống', icon: Monitor },
             ] as const).map((theme) => {
               const selected = settings.theme === theme.value
