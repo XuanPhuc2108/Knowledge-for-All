@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import type { ButtonHTMLAttributes } from 'react'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'outline'
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger'
   size?: 'sm' | 'md' | 'lg'
 }
 
@@ -16,15 +16,16 @@ export function Button({
   return (
     <button
       className={clsx(
-        'inline-flex items-center justify-center gap-2 rounded-full font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-dark disabled:opacity-50',
+        'inline-flex items-center justify-center gap-2 rounded-xl font-semibold tracking-[-0.01em] transition-[background-color,border-color,color,transform,box-shadow] duration-200 active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-dark disabled:pointer-events-none disabled:opacity-50',
         {
-          'bg-accent-yellow text-dark hover:brightness-110': variant === 'primary',
-          'bg-white/10 text-text-primary hover:bg-white/15': variant === 'secondary',
-          'text-text-primary hover:bg-white/10': variant === 'ghost',
-          'border border-glass text-text-primary hover:bg-white/5': variant === 'outline',
-          'px-4 py-2 text-sm': size === 'sm',
-          'px-6 py-2.5 text-sm': size === 'md',
-          'px-8 py-3 text-base': size === 'lg',
+          'bg-accent-yellow text-[#242117] shadow-[0_5px_18px_rgb(251_191_36_/_0.12)] hover:bg-amber-300 hover:shadow-[0_8px_24px_rgb(251_191_36_/_0.18)]': variant === 'primary',
+          'border border-glass/10 bg-[rgb(var(--color-interactive-surface)/.9)] text-text-primary hover:bg-[rgb(var(--color-interactive-hover)/.95)]': variant === 'secondary',
+          'text-text-muted hover:bg-[rgb(var(--color-interactive-surface)/.8)] hover:text-text-primary': variant === 'ghost',
+          'border border-glass/10 bg-transparent text-text-primary hover:border-glass/20 hover:bg-[rgb(var(--color-interactive-surface)/.7)]': variant === 'outline',
+          'border border-accent-rose/25 bg-accent-rose/[0.08] text-accent-rose hover:border-accent-rose/40 hover:bg-accent-rose/[0.14]': variant === 'danger',
+          'min-h-9 rounded-lg px-3.5 py-2 text-xs': size === 'sm',
+          'min-h-11 px-5 py-2.5 text-sm': size === 'md',
+          'min-h-12 px-7 py-3 text-base': size === 'lg',
         },
         className,
       )}

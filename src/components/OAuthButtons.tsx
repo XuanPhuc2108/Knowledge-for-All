@@ -53,7 +53,7 @@ export function OAuthButtons({
         type="button"
         onClick={() => void handleOAuth('google')}
         disabled={disabled || busy}
-        className="inline-flex w-full items-center justify-center gap-3 rounded-full border border-glass bg-white/5 px-6 py-3 text-sm font-semibold text-text-primary transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex w-full items-center justify-center gap-3 rounded-xl border border-glass/10 bg-[rgb(var(--color-interactive-surface)/.82)] px-5 py-3 text-sm font-semibold text-text-primary transition-[background-color,border-color,transform] duration-200 hover:-translate-y-px hover:border-glass/20 hover:bg-[rgb(var(--color-interactive-hover)/.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow disabled:cursor-not-allowed disabled:opacity-50"
       >
         <span aria-hidden="true" className="flex size-6 items-center justify-center rounded-full bg-white text-base font-bold text-[#4285F4]">
           G
@@ -64,7 +64,7 @@ export function OAuthButtons({
         type="button"
         onClick={() => void handleOAuth('facebook')}
         disabled={disabled || busy}
-        className="inline-flex w-full items-center justify-center gap-3 rounded-full border border-glass bg-white/5 px-6 py-3 text-sm font-semibold text-text-primary transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex w-full items-center justify-center gap-3 rounded-xl border border-glass/10 bg-[rgb(var(--color-interactive-surface)/.82)] px-5 py-3 text-sm font-semibold text-text-primary transition-[background-color,border-color,transform] duration-200 hover:-translate-y-px hover:border-glass/20 hover:bg-[rgb(var(--color-interactive-hover)/.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow disabled:cursor-not-allowed disabled:opacity-50"
       >
         <span aria-hidden="true" className="flex size-6 items-center justify-center rounded-full bg-[#1877F2] text-sm font-bold text-white">
           f

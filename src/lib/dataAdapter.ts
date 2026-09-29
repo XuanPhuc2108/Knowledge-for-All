@@ -1,4 +1,11 @@
-import type { Book, CreateBookInput, CreateExchangeInput, ExchangeRequest, UpdateBookInput } from '../types/book'
+import type {
+  Book,
+  BookReportReason,
+  CreateBookInput,
+  CreateExchangeInput,
+  ExchangeRequest,
+  UpdateBookInput,
+} from '../types/book'
 import type { LoginInput, RegisterInput, UpdateProfileInput, UserProfile } from '../types/user'
 import { getSupabaseClient, isSupabaseConfigured } from './supabase'
 import { localAdapter } from './localAdapter'
@@ -9,12 +16,17 @@ export interface DataAdapter {
   login(input: LoginInput): Promise<UserProfile>
   logout(): Promise<void>
   updateProfile(userId: string, input: UpdateProfileInput): Promise<UserProfile>
+  deleteAccount(userId: string): Promise<void>
+  changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void>
   getBooks(limit?: number): Promise<Book[]>
   getBookById(id: string): Promise<Book | null>
   createBook(ownerId: string, ownerName: string, input: CreateBookInput): Promise<Book>
   updateBook(id: string, ownerId: string, input: UpdateBookInput): Promise<Book>
   deleteBook(id: string, ownerId: string): Promise<void>
   getMyBooks(ownerId: string): Promise<Book[]>
+  getFavoriteBookIds(userId: string): Promise<string[]>
+  setBookFavorite(userId: string, bookId: string, favorite: boolean): Promise<void>
+  reportBook(userId: string, bookId: string, reason: BookReportReason, details?: string): Promise<void>
   createExchangeRequest(requesterId: string, ownerId: string, input: CreateExchangeInput): Promise<ExchangeRequest>
   getExchangeRequests(userId: string): Promise<ExchangeRequest[]>
 }
@@ -25,6 +37,13 @@ function mapProfile(row: Record<string, unknown>): UserProfile {
     fullName: row.full_name as string,
     email: row.email as string,
     avatarUrl: row.avatar_url as string | undefined,
+    bio: optionalText(row.bio),
+    contactPhone: optionalText(row.contact_phone),
+    contactEmail: optionalText(row.contact_email),
+    areaLabel: optionalText(row.area_label),
+    showContactPhone: Boolean(row.show_contact_phone),
+    showContactEmail: Boolean(row.show_contact_email),
+    showArea: Boolean(row.show_area),
     latitude: row.latitude as number | undefined,
     longitude: row.longitude as number | undefined,
     locationAccuracy: row.location_accuracy as number | undefined,
@@ -41,10 +60,20 @@ function optionalText(value: unknown): string | undefined {
 }
 
 function mapBook(row: Record<string, unknown>): Book {
+  const publicProfile = row.public_profiles as {
+    full_name?: string
+    avatar_url?: string | null
+    area_label?: string | null
+    contact_phone?: string | null
+    contact_email?: string | null
+  } | null
+  const rawStatus = row.status as string
   return {
     id: row.id as string,
     ownerId: row.owner_id as string,
-    ownerName: (row.owner_name as string) ?? 'Người dùng',
+    ownerName: (publicProfile?.full_name as string) ?? (row.owner_name as string) ?? 'Người dùng',
+    ownerAvatarUrl: optionalText(publicProfile?.avatar_url),
+    ownerAreaLabel: optionalText(publicProfile?.area_label),
     title: row.title as string,
     author: row.author as string | undefined,
     category: row.category as string,
@@ -54,9 +83,9 @@ function mapBook(row: Record<string, unknown>): Book {
     imageUrls: (row.image_urls as string[]) ?? [],
     latitude: row.latitude as number | undefined,
     longitude: row.longitude as number | undefined,
-    contactPhone: optionalText(row.contact_phone),
-    contactEmail: optionalText(row.contact_email),
-    status: row.status as Book['status'],
+    contactPhone: optionalText(row.contact_phone) ?? optionalText(publicProfile?.contact_phone),
+    contactEmail: optionalText(row.contact_email) ?? optionalText(publicProfile?.contact_email),
+    status: rawStatus === 'reserved' ? 'loaned' : rawStatus === 'shared' ? 'exchanged' : rawStatus as Book['status'],
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   }
@@ -145,6 +174,13 @@ const supabaseAdapter: DataAdapter = {
     const payload: Record<string, unknown> = { updated_at: new Date().toISOString() }
     if (input.fullName !== undefined) payload.full_name = input.fullName
     if (input.avatarUrl !== undefined) payload.avatar_url = input.avatarUrl
+    if (input.bio !== undefined) payload.bio = input.bio || null
+    if (input.contactPhone !== undefined) payload.contact_phone = input.contactPhone || null
+    if (input.contactEmail !== undefined) payload.contact_email = input.contactEmail || null
+    if (input.areaLabel !== undefined) payload.area_label = input.areaLabel || null
+    if (input.showContactPhone !== undefined) payload.show_contact_phone = input.showContactPhone
+    if (input.showContactEmail !== undefined) payload.show_contact_email = input.showContactEmail
+    if (input.showArea !== undefined) payload.show_area = input.showArea
     if (input.latitude !== undefined) payload.latitude = input.latitude
     if (input.longitude !== undefined) payload.longitude = input.longitude
     if (input.locationAccuracy !== undefined) payload.location_accuracy = input.locationAccuracy
@@ -161,25 +197,49 @@ const supabaseAdapter: DataAdapter = {
     return mapProfile(data)
   },
 
+  async deleteAccount() {
+    const supabase = getSupabaseClient()!
+    const { error } = await supabase.rpc('delete_my_account')
+    if (error) throw new Error(error.message)
+    const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' })
+    if (signOutError) throw new Error(signOutError.message)
+  },
+
+  async changePassword(_userId, currentPassword, newPassword) {
+    const supabase = getSupabaseClient()!
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError) throw new Error(userError.message)
+    if (!user?.email) throw new Error('Tài khoản không có email để xác thực')
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    })
+    if (reauthError) throw new Error('Mật khẩu hiện tại không đúng')
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) throw new Error(error.message)
+  },
+
   async getBooks(limit) {
     const supabase = getSupabaseClient()!
     let query = supabase
       .from('books')
-      .select('*, profiles(full_name)')
+      .select('*, public_profiles!books_owner_id_fkey(full_name, avatar_url, area_label, contact_phone, contact_email)')
       .order('created_at', { ascending: false })
     if (limit) query = query.limit(limit)
     const { data, error } = await query
     if (error) throw new Error(error.message)
-    return (data ?? []).map((row) => ({
-      ...mapBook(row),
-      ownerName: (row.profiles as { full_name?: string } | null)?.full_name ?? 'Người dùng',
-    }))
+    return (data ?? []).map(mapBook)
   },
 
   async getBookById(id) {
     const supabase = getSupabaseClient()!
-    const { data, error } = await supabase.from('books').select('*').eq('id', id).single()
-    if (error || !data) return null
+    const { data, error } = await supabase
+      .from('books')
+      .select('*, public_profiles!books_owner_id_fkey(full_name, avatar_url, area_label, contact_phone, contact_email)')
+      .eq('id', id)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    if (!data) return null
     return mapBook(data)
   },
 
@@ -188,6 +248,7 @@ const supabaseAdapter: DataAdapter = {
     const timestamp = new Date().toISOString()
     const payload = {
       owner_id: ownerId,
+      owner_name: ownerName,
       title: input.title,
       author: input.author,
       category: input.category,
@@ -245,11 +306,47 @@ const supabaseAdapter: DataAdapter = {
     const supabase = getSupabaseClient()!
     const { data, error } = await supabase
       .from('books')
-      .select('*')
+      .select('*, public_profiles!books_owner_id_fkey(full_name, avatar_url, area_label, contact_phone, contact_email)')
       .eq('owner_id', ownerId)
       .order('created_at', { ascending: false })
     if (error) throw new Error(error.message)
     return (data ?? []).map(mapBook)
+  },
+
+  async getFavoriteBookIds(userId) {
+    const supabase = getSupabaseClient()!
+    const { data, error } = await supabase
+      .from('book_favorites')
+      .select('book_id')
+      .eq('user_id', userId)
+    if (error) throw new Error(error.message)
+    return (data ?? []).map((row) => row.book_id)
+  },
+
+  async setBookFavorite(userId, bookId, favorite) {
+    const supabase = getSupabaseClient()!
+    const result = favorite
+      ? await supabase.from('book_favorites').upsert(
+          { user_id: userId, book_id: bookId },
+          { onConflict: 'user_id,book_id', ignoreDuplicates: true },
+        )
+      : await supabase
+          .from('book_favorites')
+          .delete()
+          .eq('user_id', userId)
+          .eq('book_id', bookId)
+    if (result.error) throw new Error(result.error.message)
+  },
+
+  async reportBook(userId, bookId, reason, details) {
+    const supabase = getSupabaseClient()!
+    const { error } = await supabase.from('book_reports').insert({
+      reporter_id: userId,
+      book_id: bookId,
+      reason,
+      details: details?.trim() || null,
+    })
+    if (error) throw new Error(error.message)
   },
 
   async createExchangeRequest(requesterId, ownerId, input) {

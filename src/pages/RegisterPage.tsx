@@ -74,7 +74,7 @@ export function RegisterPage() {
               name={field}
               type={field.includes('password') ? 'password' : field === 'email' ? 'email' : 'text'}
               required
-              className="w-full rounded-xl border border-glass bg-white/5 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent-yellow"
+              className="field-control px-4 py-3 text-sm"
             />
             {errors[field] && <p className="mt-1 text-xs text-accent-rose">{errors[field]}</p>}
           </div>

@@ -1,11 +1,13 @@
 export type BookCondition = 'new' | 'good' | 'used' | 'old'
 export type ExchangeType = 'share' | 'exchange' | 'borrow'
-export type BookStatus = 'available' | 'reserved' | 'shared'
+export type BookStatus = 'available' | 'loaned' | 'exchanged'
 
 export interface Book {
   id: string
   ownerId: string
   ownerName: string
+  ownerAvatarUrl?: string
+  ownerAreaLabel?: string
   title: string
   author?: string
   category: string
@@ -64,6 +66,14 @@ export interface ExchangeRequest {
 export interface CreateExchangeInput {
   bookId: string
   message: string
+}
+
+export type BookReportReason = 'incorrect' | 'unavailable' | 'inappropriate' | 'other'
+
+export interface CreateBookReportInput {
+  bookId: string
+  reason: BookReportReason
+  details?: string
 }
 
 export interface BookWithDistance extends Book {

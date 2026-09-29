@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuthState'
 import { APP_NAME } from '../lib/constants'
-import { GsapMorphText } from './GsapMorphText'
 import { Button } from './Button'
 import { GradientButton } from './GradientButton'
 import { MobileMenu } from './MobileMenu'
@@ -47,22 +46,20 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
     <>
       <header
         className={clsx(
-          'fixed left-0 right-0 top-0 z-50 transition-all duration-300',
+          'fixed left-0 right-0 top-0 z-50 transition-[background-color,border-color] duration-200',
           scrolled || variant === 'app'
-            ? 'border-b border-glass bg-dark/80 backdrop-blur-xl'
+            ?             'border-b border-glass/10 bg-dark/85 shadow-[0_8px_28px_rgb(0_0_0_/_0.12)] backdrop-blur-xl'
             : 'bg-transparent',
         )}
       >
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8 lg:px-16">
-          <Link to="/" className="flex items-center gap-2 font-bold text-text-primary">
-            <BookOpen className="h-6 w-6 shrink-0 text-accent-yellow" />
-            <GsapMorphText
-              text={APP_NAME}
-              splitBy="word"
-              reveal="none"
-              morph
-              className="hidden text-sm font-black uppercase tracking-tighter sm:inline sm:text-base"
-            />
+          <Link to="/" className="flex items-center gap-2.5 font-bold text-text-primary">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-accent-yellow/20 bg-accent-yellow/10">
+              <BookOpen className="h-5 w-5 text-accent-yellow" />
+            </span>
+            <span className="hidden text-sm font-black tracking-[-0.045em] sm:inline sm:text-base">
+              {APP_NAME}
+            </span>
           </Link>
 
           {variant === 'landing' && (
@@ -73,14 +70,14 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
                     <button
                       type="button"
                       onClick={() => navigate('/app/add-book')}
-                      className="text-sm text-text-muted transition-all duration-500 ease-awwwards hover:text-text-primary hover:underline hover:decoration-accent-yellow hover:underline-offset-4"
+                      className="text-sm text-text-muted transition-colors duration-150 hover:text-text-primary hover:underline hover:decoration-accent-yellow hover:underline-offset-4"
                     >
                       {link.label}
                     </button>
                   ) : (
                     <a
                       href={link.href}
-                      className="text-sm text-text-muted transition-all duration-500 ease-awwwards hover:text-text-primary hover:underline hover:decoration-accent-yellow hover:underline-offset-4"
+                      className="text-sm text-text-muted transition-colors duration-150 hover:text-text-primary hover:underline hover:decoration-accent-yellow hover:underline-offset-4"
                     >
                       {link.label}
                     </a>
@@ -90,31 +87,13 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
             </ul>
           )}
 
-          {variant === 'app' && user && (
-            <ul className="hidden items-center gap-4 lg:flex">
-              <li>
-                <Link to="/app/add-book" className="text-sm text-text-muted hover:text-accent-yellow">
-                  Đăng sách
-                </Link>
-              </li>
-              <li>
-                <Link to="/app/nearby" className="text-sm text-text-muted hover:text-accent-yellow">
-                  Sách gần bạn
-                </Link>
-              </li>
-              <li>
-                <Link to="/app/my-books" className="text-sm text-text-muted hover:text-accent-yellow">
-                  Sách của tôi
-                </Link>
-              </li>
-            </ul>
-          )}
-
           <div className="hidden items-center gap-3 md:flex">
             {user ? (
               <>
-                <span className="text-sm font-medium text-text-primary">{user.fullName}</span>
-                <Button variant="ghost" size="sm" onClick={() => void handleLogout()}>
+                <Link to="/app/profile" className="max-w-40 truncate text-sm font-medium text-text-primary transition-colors hover:text-accent-yellow">
+                  {user.fullName}
+                </Link>
+                <Button variant="ghost" size="sm" className="whitespace-nowrap" onClick={() => void handleLogout()}>
                   Đăng xuất
                 </Button>
                 <GradientButton
@@ -127,7 +106,7 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
             ) : (
               <>
                 <Link to="/login">
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" className="whitespace-nowrap">
                     <LogIn className="h-4 w-4" />
                     Đăng nhập
                   </Button>
@@ -140,7 +119,7 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
           </div>
 
           <button
-            className="md:hidden rounded-lg p-2 text-text-primary hover:bg-white/10"
+            className="rounded-xl border border-glass/10 bg-[rgb(var(--color-interactive-surface)/.75)] p-2 text-text-primary transition-colors hover:bg-[rgb(var(--color-interactive-hover)/.9)] md:hidden"
             onClick={() => setMobileOpen(true)}
             aria-label="Mở menu"
           >

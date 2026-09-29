@@ -1,0 +1,24 @@
+{
+  "name": "Knowledge for All — Tri thức không biên giới",
+  "short_name": "Knowledge for All",
+  "description": "Khám phá, cho mượn và trao đổi sách quanh bạn.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0C0C0C",
+  "theme_color": "#0C0C0C",
+  "icons": [
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

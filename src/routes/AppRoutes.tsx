@@ -13,6 +13,9 @@ const AddBookPage = lazy(() => import('../pages/AddBookPage').then((m) => ({ def
 const NearbyPage = lazy(() => import('../pages/NearbyPage').then((m) => ({ default: m.NearbyPage })))
 const MyBooksPage = lazy(() => import('../pages/MyBooksPage').then((m) => ({ default: m.MyBooksPage })))
 const ProfilePage = lazy(() => import('../pages/ProfilePage').then((m) => ({ default: m.ProfilePage })))
+const SettingsPage = lazy(() => import('../pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
+const BookDetailsPage = lazy(() => import('../pages/BookDetailsPage').then((m) => ({ default: m.BookDetailsPage })))
+const EditBookPage = lazy(() => import('../pages/EditBookPage').then((m) => ({ default: m.EditBookPage })))
 
 function Loading() {
   return (
@@ -98,6 +101,30 @@ export function AppRoutes() {
               element={
                 <PageTransition>
                   <ProfilePage />
+                </PageTransition>
+              }
+            />
+            <Route
+              path="settings"
+              element={
+                <PageTransition>
+                  <SettingsPage />
+                </PageTransition>
+              }
+            />
+            <Route
+              path="books/:id"
+              element={
+                <PageTransition>
+                  <BookDetailsPage />
+                </PageTransition>
+              }
+            />
+            <Route
+              path="my-books/:id/edit"
+              element={
+                <PageTransition>
+                  <EditBookPage />
                 </PageTransition>
               }
             />

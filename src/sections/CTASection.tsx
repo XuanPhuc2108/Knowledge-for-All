@@ -11,24 +11,14 @@ export function CTASection() {
   return (
     <section className="relative overflow-hidden px-5 py-20 sm:px-8 md:py-32 lg:px-16">
       <div
-        className="absolute inset-0 opacity-50"
-        style={{
-          background: 'linear-gradient(135deg, rgba(251,191,36,0.2), rgba(139,92,246,0.2), rgba(45,212,191,0.2))',
-        }}
-        aria-hidden="true"
-      />
-      <div
-        className="absolute inset-0 animate-shine opacity-30"
-        style={{
-          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
-          backgroundSize: '200% 100%',
-        }}
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[26rem] w-[min(90vw,48rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent-yellow/[0.08] blur-3xl"
         aria-hidden="true"
       />
 
-      <FadeIn className="relative z-10 mx-auto max-w-3xl text-center">
+      <FadeIn className="glass-card relative z-10 mx-auto max-w-4xl rounded-[2rem] px-5 py-12 text-center sm:px-10 sm:py-16">
+        <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-accent-yellow">CÙNG LAN TỎA TRI THỨC</p>
         <h2
-          className="mb-8 font-black text-text-primary"
+          className="mx-auto mb-8 max-w-3xl font-black tracking-tight text-text-primary"
           style={{ fontSize: 'clamp(2.5rem, 7vw, 4rem)' }}
         >
           Sẵn sàng chia sẻ quyển sách đầu tiên?

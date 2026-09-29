@@ -1,11 +1,8 @@
 import clsx from 'clsx'
-import { Mail, MapPin, Phone } from 'lucide-react'
-import { motion } from 'framer-motion'
-import { useCallback, useRef } from 'react'
+import { Heart, Mail, MapPin, Phone } from 'lucide-react'
 import { CONDITION_LABELS, EXCHANGE_LABELS, STATUS_LABELS } from '../lib/constants'
 import { formatDistance } from '../lib/geo'
 import { ILLUSTRATIONS } from '../lib/images'
-import { useReducedMotion } from '../hooks/useReducedMotion'
 import type { BookWithDistance } from '../types/book'
 import { Button } from './Button'
 import { ImageWithSkeleton } from './ImageWithSkeleton'
@@ -15,6 +12,8 @@ interface BookCardProps {
   onAction?: () => void
   actionLabel?: string
   compact?: boolean
+  isFavorite?: boolean
+  onFavorite?: () => void
 }
 
 export function BookCard({
@@ -22,56 +21,45 @@ export function BookCard({
   onAction,
   actionLabel = 'Xem chi tiết',
   compact,
+  isFavorite = false,
+  onFavorite,
 }: BookCardProps) {
-  const cardRef = useRef<HTMLDivElement>(null)
-  const reduced = useReducedMotion()
-  const isTouch = typeof window !== 'undefined' && 'ontouchstart' in window
-
-  const handleMove = useCallback(
-    (e: React.MouseEvent) => {
-      if (reduced || isTouch || !cardRef.current) return
-      const rect = cardRef.current.getBoundingClientRect()
-      const x = (e.clientX - rect.left) / rect.width - 0.5
-      const y = (e.clientY - rect.top) / rect.height - 0.5
-      cardRef.current.style.transform = `perspective(800px) rotateX(${-y * 6}deg) rotateY(${x * 6}deg) scale(1.02)`
-    },
-    [reduced, isTouch],
-  )
-
-  const handleLeave = useCallback(() => {
-    if (!cardRef.current) return
-    cardRef.current.style.transform = 'perspective(800px) rotateX(0) rotateY(0) scale(1)'
-  }, [])
-
   const imageUrl = book.imageUrls[0]?.trim() || ILLUSTRATIONS.defaultCover
 
   return (
-    <motion.article
-      ref={cardRef}
-      onMouseMove={handleMove}
-      onMouseLeave={handleLeave}
+    <article
       className={clsx(
-        'glass-card group overflow-hidden rounded-card border border-white/10 transition-all duration-300 ease-out lg:rounded-card-lg',
-        'hover:-translate-y-1 hover:scale-[1.02] hover:border-amber-400/40 hover:shadow-2xl hover:shadow-amber-500/10 hover:ring-1 hover:ring-amber-400/20',
+        'glass-card group overflow-hidden rounded-card transition-[border-color,box-shadow,transform] duration-200 ease-out lg:rounded-card-lg',
+        'hover:-translate-y-1 hover:border-amber-400/30 hover:shadow-[0_24px_58px_rgb(0_0_0_/_0.2)]',
         compact ? 'w-[220px]' : 'w-full',
       )}
-      style={{ willChange: reduced ? undefined : 'transform' }}
     >
-      <div className="relative aspect-[3/4] overflow-hidden bg-white/5">
+      <div className="relative aspect-[3/4] overflow-hidden bg-[rgb(var(--color-interactive-surface)/.8)]">
         <ImageWithSkeleton
           src={imageUrl}
           fallbackSrc={ILLUSTRATIONS.defaultCover}
           alt={`Bìa sách ${book.title}`}
           loading="lazy"
           wrapperClassName="h-full w-full"
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.035]"
         />
-        <span className="absolute left-3 top-3 rounded-full bg-accent-purple/90 px-3 py-1 text-xs font-semibold text-white">
+        <span className="absolute left-3 top-3 rounded-full border border-accent-yellow/20 bg-dark/80 px-3 py-1 text-xs font-semibold text-accent-yellow backdrop-blur-md">
           {EXCHANGE_LABELS[book.exchangeType]}
         </span>
         <span className="absolute right-3 top-3 rounded-full bg-dark/70 px-2 py-1 text-xs text-text-primary backdrop-blur-sm">
           {STATUS_LABELS[book.status]}
         </span>
+        {onFavorite && (
+          <button
+            type="button"
+            aria-label={isFavorite ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}
+            aria-pressed={isFavorite}
+            onClick={(event) => { event.stopPropagation(); onFavorite() }}
+            className="absolute bottom-3 right-3 rounded-full bg-dark/75 p-2 text-text-primary backdrop-blur-sm hover:text-accent-rose focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow"
+          >
+            <Heart className={`h-4 w-4 ${isFavorite ? 'fill-accent-rose text-accent-rose' : ''}`} />
+          </button>
+        )}
       </div>
 
       <div className="p-4">
@@ -80,8 +68,8 @@ export function BookCard({
           <p className="mb-2 text-sm text-text-muted">{book.author}</p>
         )}
         <div className="mb-3 flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full bg-white/10 px-2 py-0.5">{book.category}</span>
-          <span className="rounded-full bg-white/10 px-2 py-0.5">
+          <span className="rounded-full bg-[rgb(var(--color-interactive-surface)/.9)] px-2.5 py-1 text-text-muted">{book.category}</span>
+          <span className="rounded-full bg-[rgb(var(--color-interactive-surface)/.9)] px-2.5 py-1 text-text-muted">
             {CONDITION_LABELS[book.condition]}
           </span>
         </div>
@@ -93,7 +81,7 @@ export function BookCard({
           </p>
         )}
         {!compact && (book.contactPhone || book.contactEmail) && (
-          <div className="mb-3 space-y-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-text-muted">
+          <div className="mb-3 space-y-1 rounded-xl border border-glass/10 bg-[rgb(var(--color-interactive-surface)/.65)] px-3 py-2 text-xs text-text-muted">
             <p className="font-medium text-text-primary">Liên hệ người đăng</p>
             {book.contactPhone && (
               <a href={`tel:${book.contactPhone}`} className="flex items-center gap-1.5 hover:text-accent-yellow">
@@ -115,6 +103,6 @@ export function BookCard({
           </Button>
         )}
       </div>
-    </motion.article>
+    </article>
   )
 }

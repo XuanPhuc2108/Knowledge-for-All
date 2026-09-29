@@ -27,7 +27,7 @@ export function ImageWithSkeleton({
     <span className={clsx('relative block overflow-hidden', wrapperClassName)}>
       {!loaded && (
         <span
-          className={clsx('absolute inset-0 animate-pulse bg-white/5', skeletonClassName)}
+          className={clsx('absolute inset-0 animate-pulse bg-[rgb(var(--color-interactive-surface)/.75)]', skeletonClassName)}
           aria-hidden="true"
         />
       )}

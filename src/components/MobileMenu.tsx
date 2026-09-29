@@ -31,7 +31,7 @@ export function MobileMenu({ open, onClose, user, onLogout, variant }: MobileMen
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] bg-dark/80 backdrop-blur-sm md:hidden"
+            className="fixed inset-0 z-[60] bg-dark/75 backdrop-blur-md md:hidden"
             onClick={onClose}
           />
           <motion.div
@@ -39,23 +39,23 @@ export function MobileMenu({ open, onClose, user, onLogout, variant }: MobileMen
             animate={{ y: 0 }}
             exit={{ y: '-100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed left-0 right-0 top-0 z-[70] border-b border-glass bg-dark-secondary p-6 md:hidden"
+            className="fixed left-0 right-0 top-0 z-[70] rounded-b-3xl border-b border-glass/10 bg-dark-secondary p-5 shadow-[0_24px_70px_rgb(0_0_0_/_0.3)] md:hidden"
           >
             <div className="mb-6 flex items-center justify-between">
               <span className="font-bold text-text-primary">Menu</span>
-              <button onClick={onClose} aria-label="Đóng menu" className="rounded-lg p-2 hover:bg-white/10">
+              <button onClick={onClose} aria-label="Đóng menu" className="rounded-xl bg-[rgb(var(--color-interactive-surface)/.8)] p-2 transition-colors hover:bg-[rgb(var(--color-interactive-hover)/.9)]">
                 <X className="h-6 w-6" />
               </button>
             </div>
 
-            <ul className="space-y-4">
+            <ul className="space-y-1.5">
               {variant === 'landing' &&
                 LANDING_LINKS.map((link) => (
                   <li key={link.href}>
                     <a
                       href={link.href}
                       onClick={onClose}
-                      className="block text-lg text-text-muted hover:text-text-primary"
+                      className="block rounded-xl px-3 py-2.5 text-base text-text-muted transition-colors hover:bg-[rgb(var(--color-interactive-surface)/.8)] hover:text-text-primary"
                     >
                       {link.label}
                     </a>
@@ -64,25 +64,30 @@ export function MobileMenu({ open, onClose, user, onLogout, variant }: MobileMen
 
               {user && (
                 <>
-                  <li className="text-sm font-medium text-accent-yellow">{user.fullName}</li>
+                  <li className="mb-2 border-b border-glass/10 px-3 pb-3 text-sm font-semibold text-accent-yellow">{user.fullName}</li>
                   <li>
-                    <Link to="/app/add-book" onClick={onClose} className="block text-text-muted">
+                    <Link to="/app/add-book" onClick={onClose} className="block rounded-xl px-3 py-2.5 text-sm text-text-muted transition-colors hover:bg-[rgb(var(--color-interactive-surface)/.8)] hover:text-text-primary">
                       Đăng sách
                     </Link>
                   </li>
                   <li>
-                    <Link to="/app/nearby" onClick={onClose} className="block text-text-muted">
+                    <Link to="/app/nearby" onClick={onClose} className="block rounded-xl px-3 py-2.5 text-sm text-text-muted transition-colors hover:bg-[rgb(var(--color-interactive-surface)/.8)] hover:text-text-primary">
                       Sách gần bạn
                     </Link>
                   </li>
                   <li>
-                    <Link to="/app/my-books" onClick={onClose} className="block text-text-muted">
+                    <Link to="/app/my-books" onClick={onClose} className="block rounded-xl px-3 py-2.5 text-sm text-text-muted transition-colors hover:bg-[rgb(var(--color-interactive-surface)/.8)] hover:text-text-primary">
                       Sách của tôi
                     </Link>
                   </li>
                   <li>
-                    <Link to="/app/profile" onClick={onClose} className="block text-text-muted">
+                    <Link to="/app/profile" onClick={onClose} className="block rounded-xl px-3 py-2.5 text-sm text-text-muted transition-colors hover:bg-[rgb(var(--color-interactive-surface)/.8)] hover:text-text-primary">
                       Hồ sơ
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/app/settings" onClick={onClose} className="block rounded-xl px-3 py-2.5 text-sm text-text-muted transition-colors hover:bg-[rgb(var(--color-interactive-surface)/.8)] hover:text-text-primary">
+                      Cài đặt
                     </Link>
                   </li>
                 </>

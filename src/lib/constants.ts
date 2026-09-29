@@ -28,8 +28,8 @@ export const EXCHANGE_LABELS: Record<string, string> = {
 
 export const STATUS_LABELS: Record<string, string> = {
   available: 'Có sẵn',
-  reserved: 'Đã đặt',
-  shared: 'Đã chia sẻ',
+  loaned: 'Đang cho mượn',
+  exchanged: 'Đã trao đổi',
 }
 
 export const RADIUS_OPTIONS = [

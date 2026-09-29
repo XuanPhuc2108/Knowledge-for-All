@@ -60,7 +60,7 @@ export function LoginPage() {
             name="email"
             type="email"
             required
-            className="w-full rounded-xl border border-glass bg-white/5 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent-yellow"
+            className="field-control px-4 py-3 text-sm"
           />
           {errors.email && <p className="mt-1 text-xs text-accent-rose">{errors.email}</p>}
         </div>
@@ -71,7 +71,7 @@ export function LoginPage() {
             name="password"
             type="password"
             required
-            className="w-full rounded-xl border border-glass bg-white/5 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent-yellow"
+            className="field-control px-4 py-3 text-sm"
           />
           {errors.password && <p className="mt-1 text-xs text-accent-rose">{errors.password}</p>}
         </div>

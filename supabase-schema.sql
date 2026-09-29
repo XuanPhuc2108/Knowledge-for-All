@@ -5,6 +5,13 @@ create table if not exists profiles (
   full_name text not null,
   email text not null,
   avatar_url text,
+  bio text,
+  contact_phone text,
+  contact_email text,
+  area_label text,
+  show_contact_phone boolean not null default false,
+  show_contact_email boolean not null default false,
+  show_area boolean not null default false,
   latitude double precision,
   longitude double precision,
   location_accuracy double precision,
@@ -16,6 +23,7 @@ create table if not exists profiles (
 create table if not exists books (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid references profiles(id) on delete cascade not null,
+  owner_name text not null,
   title text not null,
   author text,
   category text not null,
@@ -27,7 +35,7 @@ create table if not exists books (
   longitude double precision,
   contact_phone text,
   contact_email text,
-  status text default 'available' check (status in ('available', 'reserved', 'shared')),
+  status text not null default 'available' check (status in ('available', 'loaned', 'exchanged')),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -61,14 +69,33 @@ create table if not exists messages (
   created_at timestamptz default now()
 );
 
+create table if not exists book_favorites (
+  user_id uuid references profiles(id) on delete cascade not null,
+  book_id uuid references books(id) on delete cascade not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, book_id)
+);
+
+create table if not exists book_reports (
+  id uuid primary key default gen_random_uuid(),
+  reporter_id uuid references profiles(id) on delete cascade not null,
+  book_id uuid references books(id) on delete cascade not null,
+  reason text not null check (reason in ('incorrect', 'unavailable', 'inappropriate', 'other')),
+  details text check (details is null or char_length(details) <= 1000),
+  created_at timestamptz not null default now(),
+  constraint book_reports_one_per_user unique (reporter_id, book_id)
+);
+
 alter table profiles enable row level security;
 alter table books enable row level security;
 alter table exchange_requests enable row level security;
 alter table chats enable row level security;
 alter table messages enable row level security;
+alter table book_favorites enable row level security;
+alter table book_reports enable row level security;
 
-create policy "Profiles are viewable by everyone"
-  on profiles for select using (true);
+create policy "Users can view own profile"
+  on profiles for select using (auth.uid() = id);
 
 create policy "Users can update own profile"
   on profiles for update using (auth.uid() = id);
@@ -135,6 +162,64 @@ create policy "Participants can insert messages"
         and (auth.uid() = chats.requester_id or auth.uid() = chats.owner_id)
     )
   );
+
+create policy "Users can view own book favorites"
+  on book_favorites for select using (auth.uid() = user_id);
+
+create policy "Users can save own book favorites"
+  on book_favorites for insert with check (auth.uid() = user_id);
+
+create policy "Users can remove own book favorites"
+  on book_favorites for delete using (auth.uid() = user_id);
+
+create policy "Users can view own book reports"
+  on book_reports for select using (auth.uid() = reporter_id);
+
+create policy "Users can report other users books"
+  on book_reports for insert with check (
+    auth.uid() = reporter_id
+    and exists (
+      select 1 from books
+      where books.id = book_id and books.owner_id <> auth.uid()
+    )
+  );
+
+create or replace view public_profiles with (security_barrier = true) as
+select
+  id,
+  full_name,
+  avatar_url,
+  case when show_area then area_label else null end as area_label,
+  case when show_contact_phone then contact_phone else null end as contact_phone,
+  case when show_contact_email then contact_email else null end as contact_email
+from profiles;
+
+grant select on public_profiles to anon, authenticated;
+grant select, insert, delete on book_favorites to authenticated;
+grant select, insert on book_reports to authenticated;
+
+create or replace function public.delete_my_account()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  current_user_id uuid := auth.uid();
+begin
+  if current_user_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  delete from auth.users where id = current_user_id;
+  if not found then
+    raise exception 'Account not found';
+  end if;
+end;
+$$;
+
+revoke all on function public.delete_my_account() from public;
+grant execute on function public.delete_my_account() to authenticated;
 
 create or replace function update_chat_timestamp_on_message()
 returns trigger

@@ -14,60 +14,17 @@ import { APP_NAME, APP_TAGLINE } from '../lib/constants'
 import { ILLUSTRATIONS } from '../lib/images'
 
 const ABSTRACT_CARDS = [
-  { icon: BookOpen, color: 'from-accent-yellow to-accent-orange', rotate: '-12deg', z: 0 },
-  { icon: Camera, color: 'from-accent-rose to-accent-purple', rotate: '8deg', z: 1 },
-  { icon: MapPin, color: 'from-accent-blue to-accent-teal', rotate: '-6deg', z: 2 },
-  { icon: Users, color: 'from-accent-purple to-accent-rose', rotate: '-4deg', z: 4 },
+  { icon: BookOpen, rotate: '-12deg' },
+  { icon: Camera, rotate: '8deg' },
+  { icon: MapPin, rotate: '-6deg' },
+  { icon: Users, rotate: '-4deg' },
 ]
 
 export function HeroSection() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const reduced = useReducedMotion()
-  const blobRef = useRef<HTMLDivElement>(null)
-  const subtitleRef = useRef<HTMLParagraphElement>(null)
   const visualRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (reduced || !blobRef.current) return
-    if (window.matchMedia('(pointer: coarse)').matches) return
-    const blobs = blobRef.current.querySelectorAll('.hero-blob')
-    let frame = 0
-    const onMove = (e: MouseEvent) => {
-      if (frame) return
-      frame = requestAnimationFrame(() => {
-        frame = 0
-        const x = (e.clientX / window.innerWidth - 0.5) * 30
-        const y = (e.clientY / window.innerHeight - 0.5) * 30
-        blobs.forEach((blob, i) => {
-          gsap.to(blob, {
-            x: x * (i + 1) * 0.3,
-            y: y * (i + 1) * 0.3,
-            duration: 0.8,
-            ease: 'power2.out',
-            overwrite: 'auto',
-          })
-        })
-      })
-    }
-    window.addEventListener('mousemove', onMove, { passive: true })
-    return () => {
-      window.removeEventListener('mousemove', onMove)
-      if (frame) cancelAnimationFrame(frame)
-    }
-  }, [reduced])
-
-  useEffect(() => {
-    if (reduced || !subtitleRef.current) return
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        subtitleRef.current,
-        { backgroundPosition: '0% center' },
-        { backgroundPosition: '200% center', duration: 5, ease: 'none', repeat: -1 },
-      )
-    })
-    return () => ctx.revert()
-  }, [reduced])
 
   useEffect(() => {
     if (reduced || !visualRef.current) return
@@ -89,10 +46,10 @@ export function HeroSection() {
 
   return (
     <section className="main-wrapper relative flex min-h-[100svh] items-center overflow-x-clip bg-hero-mesh px-5 pt-24 sm:px-8 lg:px-16">
-      <div ref={blobRef} className="pointer-events-none absolute inset-0" aria-hidden="true">
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
         <div className="hero-blob absolute -left-20 top-20 h-72 w-72 rounded-full bg-accent-yellow/20 blur-3xl" />
-        <div className="hero-blob absolute -right-20 top-32 h-80 w-80 rounded-full bg-accent-purple/20 blur-3xl" />
-        <div className="hero-blob absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-accent-teal/15 blur-3xl" />
+        <div className="hero-blob absolute -right-20 top-32 h-80 w-80 rounded-full bg-accent-yellow/[0.08] blur-3xl" />
+        <div className="hero-blob absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-white/[0.035] blur-3xl" />
       </div>
 
       <div
@@ -108,17 +65,7 @@ export function HeroSection() {
       <div className="relative z-10 mx-auto grid w-full max-w-7xl items-center gap-12 lg:grid-cols-2">
         <div>
           <FadeIn delay={0.1} y={20}>
-            <p
-              ref={subtitleRef}
-              className="mb-4 text-sm font-semibold uppercase tracking-widest"
-              style={{
-                background: 'linear-gradient(90deg, #A8A29E, #FFD84D, #FFFFFF, #C0C0C0, #A8A29E)',
-                backgroundSize: '200% auto',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
+            <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-accent-yellow/90">
               {APP_TAGLINE}
             </p>
           </FadeIn>
@@ -126,10 +73,9 @@ export function HeroSection() {
           <GsapMorphText
             as="h1"
             text={APP_NAME}
-            splitBy="char"
+            splitBy="word"
             reveal="mount"
-            morph
-            wave
+            morph={false}
             className="mb-6 block font-black uppercase leading-[0.92] tracking-tighter text-[clamp(2.5rem,9vw,6rem)]"
           />
 
@@ -165,7 +111,7 @@ export function HeroSection() {
               <img
                 src={ILLUSTRATIONS.heroBooks}
                 alt="Thư viện sách"
-                className="hero-card absolute left-1/2 top-1/2 h-56 w-44 -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/10 object-cover shadow-2xl shadow-accent-yellow/20"
+                className="hero-card absolute left-1/2 top-1/2 h-56 w-44 -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-glass/20 object-cover shadow-[0_32px_80px_rgb(0_0_0_/_0.42)]"
                 style={{ transform: 'translate(-50%, -50%) rotate(-3deg)' }}
                 loading="eager"
               />
@@ -183,10 +129,10 @@ export function HeroSection() {
                   <div key={i} className="hero-card absolute" style={pos}>
                     <Magnetic strength={6} padding={80}>
                       <div
-                        className={`flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-2xl bg-gradient-to-br ${card.color} p-3 shadow-xl ring-1 ring-white/20`}
+                        className="flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-2xl border border-accent-yellow/20 bg-[rgb(var(--color-dark-secondary)/.94)] p-3 text-accent-yellow shadow-[0_16px_40px_rgb(0_0_0_/_0.25)]"
                         style={{ transform: `rotate(${card.rotate})` }}
                       >
-                        <Icon className="h-6 w-6 text-white drop-shadow" />
+                        <Icon className="h-6 w-6" />
                       </div>
                     </Magnetic>
                   </div>

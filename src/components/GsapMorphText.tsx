@@ -7,7 +7,7 @@ import { useReducedMotion } from '../hooks/useReducedMotion'
 gsap.registerPlugin(ScrollTrigger)
 
 const GRADIENT =
-  'linear-gradient(90deg, #FFF7CC 0%, #FFD84D 20%, #FFFFFF 40%, #C0C0C0 60%, #B7791F 80%, #FFF7CC 100%)'
+  'linear-gradient(90deg, #FFE9A3 0%, #FFD84D 38%, #D6A62E 72%, #FFE9A3 100%)'
 
 const GRADIENT_STYLE = {
   background: GRADIENT,
@@ -118,7 +118,7 @@ export function GsapMorphText({
             style={{
               transformOrigin: '50% 100%',
               transformStyle: 'preserve-3d',
-              ...(morph ? GRADIENT_STYLE : { color: '#F7F2E8' }),
+              ...(morph ? GRADIENT_STYLE : { color: 'rgb(var(--color-text-primary))' }),
             }}
           >
             {part}

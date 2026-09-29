@@ -4,12 +4,12 @@ export default {
   theme: {
     extend: {
       colors: {
-        dark: '#0C0C0C',
-        'dark-secondary': '#141414',
-        cream: '#1A1814',
-        glass: 'rgba(255,255,255,0.12)',
-        'text-primary': '#F7F2E8',
-        'text-muted': '#A8A29E',
+        dark: 'rgb(var(--color-dark) / <alpha-value>)',
+        'dark-secondary': 'rgb(var(--color-dark-secondary) / <alpha-value>)',
+        cream: 'rgb(var(--color-cream) / <alpha-value>)',
+        glass: 'rgb(var(--color-glass) / <alpha-value>)',
+        'text-primary': 'rgb(var(--color-text-primary) / <alpha-value>)',
+        'text-muted': 'rgb(var(--color-text-muted) / <alpha-value>)',
         'accent-yellow': '#FBBF24',
         'accent-orange': '#F97316',
         'accent-rose': '#FB7185',
@@ -63,7 +63,7 @@ export default {
       },
       backgroundImage: {
         'hero-mesh':
-          'radial-gradient(ellipse 80% 50% at 20% 40%, rgba(251,191,36,0.15), transparent), radial-gradient(ellipse 60% 40% at 80% 20%, rgba(139,92,246,0.12), transparent), radial-gradient(ellipse 50% 50% at 50% 80%, rgba(45,212,191,0.1), transparent)',
+          'radial-gradient(ellipse 80% 50% at 18% 40%, rgba(251,191,36,0.13), transparent), radial-gradient(ellipse 60% 40% at 84% 18%, rgba(255,255,255,0.055), transparent), radial-gradient(ellipse 50% 50% at 52% 90%, rgba(251,191,36,0.045), transparent)',
       },
     },
   },

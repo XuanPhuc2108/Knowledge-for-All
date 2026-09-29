@@ -100,6 +100,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const deleteAccount = useCallback(async () => {
+    if (!user) throw new Error('Chưa đăng nhập')
+    await getAdapter().deleteAccount(user.id)
+    setUser(null)
+    setError(null)
+  }, [user])
+
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    if (!user) throw new Error('Chưa đăng nhập')
+    await getAdapter().changePassword(user.id, currentPassword, newPassword)
+  }, [user])
+
   const updateProfile = useCallback(async (data: Partial<UserProfile>) => {
     if (!user) throw new Error('Chưa đăng nhập')
     const updated = await getAdapter().updateProfile(user.id, data)
@@ -107,8 +119,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, error, register, login, logout, updateProfile, refreshUser }),
-    [user, loading, error, register, login, logout, updateProfile, refreshUser],
+    () => ({ user, loading, error, register, login, logout, deleteAccount, changePassword, updateProfile, refreshUser }),
+    [user, loading, error, register, login, logout, deleteAccount, changePassword, updateProfile, refreshUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

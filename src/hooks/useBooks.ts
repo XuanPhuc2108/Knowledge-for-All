@@ -54,6 +54,7 @@ export function useBooks(limit?: number) {
 export function useMyBooks(userId: string | undefined) {
   const [books, setBooks] = useState<Book[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadedOwnerId, setLoadedOwnerId] = useState<string | undefined>()
   const [error, setError] = useState<string | null>(null)
 
   const fetchMyBooks = useCallback(
@@ -67,10 +68,15 @@ export function useMyBooks(userId: string | undefined) {
       .then((data) => {
         if (cancelled) return
         setBooks(data)
+        setLoadedOwnerId(userId)
         setError(null)
       })
       .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Không thể tải sách của bạn')
+        if (!cancelled) {
+          setBooks([])
+          setLoadedOwnerId(userId)
+          setError(e instanceof Error ? e.message : 'Không thể tải sách của bạn')
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -78,20 +84,23 @@ export function useMyBooks(userId: string | undefined) {
     return () => {
       cancelled = true
     }
-  }, [fetchMyBooks])
+  }, [fetchMyBooks, userId])
 
   const refetch = useCallback(async () => {
     setLoading(true)
     try {
       const data = await fetchMyBooks()
       setBooks(data)
+      setLoadedOwnerId(userId)
       setError(null)
     } catch (e) {
+      setBooks([])
+      setLoadedOwnerId(userId)
       setError(e instanceof Error ? e.message : 'Không thể tải sách của bạn')
     } finally {
       setLoading(false)
     }
-  }, [fetchMyBooks])
+  }, [fetchMyBooks, userId])
 
   const createBook = async (ownerName: string, input: CreateBookInput) => {
     if (!userId) throw new Error('Chưa đăng nhập')
@@ -113,7 +122,16 @@ export function useMyBooks(userId: string | undefined) {
     setBooks((prev) => prev.filter((b) => b.id !== id))
   }
 
-  return { books, loading, error, refetch, createBook, updateBook, deleteBook }
+  const ownsLoadedBooks = loadedOwnerId === userId
+  return {
+    books: userId && ownsLoadedBooks ? books : [],
+    loading: Boolean(userId) && (loading || !ownsLoadedBooks),
+    error: ownsLoadedBooks ? error : null,
+    refetch,
+    createBook,
+    updateBook,
+    deleteBook,
+  }
 }
 
 export function useNearbyBooks(

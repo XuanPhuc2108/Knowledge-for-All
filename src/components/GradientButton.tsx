@@ -1,5 +1,4 @@
 import clsx from 'clsx'
-import { motion } from 'framer-motion'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -14,24 +13,16 @@ interface GradientButtonProps {
 }
 
 const gradientClasses = clsx(
-  'group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full px-6 py-3 text-sm font-semibold text-dark shadow-lg transition-shadow',
-  'bg-gradient-to-br from-accent-yellow via-accent-rose to-accent-purple',
-  'hover:shadow-accent-yellow/25 disabled:cursor-not-allowed disabled:opacity-50',
+  'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-accent-yellow px-5 py-2.5 text-sm font-bold tracking-[-0.01em] text-[#242117] shadow-[0_5px_18px_rgb(251_191_36_/_0.12)] transition-[background-color,transform,box-shadow] duration-200',
+  'hover:-translate-y-0.5 hover:bg-amber-300 hover:shadow-[0_8px_24px_rgb(251_191_36_/_0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-dark',
+  'disabled:cursor-not-allowed disabled:opacity-50',
 )
-
-const gradientStyle = {
-  background: 'linear-gradient(123deg,#FBBF24 0%,#FB7185 32%,#8B5CF6 65%,#2DD4BF 100%)',
-}
 
 function ButtonContent({ icon, children }: { icon?: ReactNode; children: ReactNode }) {
   return (
     <>
-      <span
-        className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-full"
-        aria-hidden="true"
-      />
       {icon}
-      <span className="relative z-10">{children}</span>
+      <span>{children}</span>
     </>
   )
 }
@@ -47,25 +38,20 @@ export function GradientButton({
 }: GradientButtonProps) {
   if (href && !disabled) {
     return (
-      <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }} className={clsx('inline-flex', className)}>
-        <Link to={href} className={clsx(gradientClasses, 'w-full')} style={gradientStyle}>
-          <ButtonContent icon={icon}>{children}</ButtonContent>
-        </Link>
-      </motion.div>
+      <Link to={href} className={clsx(gradientClasses, 'w-full', className)}>
+        <ButtonContent icon={icon}>{children}</ButtonContent>
+      </Link>
     )
   }
 
   return (
-    <motion.button
+    <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      whileHover={{ scale: disabled ? 1 : 1.03 }}
-      whileTap={{ scale: disabled ? 1 : 0.98 }}
       className={clsx(gradientClasses, className)}
-      style={gradientStyle}
     >
       <ButtonContent icon={icon}>{children}</ButtonContent>
-    </motion.button>
+    </button>
   )
 }

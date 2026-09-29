@@ -1,104 +1,162 @@
-import { LocateFixed, Shield } from 'lucide-react'
-import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { BookCard } from '../components/BookCard'
+import { EmptyState } from '../components/EmptyState'
 import { Button } from '../components/Button'
-import { GradientButton } from '../components/GradientButton'
-import { useToast } from '../hooks/useToast'
 import { useAuth } from '../hooks/useAuthState'
-import { useGeolocation } from '../hooks/useGeolocation'
+import { useMyBooks } from '../hooks/useBooks'
 import { getAdapterMode } from '../lib/dataAdapter'
 
 export function ProfilePage() {
-  const { user, updateProfile } = useAuth()
-  const { requestLocation, loading: geoLoading } = useGeolocation()
-  const { showToast } = useToast()
-  const [fullName, setFullName] = useState(user?.fullName ?? '')
-  const [saving, setSaving] = useState(false)
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const { books, loading, error } = useMyBooks(user?.id)
 
   if (!user) return null
 
-  const handleSaveName = async () => {
-    setSaving(true)
-    try {
-      await updateProfile({ fullName: fullName.trim() })
-      showToast('Đã cập nhật hồ sơ', 'success')
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Cập nhật thất bại', 'error')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleToggleLocation = async () => {
-    if (user.locationEnabled) {
-      await updateProfile({ locationEnabled: false })
-      showToast('Đã tắt định vị', 'info')
-      return
-    }
-    try {
-      const pos = await requestLocation()
-      await updateProfile({
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-        locationAccuracy: pos.coords.accuracy,
-        locationEnabled: true,
-      })
-      showToast('Đã bật định vị', 'success')
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Không thể bật định vị', 'error')
-    }
-  }
+  const loanedCount = books.filter((book) => book.status === 'loaned').length
+  const exchangedCount = books.filter((book) => book.status === 'exchanged').length
 
   return (
-    <div className="max-w-lg">
-      <h1 className="mb-8 text-2xl font-black text-text-primary">Hồ sơ cá nhân</h1>
-
-      <div className="glass-card space-y-6 rounded-card-lg p-6">
-        <div>
-          <label htmlFor="fullName" className="mb-1.5 block text-sm font-medium">Họ tên</label>
-          <input
-            id="fullName"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="w-full rounded-xl border border-glass bg-white/5 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent-yellow"
+    <div className="space-y-8">
+      <section className="glass-card relative flex flex-col gap-6 overflow-hidden rounded-[1.75rem] p-5 sm:flex-row sm:items-center sm:p-8">
+        <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full bg-accent-yellow/[0.07] blur-3xl" aria-hidden="true" />
+        {user.avatarUrl ? (
+          <img
+            src={user.avatarUrl}
+            alt=""
+            className="relative h-24 w-24 shrink-0 rounded-[1.65rem] border border-glass/10 object-cover shadow-lg"
+            referrerPolicy="no-referrer"
           />
+        ) : (
+          <div className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-[1.65rem] border border-accent-yellow/20 bg-accent-yellow/10 text-3xl font-bold text-accent-yellow shadow-inner">
+            {user.fullName.trim().charAt(0).toUpperCase()}
+          </div>
+        )}
+        <div className="relative min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-3xl font-black tracking-tight text-text-primary sm:text-4xl">{user.fullName}</h1>
+            <span className="rounded-full border border-glass/10 bg-[rgb(var(--color-interactive-surface)/.8)] px-3 py-1 text-xs text-text-muted">
+              {getAdapterMode() === 'supabase' ? 'Tài khoản trực tuyến' : 'Lưu trên thiết bị'}
+            </span>
+          </div>
+          <p className="mt-1 break-all text-sm text-text-muted">{user.email}</p>
+          {user.areaLabel && user.showArea && (
+            <p className="mt-2 text-sm text-text-muted">{user.areaLabel}</p>
+          )}
+          {user.bio && <p className="mt-3 max-w-2xl text-sm leading-relaxed text-text-primary">{user.bio}</p>}
+        </div>
+        <Link to="/app/settings#personal">
+          <Button variant="outline">Chỉnh sửa hồ sơ</Button>
+        </Link>
+      </section>
+
+      <section aria-label="Thống kê sách" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <ProfileStat label="Đã đăng" value={books.length} />
+        <ProfileStat label="Đang cho mượn" value={loanedCount} />
+        <ProfileStat label="Đã trao đổi" value={exchangedCount} />
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[1fr_1.25fr]">
+        <div className="glass-card rounded-2xl p-5 sm:p-6">
+          <h2 className="mb-4 font-bold text-text-primary">Liên hệ & quyền riêng tư</h2>
+          <dl className="space-y-3 text-sm">
+            <ProfileDetail label="Điện thoại" value={user.contactPhone} visible={user.showContactPhone} />
+            <ProfileDetail label="Email liên hệ" value={user.contactEmail} visible={user.showContactEmail} />
+            <ProfileDetail label="Khu vực" value={user.areaLabel} visible={user.showArea} />
+            <ProfileDetail label="Định vị" value={user.locationEnabled ? 'Đang bật' : 'Đang tắt'} />
+          </dl>
+          <p className="mt-4 text-xs leading-relaxed text-text-muted">
+            Vị trí chính xác không hiển thị trên hồ sơ. Bạn có thể bật/tắt từng thông tin công khai trong cài đặt.
+          </p>
+          <Link to="/app/settings#privacy" className="mt-4 inline-flex text-sm font-semibold text-accent-yellow hover:underline">
+            Cài đặt quyền riêng tư
+          </Link>
         </div>
 
-        <div>
-          <label className="mb-1.5 block text-sm font-medium">Email</label>
-          <p className="text-text-muted">{user.email}</p>
-        </div>
-
-        <GradientButton onClick={() => void handleSaveName()} disabled={saving}>
-          {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
-        </GradientButton>
-      </div>
-
-      <div className="glass-card mt-6 space-y-4 rounded-card-lg p-6">
-        <div className="flex items-center gap-3">
-          <LocateFixed className="h-5 w-5 text-accent-blue" />
-          <div>
-            <p className="font-medium">Định vị</p>
-            <p className="text-sm text-text-muted">
-              {user.locationEnabled ? 'Đang bật' : 'Đang tắt'}
-            </p>
+        <div className="glass-card rounded-2xl p-5 sm:p-6">
+          <h2 className="mb-3 font-bold text-text-primary">Trạng thái tài khoản</h2>
+          <p className="text-sm text-text-muted">
+            Đăng nhập bằng email. Email tài khoản do nhà cung cấp xác thực quản lý.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full bg-accent-teal/10 px-3 py-1.5 text-accent-teal">
+              {user.locationEnabled ? 'Đã cho phép định vị' : 'Chưa chia sẻ vị trí'}
+            </span>
+            <span className="rounded-full bg-[rgb(var(--color-interactive-surface)/.9)] px-3 py-1.5 text-text-muted">
+              {user.showContactPhone || user.showContactEmail || user.showArea
+                ? 'Có thông tin hồ sơ công khai'
+                : 'Hồ sơ riêng tư'}
+            </span>
           </div>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => void handleToggleLocation()}
-          disabled={geoLoading}
-        >
-          {user.locationEnabled ? 'Tắt định vị' : 'Bật định vị'}
-        </Button>
-      </div>
+      </section>
 
-      <div className="mt-6 flex gap-3 rounded-xl border border-glass bg-white/5 p-4 text-sm text-text-muted">
-        <Shield className="h-5 w-5 shrink-0 text-accent-teal" />
-        <p>
-          Không chia sẻ vị trí chính xác của bạn cho người khác. Chỉ hiển thị khoảng cách tương đối.
-          Chế độ lưu trữ: <strong className="text-text-primary">{getAdapterMode()}</strong>.
-        </p>
-      </div>
+      <section>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold text-text-primary">Sách của tôi</h2>
+            <p className="mt-1 text-sm text-text-muted">Các bài đăng thuộc tài khoản này</p>
+          </div>
+          <Link to="/app/my-books" className="text-sm font-semibold text-accent-yellow hover:underline">
+            Quản lý sách
+          </Link>
+        </div>
+        {loading ? (
+          <LoadingCards />
+        ) : error ? (
+          <EmptyState title="Không thể tải sách của bạn" description={error} />
+        ) : books.length === 0 ? (
+          <EmptyState
+            title="Chưa có bài đăng"
+            description="Khi đăng sách, các bài đăng của bạn sẽ xuất hiện tại đây."
+            actionLabel="Đăng sách"
+            onAction={() => navigate('/app/add-book')}
+          />
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {books.slice(0, 3).map((book) => (
+              <BookCard
+                key={book.id}
+                book={book}
+                actionLabel="Xem sách"
+                onAction={() => navigate(`/app/books/${book.id}`)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
+function ProfileStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="glass-card relative overflow-hidden rounded-2xl p-5">
+      <span className="absolute right-4 top-4 h-8 w-8 rounded-xl bg-accent-yellow/[0.08]" aria-hidden="true" />
+      <p className="text-sm text-text-muted">{label}</p>
+      <p className="mt-2 text-3xl font-black tracking-tight text-text-primary">{value}</p>
+    </div>
+  )
+}
+
+function ProfileDetail({ label, value, visible }: { label: string; value?: string; visible?: boolean }) {
+  return (
+    <div className="flex flex-wrap justify-between gap-2 border-b border-glass/10 pb-2 last:border-0">
+      <dt className="text-text-muted">{label}</dt>
+      <dd className="text-right text-text-primary">
+        {value || 'Chưa cập nhật'}
+        {visible !== undefined && (
+          <span className="ml-2 text-xs text-text-muted">{visible ? '· Công khai' : '· Riêng tư'}</span>
+        )}
+      </dd>
+    </div>
+  )
+}
+
+function LoadingCards() {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Đang tải sách">
+      {[0, 1, 2].map((key) => <div key={key} className="glass-card aspect-[3/4] animate-pulse rounded-card" />)}
     </div>
   )
 }

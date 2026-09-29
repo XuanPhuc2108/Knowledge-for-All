@@ -17,13 +17,13 @@ export function EmptyState({
   icon,
 }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-      <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white/5 ring-1 ring-glass">
+    <div className="glass-card flex flex-col items-center justify-center rounded-2xl px-6 py-14 text-center">
+      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-accent-yellow/20 bg-accent-yellow/[0.08] ring-1 ring-glass/5">
         {icon ?? <BookOpen className="h-10 w-10 text-accent-yellow" />}
       </div>
-      <h3 className="mb-2 text-xl font-bold text-text-primary">{title}</h3>
+      <h3 className="mb-2 text-lg font-bold text-text-primary">{title}</h3>
       {description && (
-        <p className="mb-8 max-w-md text-text-muted">{description}</p>
+        <p className="mb-7 max-w-md text-sm leading-relaxed text-text-muted">{description}</p>
       )}
       {actionLabel && onAction && (
         <GradientButton onClick={onAction}>{actionLabel}</GradientButton>

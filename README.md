@@ -16,7 +16,8 @@ Mở trình duyệt tại `http://localhost:5173`.
 1. Tạo project trên [Supabase](https://supabase.com)
 2. Chạy script `supabase-schema.sql` trong SQL Editor
 3. Chạy `supabase-migration-book-contact.sql` trên project Supabase hiện có để bổ sung cột liên hệ.
-4. Lấy **Project URL** và **anon/publishable key** từ **Project Settings → API Keys** trong Dashboard. Copy `.env.example` thành `.env.local` và điền:
+4. Chạy `supabase-migration-profile-settings-marketplace.sql` trên project hiện có để bổ sung hồ sơ/quyền riêng tư, trạng thái sách, yêu thích, báo cáo và RPC xóa tài khoản. Không chạy migration thay đổi schema trước khi sao lưu và review quyền RLS.
+5. Lấy **Project URL** và **anon/publishable key** từ **Project Settings → API Keys** trong Dashboard. Copy `.env.example` thành `.env.local` và điền:
 
 ```env
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
@@ -40,9 +41,11 @@ Trong Supabase Dashboard, bật Google và Facebook ở **Authentication → Sig
 - Carousel 3D sách thật (empty state khi chưa có sách)
 - Đăng sách: chụp camera hoặc tải ảnh, nén WebP/JPEG
 - Định vị: tính khoảng cách Haversine, radar trực quan
-- Dashboard: tìm kiếm, lọc, sắp xếp theo khoảng cách
-- Quản lý sách cá nhân: sửa trạng thái, xóa
-- Hồ sơ: cập nhật tên, bật/tắt định vị
+- Dashboard: tìm kiếm có debounce, lọc thể loại/hình thức/tình trạng/khoảng cách, lưu sách yêu thích
+- Chi tiết sách: thông tin bài đăng, liên hệ người đăng, báo cáo bài đăng
+- Quản lý sách cá nhân: thống kê, lọc theo trạng thái, sửa/xóa có xác nhận
+- Hồ sơ và cài đặt: thông tin liên hệ/quyền riêng tư, định vị, chủ đề, cài PWA, đổi mật khẩu, đăng xuất và yêu cầu xóa tài khoản
+- PWA: manifest, biểu tượng, cài đặt ứng dụng và service worker chỉ cache app shell/tài nguyên tĩnh (không cache API người dùng)
 - Responsive: sidebar desktop, bottom nav mobile
 
 ## Tech stack

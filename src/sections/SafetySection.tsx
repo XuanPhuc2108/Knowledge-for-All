@@ -25,11 +25,12 @@ export function SafetySection() {
         {SAFETY_CARDS.map((text, i) => (
           <FadeIn key={text} delay={i * 0.1}>
             <motion.article
-              whileHover={{ rotateX: 2, rotateY: -2 }}
-              className="glass-card group rounded-card p-6 transition-shadow hover:shadow-lg hover:shadow-accent-purple/10 lg:rounded-card-lg"
-              style={{ transformStyle: 'preserve-3d' }}
+              whileHover={{ y: -3 }}
+              className="glass-card group rounded-2xl p-6 transition-shadow hover:shadow-[0_18px_48px_rgb(251_191_36_/_0.06)] lg:rounded-[1.5rem]"
             >
-              <ShieldCheck className="mb-4 h-8 w-8 text-accent-teal transition-colors group-hover:text-accent-yellow" />
+              <span className="mb-4 grid h-11 w-11 place-items-center rounded-xl border border-accent-yellow/20 bg-accent-yellow/[0.08]">
+                <ShieldCheck className="h-5 w-5 text-accent-yellow transition-colors group-hover:text-amber-300" />
+              </span>
               <p className="font-medium text-text-primary">{text}</p>
             </motion.article>
           </FadeIn>

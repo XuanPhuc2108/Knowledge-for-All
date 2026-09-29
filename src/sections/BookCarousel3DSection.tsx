@@ -81,7 +81,7 @@ export function BookCarousel3DSection() {
             return (
               <div
                 key={book.id}
-                className="absolute transition-all duration-700 ease-out"
+                className="absolute transition-[transform,opacity] duration-500 ease-out"
                 style={{
                   transform: `
                     rotateX(${offset * -15}deg)

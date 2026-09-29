@@ -13,28 +13,28 @@ const STEPS = [
     title: 'Tạo tài khoản',
     desc: 'Đăng ký nhanh để quản lý sách và yêu cầu trao đổi.',
     icon: UserPlus,
-    gradient: 'from-accent-yellow to-accent-orange',
+    tone: 'bg-accent-yellow/[0.13] border-accent-yellow/20',
   },
   {
     num: '02',
     title: 'Bật định vị',
     desc: 'Cho phép website xác định vị trí tương đối để gợi ý sách ở gần bạn.',
     icon: MapPin,
-    gradient: 'from-accent-blue to-accent-teal',
+    tone: 'bg-[rgb(var(--color-interactive-surface)/.82)] border-glass/10',
   },
   {
     num: '03',
     title: 'Chụp ảnh & đăng sách',
     desc: 'Chụp ảnh bìa sách, nhập mô tả và chọn hình thức chia sẻ.',
     icon: Camera,
-    gradient: 'from-accent-rose to-accent-purple',
+    tone: 'bg-[rgb(var(--color-interactive-surface)/.82)] border-glass/10',
   },
   {
     num: '04',
     title: 'Kết nối & trao đổi',
     desc: 'Liên hệ qua số điện thoại hoặc email trên bài đăng và trao sách an toàn.',
     icon: HeartHandshake,
-    gradient: 'from-accent-teal to-accent-lime',
+    tone: 'bg-accent-yellow/[0.13] border-accent-yellow/20',
   },
 ]
 
@@ -68,11 +68,11 @@ export function HowItWorksSection() {
     <section
       id="how-it-works"
       ref={sectionRef}
-      className="rounded-t-[48px] bg-cream px-5 py-20 sm:rounded-t-[60px] sm:px-8 md:py-32 lg:rounded-t-[72px] lg:px-16"
+      className="rounded-t-[2rem] border-y border-glass/5 bg-cream px-5 py-20 sm:rounded-t-[2.75rem] sm:px-8 md:py-28 lg:rounded-t-[3.5rem] lg:px-16"
     >
       <FadeIn className="mb-16 text-center">
         <h2
-          className="font-black text-dark"
+          className="font-black text-text-primary"
           style={{ fontSize: 'clamp(2.5rem, 7vw, 4rem)' }}
         >
           Chia sẻ sách chỉ trong vài bước
@@ -85,17 +85,17 @@ export function HowItWorksSection() {
           return (
             <FadeIn key={step.num} delay={i * 0.1}>
               <article
-                className={`step-card sticky top-24 rounded-card-lg bg-gradient-to-br ${step.gradient} p-8 text-dark shadow-xl md:top-32`}
+                className={`step-card sticky top-24 rounded-[1.5rem] border p-6 text-text-primary shadow-[0_24px_64px_rgb(0_0_0_/_0.13)] backdrop-blur-sm sm:p-8 md:top-32 ${step.tone}`}
                 style={{ top: `${96 + i * 28}px` }}
               >
                 <div className="flex items-start gap-6">
-                  <span className="text-5xl font-black opacity-30 md:text-7xl">{step.num}</span>
+                  <span className="text-4xl font-black tracking-[-0.08em] text-accent-yellow/50 md:text-6xl">{step.num}</span>
                   <div>
                     <div className="mb-3 flex items-center gap-3">
                       <Icon className="h-6 w-6" />
                       <h3 className="text-xl font-bold">{step.title}</h3>
                     </div>
-                    <p className="text-dark/80">{step.desc}</p>
+                    <p className="text-sm leading-relaxed text-text-muted">{step.desc}</p>
                   </div>
                 </div>
               </article>

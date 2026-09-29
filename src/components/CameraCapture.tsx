@@ -34,7 +34,7 @@ export function CameraCapture({ onImageCapture }: CameraCaptureProps) {
   return (
     <div className="space-y-4">
       {preview ? (
-        <div className="relative overflow-hidden rounded-2xl ring-2 ring-accent-purple/50">
+        <div className="glass-card relative overflow-hidden rounded-2xl ring-1 ring-accent-yellow/20">
           <img src={preview} alt="Ảnh xem trước" className="w-full object-cover" />
           <div className="absolute bottom-3 right-3 flex gap-2">
             <Button size="sm" variant="secondary" onClick={retake} aria-label="Chụp lại">
@@ -44,9 +44,9 @@ export function CameraCapture({ onImageCapture }: CameraCaptureProps) {
           </div>
         </div>
       ) : active ? (
-        <div className="relative overflow-hidden rounded-2xl bg-black ring-2 ring-accent-teal/50">
+        <div className="relative overflow-hidden rounded-2xl bg-black ring-1 ring-accent-yellow/35">
           <video ref={videoRef} className="aspect-[4/3] w-full object-cover" playsInline muted />
-          <div className="absolute inset-0 animate-pulse-slow rounded-2xl ring-2 ring-inset ring-accent-teal/30" />
+          <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-accent-yellow/20" />
           <div className="absolute bottom-3 left-0 right-0 flex justify-center">
             <Button onClick={() => void onCapture()} aria-label="Chụp ảnh">
               <Camera className="h-4 w-4" />
@@ -55,8 +55,8 @@ export function CameraCapture({ onImageCapture }: CameraCaptureProps) {
           </div>
         </div>
       ) : (
-        <div className="flex aspect-[4/3] flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-glass bg-white/5">
-          <Camera className="h-12 w-12 text-accent-purple" />
+        <div className="flex aspect-[4/3] flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-glass/20 bg-[rgb(var(--color-interactive-surface)/.7)]">
+          <Camera className="h-10 w-10 text-accent-yellow" />
           <p className="text-sm text-text-muted">Chụp ảnh bìa sách hoặc tải từ máy</p>
           <div className="flex flex-wrap justify-center gap-2">
             {supported && (
@@ -72,7 +72,7 @@ export function CameraCapture({ onImageCapture }: CameraCaptureProps) {
                 className="sr-only"
                 onChange={(e) => void onFileChange(e)}
               />
-              <span className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-glass px-6 py-2.5 text-sm font-medium text-text-primary hover:bg-white/5">
+              <span className="filter-chip inline-flex cursor-pointer items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium">
                 <ImagePlus className="h-4 w-4" />
                 Tải ảnh từ máy
               </span>

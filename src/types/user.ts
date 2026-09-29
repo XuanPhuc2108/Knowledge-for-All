@@ -3,6 +3,13 @@ export interface UserProfile {
   fullName: string
   email: string
   avatarUrl?: string
+  bio?: string
+  contactPhone?: string
+  contactEmail?: string
+  areaLabel?: string
+  showContactPhone: boolean
+  showContactEmail: boolean
+  showArea: boolean
   latitude?: number
   longitude?: number
   locationAccuracy?: number
@@ -25,6 +32,13 @@ export interface LoginInput {
 export interface UpdateProfileInput {
   fullName?: string
   avatarUrl?: string
+  bio?: string
+  contactPhone?: string
+  contactEmail?: string
+  areaLabel?: string
+  showContactPhone?: boolean
+  showContactEmail?: boolean
+  showArea?: boolean
   latitude?: number
   longitude?: number
   locationAccuracy?: number
