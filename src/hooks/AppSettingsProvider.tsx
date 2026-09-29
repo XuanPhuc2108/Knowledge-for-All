@@ -49,6 +49,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   const [systemReduced, setSystemReduced] = useState(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   )
+  const [initialized, setInitialized] = useState(false)
   const effectiveMotion = resolveMotionPreference(settings.motion, systemReduced)
 
   useEffect(() => {
@@ -64,6 +65,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       )
     }
     applyTheme()
+    setInitialized(true)
     if (settings.theme !== 'system') return
     media.addEventListener('change', applyTheme)
     return () => media.removeEventListener('change', applyTheme)
@@ -80,6 +82,9 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     document.documentElement.dataset.motion = effectiveMotion
   }, [effectiveMotion])
 
-  const value = useMemo(() => ({ settings, effectiveMotion, setSettings: updateSettings }), [settings, effectiveMotion, updateSettings])
+  const value = useMemo(
+    () => ({ settings, effectiveMotion, initialized, setSettings: updateSettings }),
+    [settings, effectiveMotion, initialized, updateSettings],
+  )
   return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>
 }

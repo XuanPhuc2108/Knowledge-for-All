@@ -1,9 +1,21 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useRef } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppLayout } from '../components/AppLayout'
 import { AuthGuard } from '../components/AuthGuard'
 import { PageTransition } from '../components/PageTransition'
+
+function InitialRouteReady({ onReady }: { onReady: () => void }) {
+  const signaled = useRef(false)
+
+  useEffect(() => {
+    if (signaled.current) return
+    signaled.current = true
+    onReady()
+  }, [onReady])
+
+  return null
+}
 
 const LandingPage = lazy(() => import('../pages/LandingPage').then((m) => ({ default: m.LandingPage })))
 const LoginPage = lazy(() => import('../pages/LoginPage').then((m) => ({ default: m.LoginPage })))
@@ -25,11 +37,12 @@ function Loading() {
   )
 }
 
-export function AppRoutes() {
+export function AppRoutes({ onInitialRouteReady }: { onInitialRouteReady: () => void }) {
   const location = useLocation()
 
   return (
     <Suspense fallback={<Loading />}>
+      <InitialRouteReady onReady={onInitialRouteReady} />
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           <Route
