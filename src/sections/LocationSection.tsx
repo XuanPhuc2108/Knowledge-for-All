@@ -1,0 +1,75 @@
+import { LocateFixed } from 'lucide-react'
+import { useState } from 'react'
+import { Button } from '../components/Button'
+import { FadeIn } from '../components/FadeIn'
+import { NearbyRadar } from '../components/NearbyRadar'
+import { useToast } from '../hooks/useToast'
+import { useAuth } from '../hooks/useAuthState'
+import { useBooks } from '../hooks/useBooks'
+import { useGeolocation } from '../hooks/useGeolocation'
+
+export function LocationSection() {
+  const { user, updateProfile } = useAuth()
+  const { books } = useBooks()
+  const { requestLocation, latitude, longitude, loading } = useGeolocation()
+  const { showToast } = useToast()
+  const [enabled, setEnabled] = useState(user?.locationEnabled ?? false)
+
+  const handleEnable = async () => {
+    if (!user) {
+      showToast('Vui lòng đăng nhập để lưu vị trí', 'info')
+      return
+    }
+    try {
+      const pos = await requestLocation()
+      await updateProfile({
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        locationAccuracy: pos.coords.accuracy,
+        locationEnabled: true,
+      })
+      setEnabled(true)
+      showToast('Đã bật định vị thành công', 'success')
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Không thể bật định vị', 'error')
+    }
+  }
+
+  const userLat = latitude ?? user?.latitude
+  const userLng = longitude ?? user?.longitude
+
+  return (
+    <section id="location" className="px-5 py-20 sm:px-8 md:py-32 lg:px-16">
+      <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
+        <FadeIn>
+          <h2
+            className="mb-6 font-black text-text-primary"
+            style={{ fontSize: 'clamp(2.5rem, 7vw, 4rem)' }}
+          >
+            Tìm sách ở gần bạn hơn
+          </h2>
+          <p className="mb-8 text-lg text-text-muted">
+            Khi bạn cho phép định vị, website chỉ dùng vị trí để tính khoảng cách tương đối giữa bạn và sách/người chia sẻ. Người dùng có thể tắt định vị bất cứ lúc nào.
+          </p>
+          <Button onClick={() => void handleEnable()} disabled={loading}>
+            <LocateFixed className="h-4 w-4" />
+            {loading ? 'Đang xác định...' : enabled ? 'Đã bật định vị' : 'Bật định vị'}
+          </Button>
+          <p className="mt-6 text-xs text-text-muted">
+            Không chia sẻ vị trí chính xác của bạn cho người khác.
+          </p>
+        </FadeIn>
+
+        <FadeIn delay={0.2}>
+          <div className="glass-card flex items-center justify-center rounded-card-lg p-8">
+            <NearbyRadar
+              books={books}
+              userLat={userLat ?? undefined}
+              userLng={userLng ?? undefined}
+            />
+          </div>
+        </FadeIn>
+      </div>
+    </section>
+  )
+}
