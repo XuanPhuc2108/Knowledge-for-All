@@ -7,12 +7,14 @@ import { useAuth } from '../hooks/useAuthState'
 import { validateRegister } from '../lib/validation'
 
 export function RegisterPage() {
-  const { register, user } = useAuth()
+  const { register, resendSignupConfirmation, user } = useAuth()
   const navigate = useNavigate()
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [oauthBusy, setOauthBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null)
+  const [resending, setResending] = useState(false)
 
   useEffect(() => {
     if (user) navigate('/app/add-book', { replace: true })
@@ -33,11 +35,13 @@ export function RegisterPage() {
     }
     setErrors({})
     setNotice(null)
+    setPendingEmail(null)
     setLoading(true)
     try {
       const profile = await register(fullName, email, password)
       if (!profile) {
         setNotice('Tài khoản đã được tạo. Vui lòng kiểm tra email để xác nhận trước khi đăng nhập.')
+        setPendingEmail(email.trim().toLowerCase())
         return
       }
       navigate('/app/add-book')
@@ -45,6 +49,20 @@ export function RegisterPage() {
       setErrors({ form: e instanceof Error ? e.message : 'Đăng ký thất bại' })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResendConfirmation = async () => {
+    if (!pendingEmail) return
+    setResending(true)
+    setErrors({})
+    try {
+      await resendSignupConfirmation(pendingEmail)
+      setNotice('Đã gửi lại email xác nhận. Hãy kiểm tra thư đến và thư rác.')
+    } catch (cause) {
+      setErrors({ form: cause instanceof Error ? cause.message : 'Không thể gửi email xác nhận.' })
+    } finally {
+      setResending(false)
     }
   }
 
@@ -57,7 +75,16 @@ export function RegisterPage() {
       footerLinkLabel="Đăng nhập"
     >
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
-        {notice && <p className="text-sm text-accent-teal" role="status">{notice}</p>}
+        {notice && (
+          <div className="space-y-2 text-sm text-accent-teal" role="status">
+            <p>{notice}</p>
+            {pendingEmail && (
+              <button type="button" className="font-semibold underline underline-offset-2 disabled:opacity-60" disabled={resending} onClick={() => void handleResendConfirmation()}>
+                {resending ? 'Đang gửi...' : 'Gửi lại email xác nhận'}
+              </button>
+            )}
+          </div>
+        )}
         {errors.form && (
           <p className="text-sm text-accent-rose" role="alert">{errors.form}</p>
         )}

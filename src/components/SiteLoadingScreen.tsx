@@ -48,7 +48,7 @@ export function SiteLoadingScreen({ ready }: SiteLoadingScreenProps) {
           </span>
         </div>
 
-        <p className="site-loading-brand-name">Knowledge for All</p>
+        <p className="site-loading-brand-name">Booki</p>
         <p className="site-loading-status">Đang chuẩn bị trải nghiệm của bạn…</p>
         <div className="site-loading-progress" aria-hidden="true">
           <span />

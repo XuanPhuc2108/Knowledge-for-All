@@ -1,12 +1,14 @@
 import type {
   Book,
+  BookModerationReport,
   BookReportReason,
+  BookReportStatus,
   CreateBookInput,
   CreateExchangeInput,
   ExchangeRequest,
   UpdateBookInput,
 } from '../types/book'
-import type { LoginInput, RegisterInput, UpdateProfileInput, UserProfile } from '../types/user'
+import type { LoginInput, UpdateProfileInput, UserProfile } from '../types/user'
 
 const USERS_KEY = 'sgn_users'
 const BOOKS_KEY = 'sgn_books'
@@ -126,28 +128,12 @@ export const localAdapter = {
     return user ? toProfile(user) : null
   },
 
-  async register(input: RegisterInput): Promise<UserProfile> {
-    const users = readUsers()
-    if (users.some((u) => u.email.toLowerCase() === input.email.toLowerCase())) {
-      throw new Error('Email đã được sử dụng')
-    }
-    const timestamp = now()
-    const newUser: StoredUser = {
-      id: generateId(),
-      fullName: input.fullName.trim(),
-      email: input.email.trim().toLowerCase(),
-      showContactPhone: false,
-      showContactEmail: false,
-      showArea: false,
-      locationEnabled: false,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      passwordHash: simpleHash(input.password),
-    }
-    users.push(newUser)
-    writeUsers(users)
-    setSession(newUser.id)
-    return toProfile(newUser)
+  async register(): Promise<UserProfile> {
+    throw new Error('Đăng ký mới cần Supabase Auth để xác nhận email thật. Hãy cấu hình Supabase rồi thử lại.')
+  },
+
+  async resendSignupConfirmation(): Promise<void> {
+    throw new Error('Xác nhận email cần được cấu hình qua Supabase; chế độ lưu trên thiết bị không gửi email.')
   },
 
   async login(input: LoginInput): Promise<UserProfile> {
@@ -228,6 +214,17 @@ export const localAdapter = {
 
   async getBookById(id: string): Promise<Book | null> {
     return readBooks().find((b) => b.id === id) ?? null
+  },
+
+  async getRelatedBooks(category: string, excludeId: string, limit = 4): Promise<Book[]> {
+    return readBooks()
+      .filter((book) => book.category === category && book.id !== excludeId && book.status === 'available')
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limit)
+  },
+
+  async getBookImages(id: string): Promise<string[]> {
+    return readBooks().find((book) => book.id === id)?.imageUrls ?? []
   },
 
   async createBook(ownerId: string, ownerName: string, input: CreateBookInput): Promise<Book> {
@@ -326,5 +323,22 @@ export const localAdapter = {
     return readExchanges()
       .filter((e) => e.requesterId === userId || e.ownerId === userId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  },
+
+  async getMyAppRole(userId: string): Promise<'user'> {
+    void userId
+    return 'user'
+  },
+
+  async getModerationReports(): Promise<BookModerationReport[]> {
+    return []
+  },
+
+  async updateModerationReport(_reportId: string, _status: BookReportStatus): Promise<void> {
+    throw new Error('Công cụ kiểm duyệt chỉ khả dụng khi đã kết nối Supabase.')
+  },
+
+  async moderateDeleteBook(_bookId: string): Promise<void> {
+    throw new Error('Công cụ kiểm duyệt chỉ khả dụng khi đã kết nối Supabase.')
   },
 }

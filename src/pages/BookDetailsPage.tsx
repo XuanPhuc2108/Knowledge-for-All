@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Flag, Heart, Mail, MapPin, Phone } from 'lucide-react'
+import { ArrowLeft, Flag, Heart, Mail, MapPin, Phone, ShieldCheck } from 'lucide-react'
 import { Button } from '../components/Button'
+import { BookCard } from '../components/BookCard'
 import { BookShareSection } from '../components/BookShareSection'
 import { EmptyState } from '../components/EmptyState'
 import { ImageWithSkeleton } from '../components/ImageWithSkeleton'
@@ -33,6 +34,8 @@ export function BookDetailsPage() {
   const [reportDetails, setReportDetails] = useState('')
   const [reporting, setReporting] = useState(false)
   const [reportError, setReportError] = useState<string | null>(null)
+  const [relatedBooks, setRelatedBooks] = useState<Book[]>([])
+  const [recentBooks, setRecentBooks] = useState<{ id: string; title: string; category: string }[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -44,13 +47,47 @@ export function BookDetailsPage() {
         setBook(result)
       })
       .catch((cause: unknown) => {
-        if (!cancelled) setError(cause instanceof Error ? cause.message : 'Không thể tải bài đăng.')
+        console.error('Unable to load book details', cause)
+        if (!cancelled) setError('Chưa thể tải bài đăng này. Vui lòng thử lại sau.')
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
     return () => { cancelled = true }
   }, [id])
+
+  useEffect(() => {
+    if (!book) return
+    let cancelled = false
+    void getAdapter().getRelatedBooks(book.category, book.id, 4)
+      .then((related) => {
+        if (!cancelled) setRelatedBooks(related)
+      })
+      .catch((cause: unknown) => {
+        console.warn('Unable to load related public book listings', cause)
+      })
+    try {
+      const stored = localStorage.getItem('booki_recent_books')
+      const parsed = stored ? JSON.parse(stored) as unknown : []
+      const valid = Array.isArray(parsed)
+        ? parsed.filter((entry): entry is { id: string; title: string; category: string } =>
+          Boolean(entry) &&
+          typeof entry === 'object' &&
+          typeof entry.id === 'string' &&
+          typeof entry.title === 'string' &&
+          typeof entry.category === 'string')
+        : []
+      const next = [
+        { id: book.id, title: book.title, category: book.category },
+        ...valid.filter((entry) => entry.id !== book.id),
+      ].slice(0, 6)
+      localStorage.setItem('booki_recent_books', JSON.stringify(next))
+      setRecentBooks(next.filter((entry) => entry.id !== book.id))
+    } catch (cause) {
+      console.warn('Unable to save recently viewed public books', cause)
+    }
+    return () => { cancelled = true }
+  }, [book])
 
   const submitReport = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -115,7 +152,19 @@ export function BookDetailsPage() {
           <p className="mt-3 text-sm text-text-muted">Tình trạng sách: {CONDITION_LABELS[book.condition]}</p>
           <p className="mt-5 whitespace-pre-wrap text-sm leading-relaxed text-text-primary">{book.description}</p>
           <div className="mt-5 border-t border-glass/10 pt-4">
-            <p className="text-sm text-text-muted">Đăng bởi <strong className="text-text-primary">{book.ownerName}</strong></p>
+            <div className="flex items-center gap-3">
+              {book.ownerAvatarUrl ? (
+                <img src={book.ownerAvatarUrl} alt="" width={40} height={40} loading="lazy" decoding="async" className="h-10 w-10 rounded-full object-cover" />
+              ) : (
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-accent-yellow/10 text-sm font-bold text-accent-yellow" aria-hidden="true">
+                  {book.ownerName.trim().charAt(0).toUpperCase()}
+                </span>
+              )}
+              <div>
+                <p className="text-sm text-text-muted">Chia sẻ bởi <strong className="text-text-primary">{book.ownerName}</strong></p>
+                <p className="mt-0.5 flex items-center gap-1 text-xs text-accent-teal"><ShieldCheck className="h-3.5 w-3.5" /> Thành viên cộng đồng</p>
+              </div>
+            </div>
             {book.ownerAreaLabel && <p className="mt-1 flex items-center gap-1.5 text-sm text-text-muted"><MapPin className="h-4 w-4" />{book.ownerAreaLabel}</p>}
             <p className="mt-2 text-xs text-text-muted">
               Đăng ngày {new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(new Date(book.createdAt))}
@@ -149,7 +198,42 @@ export function BookDetailsPage() {
         </div>
       </article>
 
-      <BookShareSection bookId={book.id} title={book.title} />
+      <BookShareSection bookId={book.id} title={book.title} ownerName={book.ownerName} />
+
+      {relatedBooks.length > 0 && (
+        <section aria-labelledby="related-books-title" className="pt-3">
+          <div className="mb-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-yellow">Cùng thể loại</p>
+            <h2 id="related-books-title" className="mt-1 text-xl font-bold text-text-primary">Bạn có thể quan tâm</h2>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {relatedBooks.map((related) => (
+              <BookCard
+                key={related.id}
+                book={related}
+                actionLabel="Xem sách"
+                onAction={() => navigate(`/books/${related.id}`)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {recentBooks.length > 0 && (
+        <section aria-labelledby="recent-books-title" className="glass-card rounded-2xl p-5">
+          <h2 id="recent-books-title" className="text-lg font-bold text-text-primary">Bạn vừa xem</h2>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+            {recentBooks.map((recent) => (
+              <li key={recent.id}>
+                <Link to={`/books/${recent.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-glass/10 bg-[rgb(var(--color-interactive-surface)/.6)] px-4 py-3 transition-colors hover:border-accent-yellow/25 hover:bg-[rgb(var(--color-interactive-hover)/.8)]">
+                  <span className="truncate text-sm font-medium text-text-primary">{recent.title}</span>
+                  <span className="shrink-0 text-xs text-text-muted">{recent.category}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {reportOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-dark/85 p-4" role="presentation">

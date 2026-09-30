@@ -5,7 +5,7 @@ import { Magnetic } from '../components/Magnetic'
 import { APP_NAME } from '../lib/constants'
 
 const TEAM = [
-  { name: 'Nguyễn Xuân Phúc', role: 'Trưởng nhóm' },
+  { name: 'Nguyễn Xuân Phúc', role: 'Trưởng nhóm', email: 'nguyenxuanphucdongthap123@gmail.com' },
   { name: 'Nguyễn Thanh Trạng', role: 'Thành viên' },
   { name: 'Cô Phạm Nguyễn Cẩm Tú', role: 'Thành viên' },
 ]
@@ -59,17 +59,22 @@ export function Footer() {
             <p className="mb-6 text-center text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
               Đội ngũ phát triển
             </p>
-            <div className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-3">
+            <div className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-2">
               {TEAM.map((member, index) => (
                 <article
                   key={member.name}
-                  className={`team-member-card ${index === 0 ? 'team-member-lead' : ''}`}
+                  className={`team-member-card ${index === 0 ? 'team-member-lead sm:col-span-2' : ''}`}
                 >
                   {index === 0 && <span className="team-member-badge">TRƯỞNG NHÓM</span>}
                   <p className="text-base font-bold tracking-tight text-text-primary md:text-lg">
                     {member.name}
                   </p>
                   <p className="mt-1 text-xs text-text-muted">{member.role}</p>
+                  {member.email && (
+                    <a href={`mailto:${member.email}`} className="mt-2 block break-all text-xs text-accent-yellow hover:underline">
+                      {member.email}
+                    </a>
+                  )}
                 </article>
               ))}
             </div>

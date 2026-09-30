@@ -69,6 +69,18 @@ export interface CreateExchangeInput {
 }
 
 export type BookReportReason = 'incorrect' | 'unavailable' | 'inappropriate' | 'other'
+export type BookReportStatus = 'pending' | 'reviewed' | 'resolved'
+
+export interface BookModerationReport {
+  id: string
+  bookId: string
+  reporterId: string
+  reason: BookReportReason
+  details?: string
+  status: BookReportStatus
+  createdAt: string
+  book?: Pick<Book, 'id' | 'title' | 'ownerId' | 'ownerName' | 'status'>
+}
 
 export interface CreateBookReportInput {
   bookId: string

@@ -6,33 +6,33 @@ import { useToast } from '../hooks/useToast'
 interface BookShareSectionProps {
   bookId: string
   title: string
+  ownerName: string
 }
 
-export function BookShareSection({ bookId, title }: BookShareSectionProps) {
+export function BookShareSection({ bookId, title, ownerName }: BookShareSectionProps) {
   const { showToast } = useToast()
-  const [qrPng, setQrPng] = useState<string | null>(null)
-  const [qrSvg, setQrSvg] = useState<string | null>(null)
-  const [qrFailed, setQrFailed] = useState(false)
+  const [qr, setQr] = useState<{ url: string; png?: string; svg?: string; failed?: boolean }>({ url: '' })
   const publicUrl = new URL(`/books/${encodeURIComponent(bookId)}`, window.location.origin).toString()
 
   useEffect(() => {
     let cancelled = false
-    setQrFailed(false)
     void Promise.all([
       QRCode.toDataURL(publicUrl, { width: 240, margin: 2, errorCorrectionLevel: 'M' }),
       QRCode.toString(publicUrl, { type: 'svg', width: 240, margin: 2, errorCorrectionLevel: 'M' }),
     ])
       .then(([png, svg]) => {
         if (cancelled) return
-        setQrPng(png)
-        setQrSvg(svg)
+        setQr({ url: publicUrl, png, svg })
       })
       .catch((cause: unknown) => {
         console.error('Unable to generate a book sharing QR code', cause)
-        if (!cancelled) setQrFailed(true)
+        if (!cancelled) setQr({ url: publicUrl, failed: true })
       })
     return () => { cancelled = true }
   }, [publicUrl])
+  const qrPng = qr.url === publicUrl ? qr.png : undefined
+  const qrSvg = qr.url === publicUrl ? qr.svg : undefined
+  const qrFailed = qr.url === publicUrl && Boolean(qr.failed)
 
   const copyLink = async () => {
     try {
@@ -80,7 +80,12 @@ export function BookShareSection({ bookId, title }: BookShareSectionProps) {
     <section className="glass-card grid gap-5 rounded-2xl p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-5" aria-labelledby="book-share-title">
       <div className="min-w-0">
         <h2 id="book-share-title" className="font-bold text-text-primary">Chia sẻ cuốn sách</h2>
-        <p className="mt-1 text-sm text-text-muted">Liên kết công khai chỉ mở bài đăng này, không chứa thông tin riêng tư.</p>
+        <p className="mt-1 text-sm text-text-muted">
+          {ownerName} chia sẻ cuốn sách này. Liên kết công khai không chứa thông tin riêng tư.
+        </p>
+        <a href={publicUrl} className="mt-2 block break-all text-xs text-accent-yellow hover:underline" aria-label="Liên kết công khai đến cuốn sách">
+          {publicUrl}
+        </a>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button size="sm" onClick={() => void shareBook()}>Chia sẻ</Button>
           <Button size="sm" variant="outline" onClick={() => void copyLink()}>Sao chép liên kết</Button>

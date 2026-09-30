@@ -77,6 +77,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const resendSignupConfirmation = useCallback(async (email: string) => {
+    await getAdapter().resendSignupConfirmation(email)
+  }, [])
+
   const login = useCallback(async (email: string, password: string) => {
     setError(null)
     try {
@@ -119,8 +123,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, error, register, login, logout, deleteAccount, changePassword, updateProfile, refreshUser }),
-    [user, loading, error, register, login, logout, deleteAccount, changePassword, updateProfile, refreshUser],
+    () => ({ user, loading, error, register, resendSignupConfirmation, login, logout, deleteAccount, changePassword, updateProfile, refreshUser }),
+    [user, loading, error, register, resendSignupConfirmation, login, logout, deleteAccount, changePassword, updateProfile, refreshUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

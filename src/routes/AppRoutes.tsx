@@ -19,9 +19,9 @@ function InitialRouteReady({ onReady }: { onReady: () => void }) {
 }
 
 const LandingPage = lazy(() => import('../pages/LandingPage').then((m) => ({ default: m.LandingPage })))
+const DashboardPage = lazy(() => import('../pages/DashboardPage').then((m) => ({ default: m.DashboardPage })))
 const LoginPage = lazy(() => import('../pages/LoginPage').then((m) => ({ default: m.LoginPage })))
 const RegisterPage = lazy(() => import('../pages/RegisterPage').then((m) => ({ default: m.RegisterPage })))
-const DashboardPage = lazy(() => import('../pages/DashboardPage').then((m) => ({ default: m.DashboardPage })))
 const AddBookPage = lazy(() => import('../pages/AddBookPage').then((m) => ({ default: m.AddBookPage })))
 const NearbyPage = lazy(() => import('../pages/NearbyPage').then((m) => ({ default: m.NearbyPage })))
 const MyBooksPage = lazy(() => import('../pages/MyBooksPage').then((m) => ({ default: m.MyBooksPage })))
@@ -29,6 +29,7 @@ const ProfilePage = lazy(() => import('../pages/ProfilePage').then((m) => ({ def
 const SettingsPage = lazy(() => import('../pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 const BookDetailsPage = lazy(() => import('../pages/BookDetailsPage').then((m) => ({ default: m.BookDetailsPage })))
 const EditBookPage = lazy(() => import('../pages/EditBookPage').then((m) => ({ default: m.EditBookPage })))
+const ModerationPage = lazy(() => import('../pages/ModerationPage').then((m) => ({ default: m.ModerationPage })))
 
 function Loading() {
   return (
@@ -67,6 +68,19 @@ export function AppRoutes({ onInitialRouteReady }: { onInitialRouteReady: () => 
             element={
               <PageTransition>
                 <RegisterPage />
+              </PageTransition>
+            }
+          />
+          <Route
+            path="/explore"
+            element={
+              <PageTransition>
+                <div className="app-shell min-h-screen bg-dark">
+                  <Navbar variant="app" />
+                  <main className="mx-auto max-w-7xl px-5 pb-16 pt-24 sm:px-8 lg:px-16">
+                    <DashboardPage publicMode />
+                  </main>
+                </div>
               </PageTransition>
             }
           />
@@ -152,6 +166,14 @@ export function AppRoutes({ onInitialRouteReady }: { onInitialRouteReady: () => 
               element={
                 <PageTransition>
                   <EditBookPage />
+                </PageTransition>
+              }
+            />
+            <Route
+              path="moderation"
+              element={
+                <PageTransition>
+                  <ModerationPage />
                 </PageTransition>
               }
             />

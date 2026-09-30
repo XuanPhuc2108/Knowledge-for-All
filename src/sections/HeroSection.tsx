@@ -93,8 +93,8 @@ export function HeroSection() {
               <Magnetic strength={5}>
                 <GradientButton onClick={handleAddBook}>Đăng sách ngay</GradientButton>
               </Magnetic>
-              <Button variant="outline" size="lg" onClick={() => navigate(user ? '/app/nearby' : '/login')}>
-                Tìm sách gần bạn
+              <Button variant="outline" size="lg" onClick={() => navigate(user ? '/app' : '/explore')}>
+                Khám phá sách
               </Button>
             </div>
           </FadeIn>

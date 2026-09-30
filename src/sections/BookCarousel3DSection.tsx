@@ -1,103 +1,52 @@
-import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { BookCard } from '../components/BookCard'
 import { EmptyState } from '../components/EmptyState'
-import { FadeIn } from '../components/FadeIn'
-import { useBooks } from '../hooks/useBooks'
-import { useReducedMotion } from '../hooks/useReducedMotion'
 import { useAuth } from '../hooks/useAuthState'
+import { useBooks } from '../hooks/useBooks'
 
 export function BookCarousel3DSection() {
-  const { books, loading } = useBooks(8)
+  const { books, loading, error, refetch } = useBooks(6)
   const { user } = useAuth()
   const navigate = useNavigate()
-  const reduced = useReducedMotion()
-  const sectionRef = useRef<HTMLElement>(null)
-  const [inView, setInView] = useState(false)
-  const [activeIndex, setActiveIndex] = useState(0)
-
-  useEffect(() => {
-    const el = sectionRef.current
-    if (!el) return
-    const observer = new IntersectionObserver(
-      ([entry]) => setInView(entry.isIntersecting),
-      { threshold: 0.2 },
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
-
-  useEffect(() => {
-    if (reduced || books.length === 0 || !inView) return
-
-    const timer = window.setInterval(() => {
-      if (document.hidden) return
-      setActiveIndex((i) => (i + 1) % books.length)
-    }, 3000)
-
-    return () => window.clearInterval(timer)
-  }, [books.length, reduced, inView])
-
-  const handleFirstBook = () => {
-    navigate(user ? '/app/add-book' : '/register')
-  }
 
   return (
-    <section ref={sectionRef} className="px-5 py-20 sm:px-8 md:py-32 lg:px-16">
-      <FadeIn className="mb-12 text-center">
-        <h2 className="font-black text-text-primary" style={{ fontSize: 'clamp(2.5rem, 7vw, 4rem)' }}>
-          Thư viện cộng đồng
-        </h2>
-      </FadeIn>
+    <section id="community-books" className="mx-auto max-w-7xl px-5 py-16 sm:px-8 md:py-24 lg:px-16">
+      <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent-yellow">SÁCH ĐANG ĐƯỢC CHIA SẺ</p>
+          <h2 className="mt-2 text-3xl font-black tracking-tight text-text-primary sm:text-4xl">Tìm cuốn sách tiếp theo</h2>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-muted">
+            Bài đăng thật từ cộng đồng Booki. Mở chi tiết để xem tình trạng và thông tin liên hệ được chia sẻ.
+          </p>
+        </div>
+        <Link to="/explore" className="inline-flex min-h-10 items-center rounded-xl border border-accent-yellow/25 bg-accent-yellow/[0.07] px-4 py-2 text-sm font-semibold text-accent-yellow transition-colors hover:bg-accent-yellow/[0.13]">
+          Khám phá tất cả sách
+        </Link>
+      </header>
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-accent-yellow border-t-transparent" />
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" role="status" aria-label="Đang tải sách">
+          {[0, 1, 2].map((item) => <div key={item} className="aspect-[3/5] animate-pulse rounded-card bg-[rgb(var(--color-interactive-surface)/.7)]" />)}
         </div>
+      ) : error ? (
+        <EmptyState title="Chưa thể tải sách" description="Danh sách chưa khả dụng. Thử tải lại sau ít phút." actionLabel="Thử lại" onAction={() => void refetch()} />
       ) : books.length === 0 ? (
         <EmptyState
-          title="Chưa có sách nào trong thư viện cộng đồng."
-          description="Hãy là người đầu tiên chia sẻ quyển sách của bạn."
-          actionLabel="Đăng quyển sách đầu tiên"
-          onAction={handleFirstBook}
+          title="Thư viện đang chờ cuốn sách đầu tiên"
+          description="Chưa có bài đăng công khai. Bạn có thể quay lại sau hoặc chia sẻ cuốn sách đầu tiên."
+          actionLabel={user ? 'Đăng sách' : 'Tạo tài khoản'}
+          onAction={() => navigate(user ? '/app/add-book' : '/register')}
         />
-      ) : reduced ? (
-        <div className="mx-auto grid max-w-5xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {books.slice(0, 6).map((book) => (
-            <BookCard key={book.id} book={book} />
-          ))}
-        </div>
       ) : (
-        <div
-          className="relative mx-auto flex h-[480px] items-center justify-center"
-          style={{ perspective: '1400px' }}
-        >
-          {books.map((book, i) => {
-            const offset = i - activeIndex
-            const absOffset = Math.abs(offset)
-            const visible = absOffset <= 3
-            if (!visible) return null
-
-            return (
-              <div
-                key={book.id}
-                className="absolute transition-[transform,opacity] duration-500 ease-out"
-                style={{
-                  transform: `
-                    rotateX(${offset * -15}deg)
-                    translateZ(${-absOffset * 80}px)
-                    translateY(${offset * 40}px)
-                    scale(${1 - absOffset * 0.08})
-                  `,
-                  opacity: absOffset > 2 ? 0.3 : 1 - absOffset * 0.15,
-                  zIndex: 10 - absOffset,
-                  willChange: absOffset <= 1 ? 'transform' : undefined,
-                }}
-              >
-                <BookCard book={book} compact />
-              </div>
-            )
-          })}
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {books.map((book) => (
+            <BookCard
+              key={book.id}
+              book={book}
+              actionLabel="Xem chi tiết"
+              onAction={() => navigate(user ? `/app/books/${book.id}` : `/books/${book.id}`)}
+            />
+          ))}
         </div>
       )}
     </section>

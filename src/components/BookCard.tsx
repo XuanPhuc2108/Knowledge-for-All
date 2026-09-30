@@ -1,8 +1,10 @@
 import clsx from 'clsx'
 import { Heart, Mail, MapPin, Phone } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { CONDITION_LABELS, EXCHANGE_LABELS, STATUS_LABELS } from '../lib/constants'
 import { formatDistance } from '../lib/geo'
 import { ILLUSTRATIONS } from '../lib/images'
+import { getAdapter } from '../lib/dataAdapter'
 import type { BookWithDistance } from '../types/book'
 import { Button } from './Button'
 import { ImageWithSkeleton } from './ImageWithSkeleton'
@@ -24,8 +26,6 @@ export function BookCard({
   isFavorite = false,
   onFavorite,
 }: BookCardProps) {
-  const imageUrl = book.imageUrls[0]?.trim() || ILLUSTRATIONS.defaultCover
-
   return (
     <article
       className={clsx(
@@ -35,17 +35,7 @@ export function BookCard({
       )}
     >
       <div className="relative aspect-[3/4] overflow-hidden bg-[rgb(var(--color-interactive-surface)/.8)]">
-        <ImageWithSkeleton
-          src={imageUrl}
-          fallbackSrc={ILLUSTRATIONS.defaultCover}
-          alt={`Bìa sách ${book.title}`}
-          width={600}
-          height={800}
-          loading="lazy"
-          sizes="(max-width: 640px) 92vw, (max-width: 1280px) 44vw, 360px"
-          wrapperClassName="h-full w-full"
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.035]"
-        />
+        <BookCardCover key={`${book.id}:${book.imageUrls[0] ?? ''}`} bookId={book.id} imageUrls={book.imageUrls} title={book.title} />
         <span className="absolute left-3 top-3 rounded-full border border-accent-yellow/20 bg-dark/80 px-3 py-1 text-xs font-semibold text-accent-yellow backdrop-blur-md">
           {EXCHANGE_LABELS[book.exchangeType]}
         </span>
@@ -107,5 +97,77 @@ export function BookCard({
         )}
       </div>
     </article>
+  )
+}
+
+function BookCardCover({
+  bookId,
+  imageUrls,
+  title,
+}: {
+  bookId: string
+  imageUrls: string[]
+  title: string
+}) {
+  const existingImage = imageUrls[0]?.trim()
+  const [imageUrl, setImageUrl] = useState(existingImage ?? '')
+  const [loading, setLoading] = useState(!existingImage)
+
+  useEffect(() => {
+    if (existingImage) return
+
+    let cancelled = false
+    let observer: IntersectionObserver | undefined
+    const loadImage = () => {
+      void getAdapter().getBookImages(bookId)
+        .then((urls) => {
+          if (cancelled) return
+          setImageUrl(urls[0]?.trim() || ILLUSTRATIONS.defaultCover)
+          setLoading(false)
+        })
+        .catch((cause: unknown) => {
+          console.error(`Unable to load cover image for book ${bookId}`, cause)
+          if (cancelled) return
+          setImageUrl(ILLUSTRATIONS.defaultCover)
+          setLoading(false)
+        })
+    }
+
+    const element = document.getElementById(`book-cover-${bookId}`)
+    if (element && 'IntersectionObserver' in window) {
+      observer = new IntersectionObserver(([entry]) => {
+        if (!entry.isIntersecting) return
+        observer?.disconnect()
+        loadImage()
+      }, { rootMargin: '240px' })
+      observer.observe(element)
+    } else {
+      loadImage()
+    }
+
+    return () => {
+      cancelled = true
+      observer?.disconnect()
+    }
+  }, [bookId, existingImage])
+
+  return (
+    <div id={`book-cover-${bookId}`} className="h-full w-full">
+      {loading ? (
+        <div className="h-full w-full animate-pulse bg-[rgb(var(--color-interactive-surface)/.75)]" role="status" aria-label="Đang tải ảnh bìa" />
+      ) : (
+        <ImageWithSkeleton
+          src={imageUrl}
+          fallbackSrc={ILLUSTRATIONS.defaultCover}
+          alt={`Bìa sách ${title}`}
+          width={600}
+          height={800}
+          loading="lazy"
+          sizes="(max-width: 640px) 92vw, (max-width: 1280px) 44vw, 360px"
+          wrapperClassName="h-full w-full"
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.035]"
+        />
+      )}
+    </div>
   )
 }

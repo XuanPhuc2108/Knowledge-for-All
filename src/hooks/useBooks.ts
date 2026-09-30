@@ -21,7 +21,8 @@ export function useBooks(limit?: number) {
       })
       .catch((e: unknown) => {
         if (currentRequest !== requestId.current) return
-        setError(e instanceof Error ? e.message : 'Không thể tải danh sách sách')
+        console.error('Unable to load book listings', e)
+        setError('Chưa thể tải danh sách sách. Vui lòng thử lại.')
       })
       .finally(() => {
         if (currentRequest === requestId.current) setLoading(false)
@@ -42,7 +43,8 @@ export function useBooks(limit?: number) {
       }
     } catch (e) {
       if (currentRequest === requestId.current) {
-        setError(e instanceof Error ? e.message : 'Không thể tải danh sách sách')
+        console.error('Unable to refresh book listings', e)
+        setError('Chưa thể tải danh sách sách. Vui lòng thử lại.')
       }
     } finally {
       if (currentRequest === requestId.current) setLoading(false)
@@ -75,7 +77,8 @@ export function useMyBooks(userId: string | undefined) {
         if (!cancelled) {
           setBooks([])
           setLoadedOwnerId(userId)
-          setError(e instanceof Error ? e.message : 'Không thể tải sách của bạn')
+          console.error('Unable to load user book listings', e)
+          setError('Chưa thể tải sách của bạn. Vui lòng thử lại.')
         }
       })
       .finally(() => {
@@ -96,7 +99,8 @@ export function useMyBooks(userId: string | undefined) {
     } catch (e) {
       setBooks([])
       setLoadedOwnerId(userId)
-      setError(e instanceof Error ? e.message : 'Không thể tải sách của bạn')
+      console.error('Unable to refresh user book listings', e)
+      setError('Chưa thể tải sách của bạn. Vui lòng thử lại.')
     } finally {
       setLoading(false)
     }

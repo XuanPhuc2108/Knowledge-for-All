@@ -14,7 +14,7 @@ import { haversineDistance } from '../lib/geo'
 import { useToast } from '../hooks/useToast'
 import type { BookStatus, ExchangeType } from '../types/book'
 
-export function DashboardPage() {
+export function DashboardPage({ publicMode = false }: { publicMode?: boolean }) {
   const { user } = useAuth()
   const { books, loading, error, refetch } = useBooks()
   const { favoriteIds, loading: favoritesLoading, error: favoriteError, toggleFavorite } = useFavorites(user?.id)
@@ -55,6 +55,10 @@ export function DashboardPage() {
     }
     return result
   }, [books, categoryFilter, debouncedSearch, favoritesOnly, favoriteIds, filter, latitude, longitude, radius, sortNearby, statusFilter])
+  const availableCount = useMemo(
+    () => books.filter((book) => book.status === 'available').length,
+    [books],
+  )
 
   const handleFavorite = async (bookId: string, currentlyFavorite: boolean) => {
     try {
@@ -77,14 +81,29 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-accent-yellow">THƯ VIỆN CỘNG ĐỒNG</p>
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-accent-yellow">{publicMode ? 'THƯ VIỆN BOOKI' : 'THƯ VIỆN CỘNG ĐỒNG'}</p>
           <h1 className="text-3xl font-black tracking-tight text-text-primary sm:text-4xl">Khám phá sách</h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-muted">Tìm cuốn sách tiếp theo, xem tình trạng và kết nối với người chia sẻ.</p>
         </div>
-        <GradientButton onClick={() => navigate('/app/add-book')}>+ Đăng sách</GradientButton>
+        <GradientButton onClick={() => navigate(user ? '/app/add-book' : '/register')}>{user ? '+ Đăng sách' : 'Tham gia Booki'}</GradientButton>
       </div>
+
+      <section aria-label="Tổng quan sách" className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="glass-card rounded-2xl p-4">
+          <p className="text-xs text-text-muted">Bài đăng đang hiển thị</p>
+          <p className="mt-1 text-2xl font-black text-text-primary">{books.length}</p>
+        </div>
+        <div className="glass-card rounded-2xl p-4">
+          <p className="text-xs text-text-muted">Có thể kết nối ngay</p>
+          <p className="mt-1 text-2xl font-black text-accent-yellow">{availableCount}</p>
+        </div>
+        <div className="glass-card col-span-2 rounded-2xl p-4 sm:col-span-1">
+          <p className="text-xs text-text-muted">Kết quả theo bộ lọc</p>
+          <p className="mt-1 text-2xl font-black text-text-primary">{filtered.length}</p>
+        </div>
+      </section>
 
       <section className="glass-card mb-4 grid gap-3 rounded-2xl p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:p-4" aria-label="Tìm và lọc sách">
         <div className="relative min-w-0">
@@ -158,7 +177,7 @@ export function DashboardPage() {
             )}
           </>
         ) : (
-          <Link to="/app/settings#location" className="filter-chip rounded-full px-3.5 py-2 text-xs sm:text-sm">
+          <Link to={user ? '/app/settings#location' : '/login'} className="filter-chip rounded-full px-3.5 py-2 text-xs sm:text-sm">
             Bật định vị để lọc theo khoảng cách
           </Link>
         )}
@@ -176,7 +195,7 @@ export function DashboardPage() {
       ) : filtered.length === 0 ? (
         <EmptyState
           title={favoritesOnly ? 'Chưa có sách yêu thích phù hợp' : 'Không tìm thấy sách phù hợp'}
-          description={favoritesOnly ? 'Lưu một bài đăng vào yêu thích để xem lại tại đây.' : 'Hãy thử đổi từ khóa hoặc bộ lọc.'}
+          description={favoritesOnly ? 'Lưu một bài đăng vào yêu thích để xem lại tại đây.' : 'Thử đổi từ khóa, trạng thái hoặc thể loại để mở rộng kết quả.'}
           actionLabel="Xóa bộ lọc"
           onAction={clearFilters}
         />
@@ -187,7 +206,7 @@ export function DashboardPage() {
               key={book.id}
               book={book}
               actionLabel="Xem chi tiết"
-              onAction={() => navigate(`/app/books/${book.id}`)}
+              onAction={() => navigate(user ? `/app/books/${book.id}` : `/books/${book.id}`)}
               isFavorite={favoriteIds.has(book.id)}
               onFavorite={user && !favoritesLoading ? () => void handleFavorite(book.id, favoriteIds.has(book.id)) : undefined}
             />

@@ -206,7 +206,7 @@ export function SettingsPage() {
           <p className="settings-eyebrow">KHÔNG GIAN CỦA BẠN</p>
           <h1 className="mt-1 text-3xl font-black tracking-tight text-text-primary sm:text-4xl">Cài đặt</h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-muted">
-            Quản lý tài khoản, quyền riêng tư và trải nghiệm Knowledge for All trên thiết bị này.
+            Quản lý tài khoản, quyền riêng tư và trải nghiệm Booki trên thiết bị này.
           </p>
         </div>
         <div className="hidden rounded-full border border-accent-yellow/20 bg-accent-yellow/[0.08] px-3.5 py-2 text-xs font-semibold text-accent-yellow sm:block">
@@ -391,7 +391,7 @@ export function SettingsPage() {
       </section>
 
       <section id="install" className="settings-panel">
-        <SectionHeading title="Cài ứng dụng" detail="Thêm Knowledge for All vào màn hình chính để mở nhanh." />
+        <SectionHeading title="Cài ứng dụng" detail="Thêm Booki vào màn hình chính để mở nhanh." />
         {installed ? (
           <p className="mt-3 text-sm text-accent-teal">Ứng dụng đã được cài trên thiết bị này.</p>
         ) : canInstall ? (

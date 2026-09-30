@@ -1,4 +1,4 @@
-export const APP_NAME = 'Knowledge for All'
+export const APP_NAME = 'Booki'
 export const APP_TAGLINE = 'Tri thức không biên giới'
 
 export const BOOK_CATEGORIES = [

@@ -9,10 +9,8 @@ import { GradientButton } from './GradientButton'
 import { MobileMenu } from './MobileMenu'
 
 const NAV_LINKS = [
-  { href: '#how-it-works', label: 'Cách hoạt động' },
-  { href: '#location', label: 'Định vị' },
+  { href: '/explore', label: 'Khám phá sách', route: true },
   { href: '#upload', label: 'Đăng sách', action: 'upload' as const },
-  { href: '#safety', label: 'An toàn' },
 ]
 
 export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' }) {
@@ -66,21 +64,21 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
             <ul className="hidden items-center gap-8 md:flex">
               {NAV_LINKS.map((link) => (
                 <li key={link.href}>
-                  {link.action === 'upload' && user ? (
+                  {link.action === 'upload' ? (
                     <button
                       type="button"
-                      onClick={() => navigate('/app/add-book')}
+                      onClick={() => navigate(user ? '/app/add-book' : '/register')}
                       className="landing-nav-link text-sm text-text-muted transition-colors duration-150 hover:text-text-primary"
                     >
                       {link.label}
                     </button>
                   ) : (
-                    <a
-                      href={link.href}
+                    <Link
+                      to={link.href}
                       className="landing-nav-link text-sm text-text-muted transition-colors duration-150 hover:text-text-primary"
                     >
                       {link.label}
-                    </a>
+                    </Link>
                   )}
                 </li>
               ))}
