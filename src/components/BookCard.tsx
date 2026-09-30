@@ -1,10 +1,8 @@
 import clsx from 'clsx'
-import { Heart, Mail, MapPin, Phone } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Heart, Mail, MapPin, MessageCircle, Phone } from 'lucide-react'
 import { CONDITION_LABELS, EXCHANGE_LABELS, STATUS_LABELS } from '../lib/constants'
 import { formatDistance } from '../lib/geo'
 import { ILLUSTRATIONS } from '../lib/images'
-import { getAdapter } from '../lib/dataAdapter'
 import type { BookWithDistance } from '../types/book'
 import { Button } from './Button'
 import { ImageWithSkeleton } from './ImageWithSkeleton'
@@ -31,11 +29,20 @@ export function BookCard({
       className={clsx(
         'glass-card group overflow-hidden rounded-card transition-[border-color,box-shadow,transform] duration-200 ease-out lg:rounded-card-lg',
         'hover:-translate-y-1 hover:border-amber-400/30 hover:shadow-[0_24px_58px_rgb(0_0_0_/_0.2)]',
-        compact ? 'w-[220px]' : 'w-full',
+        'w-full',
       )}
     >
-      <div className="relative aspect-[3/4] overflow-hidden bg-[rgb(var(--color-interactive-surface)/.8)]">
-        <BookCardCover key={`${book.id}:${book.imageUrls[0] ?? ''}`} bookId={book.id} imageUrls={book.imageUrls} title={book.title} />
+      <div className={clsx(
+        'relative overflow-hidden bg-[rgb(var(--color-interactive-surface)/.8)]',
+        compact ? 'aspect-[4/3]' : 'aspect-[3/4]',
+      )}>
+        <BookCardCover
+          key={`${book.id}:${book.imageUrls[0] ?? ''}`}
+          bookId={book.id}
+          imageUrls={book.imageUrls}
+          title={book.title}
+          compact={compact}
+        />
         <span className="absolute left-3 top-3 rounded-full border border-accent-yellow/20 bg-dark/80 px-3 py-1 text-xs font-semibold text-accent-yellow backdrop-blur-md">
           {EXCHANGE_LABELS[book.exchangeType]}
         </span>
@@ -55,8 +62,8 @@ export function BookCard({
         )}
       </div>
 
-      <div className="p-4">
-        <h3 className="mb-1 line-clamp-2 font-bold text-text-primary">{book.title}</h3>
+      <div className={compact ? 'p-3' : 'p-4'}>
+        <h3 className={clsx('mb-1 line-clamp-2 font-bold text-text-primary', compact && 'text-sm')}>{book.title}</h3>
         {book.author && (
           <p className="mb-2 text-sm text-text-muted">{book.author}</p>
         )}
@@ -66,14 +73,16 @@ export function BookCard({
             {CONDITION_LABELS[book.condition]}
           </span>
         </div>
-        <p className="mb-3 text-xs text-text-muted">bởi {book.ownerName}</p>
+        <p className="mb-3 text-xs text-text-muted">
+          Người đăng: <span className="font-medium text-text-primary">{book.ownerName}</span>
+        </p>
         {book.distanceMeters !== undefined && (
           <p className="mb-3 flex items-center gap-1 text-xs text-accent-teal">
             <MapPin className="h-3 w-3" />
             {formatDistance(book.distanceMeters)}
           </p>
         )}
-        {!compact && (book.contactPhone || book.contactEmail) && (
+        {!compact && (book.contactPhone || book.contactEmail || book.contactZaloUrl || book.contactMessengerUrl) && (
           <div className="mb-3 space-y-1 rounded-xl border border-glass/10 bg-[rgb(var(--color-interactive-surface)/.65)] px-3 py-2 text-xs text-text-muted">
             <p className="font-medium text-text-primary">Liên hệ người đăng</p>
             {book.contactPhone && (
@@ -86,6 +95,18 @@ export function BookCard({
               <a href={`mailto:${book.contactEmail}`} className="flex items-center gap-1.5 hover:text-accent-yellow">
                 <Mail className="h-3 w-3" />
                 {book.contactEmail}
+              </a>
+            )}
+            {book.contactZaloUrl && (
+              <a href={book.contactZaloUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-accent-yellow">
+                <MessageCircle className="h-3 w-3" />
+                Zalo
+              </a>
+            )}
+            {book.contactMessengerUrl && (
+              <a href={book.contactMessengerUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-accent-yellow">
+                <MessageCircle className="h-3 w-3" />
+                Messenger
               </a>
             )}
           </div>
@@ -104,70 +125,33 @@ function BookCardCover({
   bookId,
   imageUrls,
   title,
+  compact,
 }: {
   bookId: string
   imageUrls: string[]
   title: string
+  compact?: boolean
 }) {
-  const existingImage = imageUrls[0]?.trim()
-  const [imageUrl, setImageUrl] = useState(existingImage ?? '')
-  const [loading, setLoading] = useState(!existingImage)
-
-  useEffect(() => {
-    if (existingImage) return
-
-    let cancelled = false
-    let observer: IntersectionObserver | undefined
-    const loadImage = () => {
-      void getAdapter().getBookImages(bookId)
-        .then((urls) => {
-          if (cancelled) return
-          setImageUrl(urls[0]?.trim() || ILLUSTRATIONS.defaultCover)
-          setLoading(false)
-        })
-        .catch((cause: unknown) => {
-          console.error(`Unable to load cover image for book ${bookId}`, cause)
-          if (cancelled) return
-          setImageUrl(ILLUSTRATIONS.defaultCover)
-          setLoading(false)
-        })
-    }
-
-    const element = document.getElementById(`book-cover-${bookId}`)
-    if (element && 'IntersectionObserver' in window) {
-      observer = new IntersectionObserver(([entry]) => {
-        if (!entry.isIntersecting) return
-        observer?.disconnect()
-        loadImage()
-      }, { rootMargin: '240px' })
-      observer.observe(element)
-    } else {
-      loadImage()
-    }
-
-    return () => {
-      cancelled = true
-      observer?.disconnect()
-    }
-  }, [bookId, existingImage])
+  const imageUrl = imageUrls[0]?.trim() || ILLUSTRATIONS.defaultCover
 
   return (
     <div id={`book-cover-${bookId}`} className="h-full w-full">
-      {loading ? (
-        <div className="h-full w-full animate-pulse bg-[rgb(var(--color-interactive-surface)/.75)]" role="status" aria-label="Đang tải ảnh bìa" />
-      ) : (
-        <ImageWithSkeleton
-          src={imageUrl}
-          fallbackSrc={ILLUSTRATIONS.defaultCover}
-          alt={`Bìa sách ${title}`}
-          width={600}
-          height={800}
-          loading="lazy"
-          sizes="(max-width: 640px) 92vw, (max-width: 1280px) 44vw, 360px"
-          wrapperClassName="h-full w-full"
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.035]"
-        />
-      )}
+      <ImageWithSkeleton
+        src={imageUrl}
+        fallbackSrc={ILLUSTRATIONS.defaultCover}
+        alt={`Bìa sách ${title}`}
+        width={600}
+        height={800}
+        loading="lazy"
+        sizes={compact
+          ? '(max-width: 420px) 92vw, (max-width: 1024px) 46vw, 360px'
+          : '(max-width: 640px) 92vw, (max-width: 1280px) 44vw, 360px'}
+        wrapperClassName={compact ? 'mx-auto h-full w-full p-3' : 'h-full w-full'}
+        className={clsx(
+          'h-full w-full transition-transform duration-500 group-hover:scale-[1.035]',
+          compact ? 'object-contain' : 'object-cover',
+        )}
+      />
     </div>
   )
 }

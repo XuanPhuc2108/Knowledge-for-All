@@ -18,6 +18,7 @@ function normalizeSupabaseUrl(raw: string | undefined): string | undefined {
 
 const SUPABASE_URL = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL as string | undefined)
 const anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim()
+const PUBLIC_APP_URL = ((import.meta.env.VITE_PUBLIC_APP_URL as string | undefined)?.trim() || 'https://booki-vn.vercel.app').replace(/\/+$/, '')
 
 export const isSupabaseConfigured = Boolean(SUPABASE_URL && anonKey)
 
@@ -44,6 +45,10 @@ export async function signInWithOAuthProvider(provider: Extract<Provider, 'googl
   }
   return supabase.auth.signInWithOAuth({
     provider,
-    options: { redirectTo: window.location.origin },
+    options: { redirectTo: PUBLIC_APP_URL },
   })
+}
+
+export function getAuthRedirectUrl() {
+  return PUBLIC_APP_URL
 }

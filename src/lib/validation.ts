@@ -7,6 +7,23 @@ export function isValidPhone(phone: string): boolean {
   return /^(0|\+84)[3-9]\d{8}$/.test(cleaned) || /^\+[1-9]\d{8,14}$/.test(cleaned)
 }
 
+function isHttpsUrlOnAllowedHost(value: string, hosts: string[]): boolean {
+  try {
+    const url = new URL(value.trim())
+    return url.protocol === 'https:' && hosts.includes(url.hostname.toLowerCase()) && url.pathname.length > 1
+  } catch {
+    return false
+  }
+}
+
+export function isValidZaloUrl(value: string): boolean {
+  return isHttpsUrlOnAllowedHost(value, ['zalo.me', 'www.zalo.me'])
+}
+
+export function isValidMessengerUrl(value: string): boolean {
+  return isHttpsUrlOnAllowedHost(value, ['m.me', 'www.messenger.com'])
+}
+
 export function validatePassword(password: string): string | null {
   if (password.length < 6) return 'Mật khẩu phải có ít nhất 6 ký tự'
   return null
@@ -48,6 +65,8 @@ export function validateBookForm(data: {
   description: string
   contactPhone?: string
   contactEmail?: string
+  contactZaloUrl?: string
+  contactMessengerUrl?: string
 }): Record<string, string> {
   const errors: Record<string, string> = {}
   if (!data.title.trim() || data.title.trim().length < 2) {
@@ -64,6 +83,12 @@ export function validateBookForm(data: {
   }
   if (data.contactEmail?.trim() && !isValidEmail(data.contactEmail)) {
     errors.contactEmail = 'Email liên hệ không hợp lệ'
+  }
+  if (data.contactZaloUrl?.trim() && !isValidZaloUrl(data.contactZaloUrl)) {
+    errors.contactZaloUrl = 'Hãy nhập liên kết Zalo bắt đầu bằng https://zalo.me/'
+  }
+  if (data.contactMessengerUrl?.trim() && !isValidMessengerUrl(data.contactMessengerUrl)) {
+    errors.contactMessengerUrl = 'Hãy nhập liên kết Messenger bắt đầu bằng https://m.me/'
   }
   return errors
 }

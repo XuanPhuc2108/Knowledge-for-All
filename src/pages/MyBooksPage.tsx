@@ -130,8 +130,9 @@ export function MyBooksPage() {
             <article key={book.id} className="space-y-3">
               <BookCard
                 book={book}
+                compact
                 actionLabel="Xem bài đăng"
-                onAction={() => navigate(`/app/books/${book.id}`)}
+                onAction={() => navigate(`/app/books/${book.id}`, { state: { book } })}
               />
               <div className="settings-panel !p-3">
                 <label className="mb-1.5 block text-xs font-medium text-text-muted" htmlFor={`status-${book.id}`}>Tình trạng bài đăng</label>

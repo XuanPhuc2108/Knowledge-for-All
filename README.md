@@ -16,13 +16,15 @@ Mở trình duyệt tại `http://localhost:5173`.
 1. Tạo project trên [Supabase](https://supabase.com)
 2. Chạy script `supabase-schema.sql` trong SQL Editor
 3. Chạy `supabase-migration-book-contact.sql` trên project Supabase hiện có để bổ sung cột liên hệ.
-4. Chạy `supabase-migration-profile-settings-marketplace.sql` trên project hiện có để bổ sung hồ sơ/quyền riêng tư, trạng thái sách, yêu thích, báo cáo và RPC xóa tài khoản. Không chạy migration thay đổi schema trước khi sao lưu và review quyền RLS.
-5. Chạy `supabase-migration-booki-roles-moderation.sql` để thêm vai trò tin cậy và trạng thái xử lý báo cáo. Migration này cần bảng `books` và `book_reports` hiện có.
-6. Lấy **Project URL** và **anon/publishable key** từ **Project Settings → API Keys** trong Dashboard. Copy `.env.example` thành `.env.local` và điền:
+4. Chạy `supabase-migration-book-contact-social.sql` nếu muốn thêm link Zalo/Messenger cho bài đăng hiện có.
+5. Chạy `supabase-migration-profile-settings-marketplace.sql` trên project hiện có để bổ sung hồ sơ/quyền riêng tư, trạng thái sách, yêu thích, báo cáo và RPC xóa tài khoản. Không chạy migration thay đổi schema trước khi sao lưu và review quyền RLS.
+6. Chạy `supabase-migration-booki-roles-moderation.sql` để thêm vai trò tin cậy và trạng thái xử lý báo cáo. Migration này cần bảng `books` và `book_reports` hiện có.
+7. Lấy **Project URL** và **anon/publishable key** từ **Project Settings → API Keys** trong Dashboard. Copy `.env.example` thành `.env.local` và điền:
 
 ```env
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_PUBLIC_APP_URL=https://booki-vn.vercel.app
 ```
 
 Dùng chính xác Project URL trong Dashboard (không thêm `/rest/v1/`).
@@ -31,9 +33,9 @@ Nếu **không** cấu hình Supabase, app dùng **local mode** (localStorage) �
 
 ### OAuth Google và Facebook
 
-Trong Supabase Dashboard, bật Google và Facebook ở **Authentication → Sign In / Providers** và nhập OAuth Client ID/Secret của từng nhà cung cấp. Trong **Authentication → URL Configuration**, đặt Site URL về domain ứng dụng và thêm các origin được dùng để đăng nhập (ví dụ `http://localhost:5173` và domain production) vào Redirect URLs.
+Trong Supabase Dashboard, bật Google và Facebook ở **Authentication → Sign In / Providers** và nhập OAuth Client ID/Secret của từng nhà cung cấp. Trong **Authentication → URL Configuration**, đặt Site URL về `https://booki-vn.vercel.app` và thêm `https://booki-vn.vercel.app/**` cùng `http://localhost:5173/**` vào Redirect URLs. `VITE_PUBLIC_APP_URL` là địa chỉ app nhận người dùng sau OAuth/xác nhận email; nó không thay thế `VITE_SUPABASE_URL` dùng để gọi API.
 
-Ở Google Cloud Console và Facebook Login, cấu hình callback URI do Supabase cung cấp: `https://eprtkfsbywwwyljnpurx.supabase.co/auth/v1/callback`. Với Facebook, bật Facebook Login và nhập cùng App ID/Secret vào Supabase.
+Ở Google Cloud Console và Facebook Login, cấu hình callback URI do Supabase cung cấp trong **Authentication → Sign In / Providers** (dạng `https://<project-ref>.supabase.co/auth/v1/callback`). Trang chọn tài khoản (“Chọn tài khoản”) là giao diện chuẩn của Google OAuth. Dòng “Tiếp tục tới …supabase.co” là tên miền callback Auth mà Google xác minh, không phải URL đích sau đăng nhập. Muốn đổi tên miền callback hiển thị, cần cấu hình **Custom Domain** cho Supabase Auth, sau đó cập nhật callback URI trong Google/Facebook và biến `VITE_SUPABASE_URL`; chỉ đổi `redirectTo` sang domain Vercel sẽ không làm thay đổi tên miền xác minh này. Với Facebook, bật Facebook Login và nhập cùng App ID/Secret vào Supabase.
 
 ### Khởi tạo quyền chủ sở hữu
 
@@ -91,7 +93,7 @@ $$;
 - Đăng sách: chụp camera hoặc tải ảnh, nén WebP/JPEG
 - Định vị: tính khoảng cách Haversine, radar trực quan
 - Dashboard: tìm kiếm có debounce, lọc thể loại/hình thức/tình trạng/khoảng cách, lưu sách yêu thích
-- Chi tiết sách: người chia sẻ, liên hệ theo quyền riêng tư, chia sẻ QR chỉ chứa URL công khai, sách liên quan và lịch sử xem trên thiết bị
+- Chi tiết sách: người chia sẻ, liên hệ qua điện thoại/email/Zalo/Messenger nếu người đăng tự thêm, chia sẻ QR chỉ chứa URL công khai, sách liên quan và lịch sử xem trên thiết bị
 - Quản lý sách cá nhân: thống kê, lọc theo trạng thái, sửa/xóa có xác nhận
 - Hồ sơ và cài đặt: thông tin liên hệ/quyền riêng tư, định vị, chủ đề, cài PWA, đổi mật khẩu, đăng xuất và yêu cầu xóa tài khoản
 - Kiểm duyệt báo cáo có phân quyền database (`user`, `moderator`, `admin`, `owner`); quyền owner cần bootstrap bằng SQL ở trên

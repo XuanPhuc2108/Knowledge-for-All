@@ -82,7 +82,7 @@ export function HeroSection() {
 
           <FadeIn delay={0.35} y={20}>
             <AnimatedText
-              text="Trao sách cũ, nhận tri thức mới — đăng sách bạn muốn chia sẻ, tìm người ở gần và trao đổi dễ dàng hơn bằng định vị."
+              text="Có sách hay share liền tay. Booki là nền tảng kết nối và chia sẻ sách quanh bạn."
               scrollReveal={false}
               className="mb-8 max-w-lg text-lg leading-relaxed text-text-muted"
             />
@@ -91,10 +91,10 @@ export function HeroSection() {
           <FadeIn delay={0.45} y={20}>
             <div className="flex flex-wrap gap-4">
               <Magnetic strength={5}>
-                <GradientButton onClick={handleAddBook}>Đăng sách ngay</GradientButton>
+                <GradientButton onClick={handleAddBook}>Share sách của bạn</GradientButton>
               </Magnetic>
               <Button variant="outline" size="lg" onClick={() => navigate(user ? '/app' : '/explore')}>
-                Khám phá sách
+                Tìm sách thôi
               </Button>
             </div>
           </FadeIn>
@@ -107,7 +107,8 @@ export function HeroSection() {
         </div>
 
         <FadeIn delay={0.4} className="relative mx-auto w-full max-w-lg lg:max-w-none">
-          <div ref={visualRef} className="relative h-[420px] w-full">
+          <div ref={visualRef} className="relative h-[420px] w-full rounded-[2rem] border border-accent-yellow/15 bg-[radial-gradient(circle_at_50%_42%,rgb(var(--color-accent)/.12),transparent_48%),rgb(var(--color-dark-secondary)/.35)] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.06),0_24px_70px_rgb(0_0_0_/_0.18)]">
+            <div className="pointer-events-none absolute inset-6 rounded-[1.5rem] border border-white/[0.06]" aria-hidden="true" />
             <div className="absolute inset-0 flex items-center justify-center" style={{ perspective: '1200px' }}>
               <ImageWithSkeleton
                 src={ILLUSTRATIONS.heroBooks}
@@ -155,6 +156,9 @@ export function HeroSection() {
               className="h-full w-full rounded-xl border-2 border-accent-yellow/30 object-cover shadow-lg"
               loading="lazy"
             />
+            <p className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-accent-yellow/15 bg-dark/60 px-3 py-1 text-center text-[11px] font-medium text-text-muted backdrop-blur-md">
+              Tìm sách hợp gu · kết nối quanh bạn
+            </p>
           </div>
         </FadeIn>
       </div>

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Flag, Heart, Mail, MapPin, Phone, ShieldCheck } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft, Flag, Heart, Mail, MapPin, MessageCircle, Phone, ShieldCheck, Star } from 'lucide-react'
 import { Button } from '../components/Button'
 import { BookCard } from '../components/BookCard'
 import { BookShareSection } from '../components/BookShareSection'
@@ -11,7 +11,8 @@ import { useFavorites } from '../hooks/useFavorites'
 import { useToast } from '../hooks/useToast'
 import { getAdapter, getAdapterMode } from '../lib/dataAdapter'
 import { CONDITION_LABELS, EXCHANGE_LABELS, STATUS_LABELS } from '../lib/constants'
-import type { Book, BookReportReason } from '../types/book'
+import { userFacingError } from '../lib/userFacingError'
+import type { Book, BookReportReason, CommunityReview, MemberTrust } from '../types/book'
 
 const REPORT_REASONS: { value: BookReportReason; label: string }[] = [
   { value: 'incorrect', label: 'Thông tin không chính xác' },
@@ -22,20 +23,34 @@ const REPORT_REASONS: { value: BookReportReason; label: string }[] = [
 
 export function BookDetailsPage() {
   const { id } = useParams<{ id: string }>()
+  const location = useLocation()
+  const routeBook = (location.state as { book?: Book } | null)?.book
+  const initialBook = routeBook && routeBook.id === id ? routeBook : null
   const { user } = useAuth()
   const { favoriteIds, loading: favoritesLoading, toggleFavorite } = useFavorites(user?.id)
   const { showToast } = useToast()
   const navigate = useNavigate()
-  const [book, setBook] = useState<Book | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [book, setBook] = useState<Book | null>(() => initialBook)
+  const [loading, setLoading] = useState(() => !initialBook)
   const [error, setError] = useState<string | null>(null)
   const [reportOpen, setReportOpen] = useState(false)
   const [reportReason, setReportReason] = useState<BookReportReason>('incorrect')
   const [reportDetails, setReportDetails] = useState('')
   const [reporting, setReporting] = useState(false)
   const [reportError, setReportError] = useState<string | null>(null)
+  const [requestOpen, setRequestOpen] = useState(false)
+  const [requestMessage, setRequestMessage] = useState('')
+  const [requesting, setRequesting] = useState(false)
+  const [requestError, setRequestError] = useState<string | null>(null)
   const [relatedBooks, setRelatedBooks] = useState<Book[]>([])
-  const [recentBooks, setRecentBooks] = useState<{ id: string; title: string; category: string }[]>([])
+  const [memberTrust, setMemberTrust] = useState<MemberTrust | null>(null)
+  const [memberReviews, setMemberReviews] = useState<CommunityReview[]>([])
+  const [trustLoadFailed, setTrustLoadFailed] = useState(false)
+  const displayedBook = book?.id === id ? book : initialBook
+  const recentBooks = useMemo(
+    () => readRecentBooks(displayedBook?.id),
+    [displayedBook?.id],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -43,23 +58,28 @@ export function BookDetailsPage() {
     void getAdapter().getBookById(id)
       .then((result) => {
         if (cancelled) return
-        if (!result) setError('Bài đăng này không tồn tại hoặc đã bị xóa.')
+        if (!result) {
+          setError('Bài đăng này không tồn tại hoặc đã bị xóa.')
+          setBook(null)
+          return
+        }
+        setError(null)
         setBook(result)
       })
       .catch((cause: unknown) => {
         console.error('Unable to load book details', cause)
-        if (!cancelled) setError('Chưa thể tải bài đăng này. Vui lòng thử lại sau.')
+        if (!cancelled && !initialBook) setError('Chưa thể tải bài đăng này. Vui lòng thử lại sau.')
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
     return () => { cancelled = true }
-  }, [id])
+  }, [id, initialBook])
 
   useEffect(() => {
-    if (!book) return
+    if (!displayedBook) return
     let cancelled = false
-    void getAdapter().getRelatedBooks(book.category, book.id, 4)
+    void getAdapter().getRelatedBooks(displayedBook.category, displayedBook.id, 4)
       .then((related) => {
         if (!cancelled) setRelatedBooks(related)
       })
@@ -67,31 +87,75 @@ export function BookDetailsPage() {
         console.warn('Unable to load related public book listings', cause)
       })
     try {
-      const stored = localStorage.getItem('booki_recent_books')
-      const parsed = stored ? JSON.parse(stored) as unknown : []
-      const valid = Array.isArray(parsed)
-        ? parsed.filter((entry): entry is { id: string; title: string; category: string } =>
-          Boolean(entry) &&
-          typeof entry === 'object' &&
-          typeof entry.id === 'string' &&
-          typeof entry.title === 'string' &&
-          typeof entry.category === 'string')
-        : []
       const next = [
-        { id: book.id, title: book.title, category: book.category },
-        ...valid.filter((entry) => entry.id !== book.id),
+        { id: displayedBook.id, title: displayedBook.title, category: displayedBook.category },
+        ...readRecentBooks().filter((entry) => entry.id !== displayedBook.id),
       ].slice(0, 6)
       localStorage.setItem('booki_recent_books', JSON.stringify(next))
-      setRecentBooks(next.filter((entry) => entry.id !== book.id))
     } catch (cause) {
       console.warn('Unable to save recently viewed public books', cause)
     }
+
     return () => { cancelled = true }
-  }, [book])
+  }, [displayedBook])
+
+  useEffect(() => {
+    if (!displayedBook) return
+    let cancelled = false
+    void Promise.all([
+      getAdapter().getMemberTrust(displayedBook.ownerId),
+      getAdapter().getMemberReviews(displayedBook.ownerId, 5),
+    ]).then(([trust, reviews]) => {
+      if (cancelled) return
+      setMemberTrust(trust)
+      setMemberReviews(reviews)
+      setTrustLoadFailed(false)
+    }).catch((cause: unknown) => {
+      console.warn('Unable to load real community feedback for the book sharer', cause)
+      if (!cancelled) setTrustLoadFailed(true)
+    })
+    return () => { cancelled = true }
+  }, [displayedBook?.ownerId])
+
+  useEffect(() => {
+    if (!displayedBook) return
+    const previousTitle = document.title
+    const description = displayedBook.description.trim().slice(0, 160)
+    const tags = [
+      { key: 'name', name: 'description', content: description },
+      { key: 'property', name: 'og:title', content: `${displayedBook.title} | Booki` },
+      { key: 'property', name: 'og:description', content: description },
+      { key: 'property', name: 'og:type', content: 'book' },
+      { key: 'property', name: 'og:url', content: `${window.location.origin}/books/${encodeURIComponent(displayedBook.id)}` },
+      ...(displayedBook.imageUrls[0] ? [{ key: 'property', name: 'og:image', content: displayedBook.imageUrls[0] }] : []),
+    ]
+    const previousTags = tags.map(({ key, name, content }) => {
+      const selector = `meta[${key}="${name}"]`
+      let element = document.head.querySelector<HTMLMetaElement>(selector)
+      const existed = Boolean(element)
+      if (!element) {
+        element = document.createElement('meta')
+        element.setAttribute(key, name)
+        document.head.append(element)
+      }
+      const previous = element.getAttribute('content')
+      element.setAttribute('content', content)
+      return { element, existed, previous }
+    })
+    document.title = `${displayedBook.title} | Booki`
+    return () => {
+      document.title = previousTitle
+      previousTags.forEach(({ element, existed, previous }) => {
+        if (!existed) element.remove()
+        else if (previous === null) element.removeAttribute('content')
+        else element.setAttribute('content', previous)
+      })
+    }
+  }, [displayedBook])
 
   const submitReport = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!user || !book) return
+    if (!user || !displayedBook) return
     setReportError(null)
     if (reportDetails.trim().length > 1000) {
       setReportError('Mô tả tối đa 1000 ký tự.')
@@ -99,25 +163,52 @@ export function BookDetailsPage() {
     }
     setReporting(true)
     try {
-      await getAdapter().reportBook(user.id, book.id, reportReason, reportDetails)
+      await getAdapter().reportBook(user.id, displayedBook.id, reportReason, reportDetails)
       showToast('Đã gửi báo cáo để quản trị viên xem xét.', 'success')
       setReportOpen(false)
       setReportDetails('')
     } catch (cause) {
-      setReportError(cause instanceof Error ? cause.message : 'Không thể gửi báo cáo.')
+      console.error('Unable to report a public book listing', cause)
+      setReportError(userFacingError(cause, 'Chưa thể gửi báo cáo. Hãy thử lại nha.'))
     } finally {
       setReporting(false)
+    }
+
+    const submitRequest = async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+      if (!user || !displayedBook) return
+      const message = requestMessage.trim()
+      if (message.length < 10 || message.length > 1000) {
+        setRequestError('Lời nhắn cần có từ 10 đến 1000 ký tự.')
+        return
+      }
+      setRequestError(null)
+      setRequesting(true)
+      try {
+        const request = await getAdapter().createExchangeRequest(user.id, {
+          bookId: displayedBook.id,
+          message,
+        })
+        showToast('Đã gửi lời đề nghị đến người đăng.', 'success')
+        if (request.chatId) navigate(`/app/messages/${request.chatId}`)
+        else navigate('/app/requests')
+      } catch (cause) {
+        console.error('Unable to create a book request', cause)
+        setRequestError(userFacingError(cause, 'Chưa thể gửi lời đề nghị. Hãy thử lại nha.'))
+      } finally {
+        setRequesting(false)
+      }
     }
   }
 
   if (!id) return <EmptyState title="Không tìm thấy bài đăng" description="Mã bài đăng không hợp lệ." actionLabel="Quay lại" onAction={() => navigate(-1)} />
-  if (loading) return <div className="py-20 text-center text-text-muted" role="status">Đang tải bài đăng...</div>
-  if (error || !book) {
+  if (!displayedBook && (loading || !error)) return <div className="py-20 text-center text-text-muted" role="status">Đang tải bài đăng...</div>
+  if (!displayedBook) {
     return <EmptyState title="Không thể mở bài đăng" description={error ?? 'Không tìm thấy sách.'} actionLabel="Quay lại" onAction={() => navigate(-1)} />
   }
 
-  const isOwner = user?.id === book.ownerId
-  const favorite = favoriteIds.has(book.id)
+  const isOwner = user?.id === displayedBook.ownerId
+  const favorite = favoriteIds.has(displayedBook.id)
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
@@ -126,10 +217,10 @@ export function BookDetailsPage() {
       </button>
       <article className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.9fr)]">
         <div className="glass-card overflow-hidden rounded-[1.5rem]">
-          {book.imageUrls[0] ? (
+          {displayedBook.imageUrls[0] ? (
             <ImageWithSkeleton
-              src={book.imageUrls[0]}
-              alt={`Bìa sách ${book.title}`}
+              src={displayedBook.imageUrls[0]}
+              alt={`Bìa sách ${displayedBook.title}`}
               width={800}
               height={1067}
               loading="eager"
@@ -143,43 +234,55 @@ export function BookDetailsPage() {
         </div>
         <div className="glass-card rounded-[1.5rem] p-5 sm:p-7">
           <div className="mb-4 flex flex-wrap gap-2">
-            <span className="rounded-full bg-accent-yellow/20 px-3 py-1 text-xs font-semibold text-accent-yellow">{STATUS_LABELS[book.status]}</span>
-            <span className="rounded-full bg-[rgb(var(--color-interactive-surface)/.9)] px-3 py-1 text-xs text-text-primary">{EXCHANGE_LABELS[book.exchangeType]}</span>
-            <span className="rounded-full bg-[rgb(var(--color-interactive-surface)/.9)] px-3 py-1 text-xs text-text-primary">{book.category}</span>
+            <span className="rounded-full bg-accent-yellow/20 px-3 py-1 text-xs font-semibold text-accent-yellow">{STATUS_LABELS[displayedBook.status]}</span>
+            <span className="rounded-full bg-[rgb(var(--color-interactive-surface)/.9)] px-3 py-1 text-xs text-text-primary">{EXCHANGE_LABELS[displayedBook.exchangeType]}</span>
+            <span className="rounded-full bg-[rgb(var(--color-interactive-surface)/.9)] px-3 py-1 text-xs text-text-primary">{displayedBook.category}</span>
           </div>
-          <h1 className="text-3xl font-black tracking-tight text-text-primary sm:text-4xl">{book.title}</h1>
-          {book.author && <p className="mt-2 text-text-muted">{book.author}</p>}
-          <p className="mt-3 text-sm text-text-muted">Tình trạng sách: {CONDITION_LABELS[book.condition]}</p>
-          <p className="mt-5 whitespace-pre-wrap text-sm leading-relaxed text-text-primary">{book.description}</p>
+          <h1 className="text-3xl font-black tracking-tight text-text-primary sm:text-4xl">{displayedBook.title}</h1>
+          {displayedBook.author && <p className="mt-2 text-text-muted">{displayedBook.author}</p>}
+          <p className="mt-3 text-sm text-text-muted">Tình trạng sách: {CONDITION_LABELS[displayedBook.condition]}</p>
+          <p className="mt-5 whitespace-pre-wrap text-sm leading-relaxed text-text-primary">{displayedBook.description}</p>
           <div className="mt-5 border-t border-glass/10 pt-4">
             <div className="flex items-center gap-3">
-              {book.ownerAvatarUrl ? (
-                <img src={book.ownerAvatarUrl} alt="" width={40} height={40} loading="lazy" decoding="async" className="h-10 w-10 rounded-full object-cover" />
+              {displayedBook.ownerAvatarUrl ? (
+                <img src={displayedBook.ownerAvatarUrl} alt="" width={40} height={40} loading="lazy" decoding="async" className="h-10 w-10 rounded-full object-cover" />
               ) : (
                 <span className="grid h-10 w-10 place-items-center rounded-full bg-accent-yellow/10 text-sm font-bold text-accent-yellow" aria-hidden="true">
-                  {book.ownerName.trim().charAt(0).toUpperCase()}
+                  {displayedBook.ownerName.trim().charAt(0).toUpperCase()}
                 </span>
               )}
               <div>
-                <p className="text-sm text-text-muted">Chia sẻ bởi <strong className="text-text-primary">{book.ownerName}</strong></p>
+                <p className="text-sm text-text-muted">Chia sẻ bởi <strong className="text-text-primary">{displayedBook.ownerName}</strong></p>
                 <p className="mt-0.5 flex items-center gap-1 text-xs text-accent-teal"><ShieldCheck className="h-3.5 w-3.5" /> Thành viên cộng đồng</p>
               </div>
             </div>
-            {book.ownerAreaLabel && <p className="mt-1 flex items-center gap-1.5 text-sm text-text-muted"><MapPin className="h-4 w-4" />{book.ownerAreaLabel}</p>}
+            {displayedBook.ownerAreaLabel && <p className="mt-1 flex items-center gap-1.5 text-sm text-text-muted"><MapPin className="h-4 w-4" />{displayedBook.ownerAreaLabel}</p>}
             <p className="mt-2 text-xs text-text-muted">
-              Đăng ngày {new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(new Date(book.createdAt))}
+              Đăng ngày {new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(new Date(displayedBook.createdAt))}
             </p>
           </div>
-          {(book.contactPhone || book.contactEmail) && (
-            <div className="mt-5 rounded-2xl border border-accent-yellow/20 bg-accent-yellow/[0.045] p-4">
-              <h2 className="mb-3 text-sm font-bold text-text-primary">Thông tin liên hệ do người đăng chia sẻ</h2>
-              {book.contactPhone && <a href={`tel:${book.contactPhone}`} className="mb-2 flex items-center gap-2 break-all text-sm text-text-primary hover:text-accent-yellow"><Phone className="h-4 w-4 shrink-0" />{book.contactPhone}</a>}
-              {book.contactEmail && <a href={`mailto:${book.contactEmail}`} className="flex items-center gap-2 break-all text-sm text-text-primary hover:text-accent-yellow"><Mail className="h-4 w-4 shrink-0" />{book.contactEmail}</a>}
-            </div>
-          )}
+          <div className="mt-5 rounded-2xl border border-accent-yellow/20 bg-accent-yellow/[0.045] p-4">
+            <h2 className="mb-3 text-sm font-bold text-text-primary">Cách liên hệ với người đăng</h2>
+            {displayedBook.contactPhone && <a href={`tel:${displayedBook.contactPhone}`} className="mb-2 flex items-center gap-2 break-all text-sm text-text-primary hover:text-accent-yellow"><Phone className="h-4 w-4 shrink-0" />Gọi {displayedBook.contactPhone}</a>}
+            {displayedBook.contactEmail && <a href={`mailto:${displayedBook.contactEmail}`} className="flex items-center gap-2 break-all text-sm text-text-primary hover:text-accent-yellow"><Mail className="h-4 w-4 shrink-0" />Email {displayedBook.contactEmail}</a>}
+            {displayedBook.contactZaloUrl && <a href={displayedBook.contactZaloUrl} target="_blank" rel="noreferrer" className="mt-2 flex items-center gap-2 break-all text-sm text-text-primary hover:text-accent-yellow"><MessageCircle className="h-4 w-4 shrink-0" />Nhắn qua Zalo</a>}
+            {displayedBook.contactMessengerUrl && <a href={displayedBook.contactMessengerUrl} target="_blank" rel="noreferrer" className="mt-2 flex items-center gap-2 break-all text-sm text-text-primary hover:text-accent-yellow"><MessageCircle className="h-4 w-4 shrink-0" />Nhắn qua Messenger</a>}
+            {!displayedBook.contactPhone && !displayedBook.contactEmail && !displayedBook.contactZaloUrl && !displayedBook.contactMessengerUrl && (
+              <div>
+                <p className="text-sm leading-relaxed text-text-muted">
+                  Người đăng chưa công khai số điện thoại hoặc email. Bạn có thể lưu sách và theo dõi cập nhật khi họ bổ sung thông tin.
+                </p>
+                {isOwner && (
+                  <Link to="/app/settings#personal" className="mt-3 inline-flex text-sm font-semibold text-accent-yellow hover:underline">
+                    Cập nhật thông tin liên hệ
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
           <div className="mt-5 flex flex-wrap gap-2">
             {user && !isOwner && (
-              <Button variant="outline" disabled={favoritesLoading} onClick={() => void toggleFavorite(book.id).then(
+              <Button variant="outline" disabled={favoritesLoading} onClick={() => void toggleFavorite(displayedBook.id).then(
                 () => showToast(favorite ? 'Đã bỏ khỏi yêu thích' : 'Đã lưu vào yêu thích', 'success'),
                 (cause: unknown) => showToast(cause instanceof Error ? cause.message : 'Không thể cập nhật yêu thích', 'error'),
               )}>
@@ -188,7 +291,17 @@ export function BookDetailsPage() {
               </Button>
             )}
             {!user && <Link to="/login" className="text-sm font-medium text-accent-yellow">Đăng nhập để lưu sách</Link>}
-            {isOwner && <Button variant="outline" onClick={() => navigate(`/app/my-books/${book.id}/edit`)}>Chỉnh sửa bài đăng</Button>}
+            {isOwner && <Button variant="outline" onClick={() => navigate(`/app/my-books/${displayedBook.id}/edit`)}>Chỉnh sửa bài đăng</Button>}
+            {user && !isOwner && displayedBook.status === 'available' && (
+              <Button onClick={() => { setRequestError(null); setRequestOpen(true) }}>
+                <MessageCircle aria-hidden="true" className="h-4 w-4" /> Gửi lời đề nghị
+              </Button>
+            )}
+            {!user && displayedBook.status === 'available' && (
+              <Link to="/login" className="inline-flex min-h-10 items-center rounded-xl bg-accent-yellow px-4 py-2 text-sm font-semibold text-dark">
+                Đăng nhập để gửi lời đề nghị
+              </Link>
+            )}
             {user && !isOwner && (
               <Button variant="ghost" onClick={() => { setReportError(null); setReportOpen(true) }}>
                 <Flag className="h-4 w-4" /> Báo cáo
@@ -198,7 +311,44 @@ export function BookDetailsPage() {
         </div>
       </article>
 
-      <BookShareSection bookId={book.id} title={book.title} ownerName={book.ownerName} />
+      <BookShareSection bookId={displayedBook.id} title={displayedBook.title} ownerName={displayedBook.ownerName} />
+
+      <section aria-labelledby="community-trust-title" className="glass-card rounded-2xl p-5 sm:p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-yellow">PHẢN HỒI CỘNG ĐỒNG</p>
+            <h2 id="community-trust-title" className="mt-1 text-xl font-bold text-text-primary">Trải nghiệm với {displayedBook.ownerName}</h2>
+          </div>
+          {memberTrust && memberTrust.reviewCount > 0 && memberTrust.averageRating !== undefined && (
+            <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent-yellow" aria-label={`${memberTrust.averageRating} trên 5, ${memberTrust.reviewCount} đánh giá`}>
+              <Star aria-hidden="true" className="h-4 w-4 fill-current" />
+              {memberTrust.averageRating} · {memberTrust.reviewCount} đánh giá
+            </p>
+          )}
+        </div>
+        {trustLoadFailed ? (
+          <p className="mt-4 text-sm text-text-muted">Chưa tải được phản hồi lúc này.</p>
+        ) : (
+          <>
+            {memberTrust && memberTrust.completedInteractions > 0 && (
+              <p className="mt-3 text-sm text-text-muted">
+                Đã hoàn tất {memberTrust.completedInteractions} lượt kết nối qua Booki.
+              </p>
+            )}
+            {memberReviews.length > 0 ? (
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {memberReviews.map((review) => <ReviewCard key={review.id} review={review} />)}
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-text-muted">
+                {memberTrust?.completedInteractions
+                  ? 'Chưa có phản hồi sau các lượt kết nối đã hoàn tất.'
+                  : 'Chưa ghi nhận tương tác hoàn tất hoặc đánh giá nào.'}
+              </p>
+            )}
+          </>
+        )}
+      </section>
 
       {relatedBooks.length > 0 && (
         <section aria-labelledby="related-books-title" className="pt-3">
@@ -212,7 +362,7 @@ export function BookDetailsPage() {
                 key={related.id}
                 book={related}
                 actionLabel="Xem sách"
-                onAction={() => navigate(`/books/${related.id}`)}
+                onAction={() => navigate(`/books/${related.id}`, { state: { book: related } })}
               />
             ))}
           </div>
@@ -264,6 +414,71 @@ export function BookDetailsPage() {
           </section>
         </div>
       )}
+      {requestOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-dark/85 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !requesting) setRequestOpen(false) }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="request-title" className="glass-card w-full max-w-lg rounded-card p-5 sm:p-6">
+            <h2 id="request-title" className="text-lg font-bold text-text-primary">Gửi lời đề nghị</h2>
+            <p className="mt-1 text-sm text-text-muted">Giới thiệu ngắn gọn bạn muốn kết nối ra sao về “{displayedBook.title}”.</p>
+            <form onSubmit={(event) => void submitRequest(event)} className="mt-4 space-y-4">
+              <label htmlFor="request-message" className="block text-sm font-medium text-text-primary">
+                Lời nhắn
+                <textarea
+                  id="request-message"
+                  value={requestMessage}
+                  onChange={(event) => setRequestMessage(event.target.value)}
+                  minLength={10}
+                  maxLength={1000}
+                  rows={4}
+                  required
+                  className="field-control mt-1.5 px-3 py-2.5 text-sm"
+                  placeholder="Chào bạn, mình muốn hỏi thêm về cuốn sách..."
+                />
+              </label>
+              <p className="text-right text-xs text-text-muted">{requestMessage.length}/1000</p>
+              {requestError && <p className="text-sm text-accent-rose" role="alert">{requestError}</p>}
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" disabled={requesting} onClick={() => setRequestOpen(false)}>Để sau</Button>
+                <Button type="submit" disabled={requesting}>{requesting ? 'Đang gửi...' : 'Gửi đề nghị'}</Button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </div>
   )
+}
+
+function ReviewCard({ review }: { review: CommunityReview }) {
+  return (
+    <article className="rounded-xl border border-glass/10 bg-[rgb(var(--color-interactive-surface)/.6)] p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-text-primary">{review.reviewerName}</p>
+        <p className="inline-flex items-center gap-1 text-sm font-bold text-accent-yellow">
+          <Star aria-hidden="true" className="h-3.5 w-3.5 fill-current" /> {review.rating}/5
+        </p>
+      </div>
+      {review.comment && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-text-muted">{review.comment}</p>}
+      <p className="mt-3 text-[11px] text-text-muted">
+        Giao tiếp {review.communicationRating}/5 · Tin cậy {review.reliabilityRating}/5 · Đúng mô tả {review.descriptionRating}/5
+      </p>
+    </article>
+  )
+}
+
+function readRecentBooks(excludeId?: string): { id: string; title: string; category: string }[] {
+  try {
+    const stored = localStorage.getItem('booki_recent_books')
+    const parsed = stored ? JSON.parse(stored) as unknown : []
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((entry): entry is { id: string; title: string; category: string } =>
+      Boolean(entry) &&
+      typeof entry === 'object' &&
+      typeof entry.id === 'string' &&
+      typeof entry.title === 'string' &&
+      typeof entry.category === 'string' &&
+      entry.id !== excludeId)
+  } catch (cause) {
+    console.warn('Unable to read recently viewed public books', cause)
+    return []
+  }
 }

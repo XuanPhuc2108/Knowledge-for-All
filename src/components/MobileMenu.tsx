@@ -81,6 +81,11 @@ export function MobileMenu({ open, onClose, user, onLogout, variant }: MobileMen
                     </Link>
                   </li>
                   <li>
+                    <Link to="/app/requests" onClick={onClose} className="block rounded-xl px-3 py-2.5 text-sm text-text-muted transition-colors hover:bg-[rgb(var(--color-interactive-surface)/.8)] hover:text-text-primary">
+                      Lời nhắn & đề nghị
+                    </Link>
+                  </li>
+                  <li>
                     <Link to="/app/profile" onClick={onClose} className="block rounded-xl px-3 py-2.5 text-sm text-text-muted transition-colors hover:bg-[rgb(var(--color-interactive-surface)/.8)] hover:text-text-primary">
                       Hồ sơ
                     </Link>

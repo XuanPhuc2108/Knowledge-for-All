@@ -72,6 +72,8 @@ export function BookForm({
       description: fd.get('description') as string,
       contactPhone: (fd.get('contactPhone') as string).trim() || undefined,
       contactEmail: (fd.get('contactEmail') as string).trim().toLowerCase() || undefined,
+      contactZaloUrl: (fd.get('contactZaloUrl') as string).trim() || undefined,
+      contactMessengerUrl: (fd.get('contactMessengerUrl') as string).trim() || undefined,
     }
 
     const errors = validateBookForm(data)
@@ -206,6 +208,20 @@ export function BookForm({
             defaultValue={initial?.contactEmail}
             placeholder="ban@email.com"
             type="email"
+          />
+          <Field
+            label="Link Zalo"
+            name="contactZaloUrl"
+            defaultValue={initial?.contactZaloUrl}
+            placeholder="https://zalo.me/..."
+            type="url"
+          />
+          <Field
+            label="Link Messenger"
+            name="contactMessengerUrl"
+            defaultValue={initial?.contactMessengerUrl}
+            placeholder="https://m.me/..."
+            type="url"
           />
         </div>
       </div>

@@ -1,5 +1,5 @@
 export const APP_NAME = 'Booki'
-export const APP_TAGLINE = 'Tri thức không biên giới'
+export const APP_TAGLINE = 'Sách hay, share liền tay'
 
 export const BOOK_CATEGORIES = [
   'Văn học',

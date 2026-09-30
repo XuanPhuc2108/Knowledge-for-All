@@ -1,17 +1,29 @@
 import type {
   Book,
+  BookConversation,
+  ChatMessage,
+  CommunityReview,
+  AppAuditEntry,
   BookModerationReport,
   BookReportReason,
   BookReportStatus,
   CreateBookInput,
   CreateExchangeInput,
   ExchangeRequest,
+  MemberTrust,
+  StaffAppUser,
+  StaffPlatformSummary,
   UpdateBookInput,
 } from '../types/book'
 import type { LoginInput, RegisterInput, UpdateProfileInput, UserProfile } from '../types/user'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { getSupabaseClient, isSupabaseConfigured } from './supabase'
+import { getAuthRedirectUrl, getSupabaseClient, isSupabaseConfigured } from './supabase'
 import { localAdapter } from './localAdapter'
+import { isValidMessengerUrl, isValidZaloUrl } from './validation'
+import type { RealtimeChannel } from '@supabase/supabase-js'
+
+const PUBLIC_BOOK_COLUMNS = 'id, owner_id, owner_name, title, author, category, condition, exchange_type, description, image_urls, latitude, longitude, contact_phone, contact_email, contact_zalo_url, contact_messenger_url, status, created_at, updated_at'
+const OWN_BOOK_COLUMNS = 'id, owner_id, owner_name, title, author, category, condition, exchange_type, description, image_urls, contact_phone, contact_email, contact_zalo_url, contact_messenger_url, status, created_at, updated_at'
 
 export interface DataAdapter {
   getCurrentUser(): Promise<UserProfile | null>
@@ -22,7 +34,7 @@ export interface DataAdapter {
   updateProfile(userId: string, input: UpdateProfileInput): Promise<UserProfile>
   deleteAccount(userId: string): Promise<void>
   changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void>
-  getBooks(limit?: number): Promise<Book[]>
+  getBooks(limit?: number, offset?: number): Promise<Book[]>
   getBookById(id: string): Promise<Book | null>
   getRelatedBooks(category: string, excludeId: string, limit?: number): Promise<Book[]>
   getBookImages(id: string): Promise<string[]>
@@ -33,9 +45,29 @@ export interface DataAdapter {
   getFavoriteBookIds(userId: string): Promise<string[]>
   setBookFavorite(userId: string, bookId: string, favorite: boolean): Promise<void>
   reportBook(userId: string, bookId: string, reason: BookReportReason, details?: string): Promise<void>
-  createExchangeRequest(requesterId: string, ownerId: string, input: CreateExchangeInput): Promise<ExchangeRequest>
+  createExchangeRequest(requesterId: string, input: CreateExchangeInput): Promise<ExchangeRequest>
   getExchangeRequests(userId: string): Promise<ExchangeRequest[]>
+  updateExchangeRequest(requestId: string, action: 'accept' | 'reject' | 'cancel' | 'confirm-completion'): Promise<string>
+  getConversation(chatId: string, userId: string): Promise<BookConversation | null>
+  getChatMessages(chatId: string): Promise<ChatMessage[]>
+  sendChatMessage(chatId: string, senderId: string, body: string): Promise<ChatMessage>
+  subscribeToChatMessages(chatId: string, onMessage: (message: ChatMessage) => void): () => void
+  getExchangeReview(interactionId: string, reviewerId: string): Promise<CommunityReview | null>
+  getMemberReviews(memberId: string, limit?: number): Promise<CommunityReview[]>
+  getMemberTrust(memberId: string): Promise<MemberTrust>
+  createExchangeReview(input: {
+    interactionId: string
+    rating: number
+    communicationRating: number
+    reliabilityRating: number
+    descriptionRating: number
+    comment: string
+  }): Promise<void>
   getMyAppRole(userId: string): Promise<AppRole>
+  getStaffUsers(): Promise<StaffAppUser[]>
+  setStaffUserRole(userId: string, role: Exclude<AppRole, 'owner'>): Promise<void>
+  getStaffSummary(): Promise<StaffPlatformSummary>
+  getAuditLog(): Promise<AppAuditEntry[]>
   getModerationReports(): Promise<BookModerationReport[]>
   updateModerationReport(reportId: string, status: BookReportStatus): Promise<void>
   moderateDeleteBook(bookId: string): Promise<void>
@@ -71,6 +103,11 @@ function optionalText(value: unknown): string | undefined {
   return trimmed || undefined
 }
 
+function safeContactUrl(value: unknown, validate: (url: string) => boolean): string | undefined {
+  const text = optionalText(value)
+  return text && validate(text) ? text : undefined
+}
+
 function mapBook(row: Record<string, unknown>): Book {
   const publicProfile = row.public_profiles as {
     full_name?: string
@@ -83,7 +120,7 @@ function mapBook(row: Record<string, unknown>): Book {
   return {
     id: row.id as string,
     ownerId: row.owner_id as string,
-    ownerName: (publicProfile?.full_name as string) ?? (row.owner_name as string) ?? 'Người dùng',
+    ownerName: optionalText(publicProfile?.full_name) ?? optionalText(row.owner_name) ?? 'Người dùng',
     ownerAvatarUrl: optionalText(publicProfile?.avatar_url),
     ownerAreaLabel: optionalText(publicProfile?.area_label),
     title: row.title as string,
@@ -97,6 +134,8 @@ function mapBook(row: Record<string, unknown>): Book {
     longitude: row.longitude as number | undefined,
     contactPhone: optionalText(row.contact_phone) ?? optionalText(publicProfile?.contact_phone),
     contactEmail: optionalText(row.contact_email) ?? optionalText(publicProfile?.contact_email),
+    contactZaloUrl: safeContactUrl(row.contact_zalo_url, isValidZaloUrl),
+    contactMessengerUrl: safeContactUrl(row.contact_messenger_url, isValidMessengerUrl),
     status: rawStatus === 'reserved' ? 'loaned' : rawStatus === 'shared' ? 'exchanged' : rawStatus as Book['status'],
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -198,7 +237,7 @@ const supabaseAdapter: DataAdapter = {
       password: input.password,
       options: {
         data: { full_name: input.fullName },
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: getAuthRedirectUrl(),
       },
     })
     if (error) throw new Error(error.message)
@@ -222,7 +261,7 @@ const supabaseAdapter: DataAdapter = {
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: email.trim().toLowerCase(),
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: getAuthRedirectUrl() },
     })
     if (error) throw new Error(error.message)
   },
@@ -307,13 +346,13 @@ const supabaseAdapter: DataAdapter = {
     if (error) throw new Error(error.message)
   },
 
-  async getBooks(limit) {
+  async getBooks(limit, offset = 0) {
     const supabase = getSupabaseClient()!
     let query = supabase
-      .from('books')
-      .select('id, owner_id, title, author, category, condition, exchange_type, description, latitude, longitude, status, created_at, updated_at')
+      .from('public_books')
+      .select(PUBLIC_BOOK_COLUMNS)
       .order('created_at', { ascending: false })
-    if (limit) query = query.limit(limit)
+    if (limit) query = query.range(offset, offset + limit - 1)
     const { data, error } = await query
     if (error) throw new Error(error.message)
     return mapBooksWithPublicProfiles(supabase, data ?? [])
@@ -322,8 +361,8 @@ const supabaseAdapter: DataAdapter = {
   async getBookById(id) {
     const supabase = getSupabaseClient()!
     const { data, error } = await supabase
-      .from('books')
-      .select('*')
+      .from('public_books')
+      .select(PUBLIC_BOOK_COLUMNS)
       .eq('id', id)
       .maybeSingle()
     if (error) throw new Error(error.message)
@@ -335,8 +374,8 @@ const supabaseAdapter: DataAdapter = {
   async getRelatedBooks(category, excludeId, limit = 4) {
     const supabase = getSupabaseClient()!
     const { data, error } = await supabase
-      .from('books')
-      .select('id, owner_id, title, author, category, condition, exchange_type, description, latitude, longitude, status, created_at, updated_at')
+      .from('public_books')
+      .select(PUBLIC_BOOK_COLUMNS)
       .eq('category', category)
       .neq('id', excludeId)
       .eq('status', 'available')
@@ -374,11 +413,13 @@ const supabaseAdapter: DataAdapter = {
       longitude: input.longitude,
       contact_phone: input.contactPhone,
       contact_email: input.contactEmail,
+      contact_zalo_url: input.contactZaloUrl,
+      contact_messenger_url: input.contactMessengerUrl,
       status: 'available',
       created_at: timestamp,
       updated_at: timestamp,
     }
-    const { data, error } = await supabase.from('books').insert(payload).select().single()
+    const { data, error } = await supabase.from('books').insert(payload).select(OWN_BOOK_COLUMNS).single()
     if (error) throw new Error(error.message)
     return { ...mapBook(data), ownerName }
   },
@@ -397,6 +438,8 @@ const supabaseAdapter: DataAdapter = {
     if (input.longitude !== undefined) payload.longitude = input.longitude
     if (input.contactPhone !== undefined) payload.contact_phone = input.contactPhone
     if (input.contactEmail !== undefined) payload.contact_email = input.contactEmail
+    if (input.contactZaloUrl !== undefined) payload.contact_zalo_url = input.contactZaloUrl
+    if (input.contactMessengerUrl !== undefined) payload.contact_messenger_url = input.contactMessengerUrl
     if (input.status !== undefined) payload.status = input.status
 
     const { data, error } = await supabase
@@ -404,7 +447,7 @@ const supabaseAdapter: DataAdapter = {
       .update(payload)
       .eq('id', id)
       .eq('owner_id', ownerId)
-      .select()
+      .select(OWN_BOOK_COLUMNS)
       .single()
     if (error) throw new Error(error.message)
     return mapBook(data)
@@ -420,7 +463,7 @@ const supabaseAdapter: DataAdapter = {
     const supabase = getSupabaseClient()!
     const booksRequest = supabase
       .from('books')
-      .select('id, owner_id, title, author, category, condition, exchange_type, description, latitude, longitude, status, created_at, updated_at')
+      .select(OWN_BOOK_COLUMNS)
       .eq('owner_id', ownerId)
       .order('created_at', { ascending: false })
     const profileRequest = supabase
@@ -497,6 +540,61 @@ const supabaseAdapter: DataAdapter = {
     return role === 'moderator' || role === 'admin' || role === 'owner' ? role : 'user'
   },
 
+  async getStaffUsers() {
+    const supabase = getSupabaseClient()!
+    const { data, error } = await supabase.rpc('list_app_users_for_staff')
+    if (error) throw new Error(error.message)
+    return (data ?? []).map((row) => ({
+      userId: row.user_id,
+      fullName: row.full_name,
+      avatarUrl: optionalText(row.avatar_url),
+      role: (row.role === 'moderator' || row.role === 'admin' || row.role === 'owner'
+        ? row.role
+        : 'user') as AppRole,
+      joinedAt: row.joined_at,
+    }))
+  },
+
+  async setStaffUserRole(userId, role) {
+    const supabase = getSupabaseClient()!
+    const { error } = await supabase.rpc('set_app_user_role', { p_user_id: userId, p_role: role })
+    if (error) throw new Error(error.message)
+  },
+
+  async getStaffSummary() {
+    const supabase = getSupabaseClient()!
+    const { data, error } = await supabase.rpc('get_staff_platform_summary')
+    if (error) throw new Error(error.message)
+    const row = Array.isArray(data) ? data[0] : undefined
+    if (!row) throw new Error('Không thể tải thống kê quản trị.')
+    return {
+      userCount: row.user_count,
+      bookCount: row.book_count,
+      pendingReportCount: row.pending_report_count,
+      activeRequestCount: row.active_request_count,
+      completedInteractionCount: row.completed_interaction_count,
+    }
+  },
+
+  async getAuditLog() {
+    const supabase = getSupabaseClient()!
+    const { data, error } = await supabase
+      .from('app_audit_log')
+      .select('id, actor_id, subject_user_id, book_id, event_type, details, created_at')
+      .order('created_at', { ascending: false })
+      .limit(30)
+    if (error) throw new Error(error.message)
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      actorId: row.actor_id ?? undefined,
+      subjectUserId: row.subject_user_id ?? undefined,
+      bookId: row.book_id ?? undefined,
+      eventType: row.event_type,
+      details: row.details ?? {},
+      createdAt: row.created_at,
+    }))
+  },
+
   async getModerationReports() {
     const supabase = getSupabaseClient()!
     const { data, error } = await supabase
@@ -509,16 +607,19 @@ const supabaseAdapter: DataAdapter = {
     if (bookIds.length === 0) return []
 
     const { data: rows, error: booksError } = await supabase
-      .from('books')
+      .from('public_books')
       .select('id, owner_id, title, status')
       .in('id', bookIds)
     if (booksError) throw new Error(booksError.message)
-    const ownerIds = [...new Set((rows ?? []).map((row) => row.owner_id))]
-    const { data: profiles, error: profilesError } = ownerIds.length > 0
-      ? await supabase.from('public_profiles').select('id, full_name').in('id', ownerIds)
+    const profileIds = [...new Set([
+      ...(rows ?? []).map((row) => row.owner_id),
+      ...reports.map((report) => report.reporter_id),
+    ])]
+    const { data: profiles, error: profilesError } = profileIds.length > 0
+      ? await supabase.from('public_profiles').select('id, full_name').in('id', profileIds)
       : { data: [], error: null }
     if (profilesError) throw new Error(profilesError.message)
-    const ownerNames = new Map((profiles ?? []).map((profile) => [profile.id, profile.full_name]))
+    const namesById = new Map((profiles ?? []).map((profile) => [profile.id, profile.full_name]))
     const booksById = new Map((rows ?? []).map((row) => [row.id, row]))
     return reports.map((report) => {
       const book = booksById.get(report.book_id)
@@ -526,6 +627,7 @@ const supabaseAdapter: DataAdapter = {
         id: report.id,
         bookId: report.book_id,
         reporterId: report.reporter_id,
+        reporterName: namesById.get(report.reporter_id) ?? 'Thành viên',
         reason: report.reason as BookReportReason,
         details: optionalText(report.details),
         status: (report.status ?? 'pending') as BookReportStatus,
@@ -534,7 +636,7 @@ const supabaseAdapter: DataAdapter = {
           id: book.id,
           title: book.title,
           ownerId: book.owner_id,
-          ownerName: ownerNames.get(book.owner_id) ?? 'Người dùng',
+          ownerName: namesById.get(book.owner_id) ?? 'Người dùng',
           status: book.status as Book['status'],
         } : undefined,
       } satisfies BookModerationReport
@@ -556,28 +658,24 @@ const supabaseAdapter: DataAdapter = {
     if (error) throw new Error(error.message)
   },
 
-  async createExchangeRequest(requesterId, ownerId, input) {
+  async createExchangeRequest(requesterId, input) {
     const supabase = getSupabaseClient()!
-    const { data, error } = await supabase
-      .from('exchange_requests')
-      .insert({
-        book_id: input.bookId,
-        requester_id: requesterId,
-        owner_id: ownerId,
-        message: input.message,
-        status: 'pending',
-      })
-      .select()
-      .single()
+    const { data, error } = await supabase.rpc('create_book_exchange_request', {
+      p_book_id: input.bookId,
+      p_message: input.message,
+    })
     if (error) throw new Error(error.message)
+    const row = Array.isArray(data) ? data[0] : data
+    if (!row) throw new Error('Không thể tạo lời đề nghị.')
     return {
-      id: data.id,
-      bookId: data.book_id,
-      requesterId: data.requester_id,
-      ownerId: data.owner_id,
-      message: data.message,
-      status: data.status,
-      createdAt: data.created_at,
+      id: row.request_id,
+      chatId: row.chat_id,
+      bookId: input.bookId,
+      requesterId,
+      ownerId: row.owner_id,
+      message: input.message.trim(),
+      status: 'pending',
+      createdAt: new Date().toISOString(),
     }
   },
 
@@ -585,19 +683,263 @@ const supabaseAdapter: DataAdapter = {
     const supabase = getSupabaseClient()!
     const { data, error } = await supabase
       .from('exchange_requests')
-      .select('*')
+      .select('id, book_id, requester_id, owner_id, message, status, created_at, owner_completed_at, requester_completed_at, completed_at')
       .or(`requester_id.eq.${userId},owner_id.eq.${userId}`)
       .order('created_at', { ascending: false })
     if (error) throw new Error(error.message)
-    return (data ?? []).map((row) => ({
+    const rows = data ?? []
+    if (rows.length === 0) return []
+    const bookIds = [...new Set(rows.map((row) => row.book_id))]
+    const participantIds = [...new Set(rows.flatMap((row) => [row.requester_id, row.owner_id]))]
+    const [booksResult, profilesResult, chatsResult] = await Promise.all([
+      supabase.from('public_books').select('id, title, exchange_type, status').in('id', bookIds),
+      supabase.from('public_profiles').select('id, full_name').in('id', participantIds),
+      supabase.from('chats').select('id, book_id, owner_id, requester_id').in('book_id', bookIds),
+    ])
+    if (booksResult.error) throw new Error(booksResult.error.message)
+    if (profilesResult.error) throw new Error(profilesResult.error.message)
+    if (chatsResult.error) throw new Error(chatsResult.error.message)
+    const booksById = new Map((booksResult.data ?? []).map((book) => [book.id, book]))
+    const namesById = new Map((profilesResult.data ?? []).map((profile) => [profile.id, profile.full_name]))
+    const chatsByParticipant = new Map((chatsResult.data ?? []).map((chat) => [
+      `${chat.book_id}:${chat.owner_id}:${chat.requester_id}`,
+      chat.id,
+    ]))
+    return rows.map((row) => {
+      const book = booksById.get(row.book_id)
+      return {
+        id: row.id,
+        bookId: row.book_id,
+        requesterId: row.requester_id,
+        ownerId: row.owner_id,
+        message: row.message ?? '',
+        status: row.status as ExchangeRequest['status'],
+        createdAt: row.created_at,
+        ownerCompletedAt: row.owner_completed_at ?? undefined,
+        requesterCompletedAt: row.requester_completed_at ?? undefined,
+        completedAt: row.completed_at ?? undefined,
+        chatId: chatsByParticipant.get(`${row.book_id}:${row.owner_id}:${row.requester_id}`),
+        bookTitle: book?.title ?? 'Bài đăng không còn tồn tại',
+        exchangeType: book?.exchange_type,
+        bookStatus: book?.status,
+        requesterName: namesById.get(row.requester_id) ?? 'Thành viên',
+        ownerName: namesById.get(row.owner_id) ?? 'Thành viên',
+      }
+    })
+  },
+
+  async updateExchangeRequest(requestId, action) {
+    const supabase = getSupabaseClient()!
+    const { data, error } = await supabase.rpc('update_book_exchange_request', {
+      p_request_id: requestId,
+      p_action: action,
+    })
+    if (error) throw new Error(error.message)
+    if (typeof data !== 'string') throw new Error('Không thể cập nhật lời đề nghị.')
+    return data
+  },
+
+  async getConversation(chatId, userId) {
+    const supabase = getSupabaseClient()!
+    const { data: chat, error } = await supabase
+      .from('chats')
+      .select('id, book_id, owner_id, requester_id')
+      .eq('id', chatId)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    if (!chat || ![chat.owner_id, chat.requester_id].includes(userId)) return null
+    const [bookResult, profilesResult] = await Promise.all([
+      supabase.from('public_books')
+        .select('id, title, category, exchange_type, status, image_urls')
+        .eq('id', chat.book_id)
+        .maybeSingle(),
+      supabase.from('public_profiles')
+        .select('id, full_name')
+        .in('id', [chat.owner_id, chat.requester_id]),
+    ])
+    if (bookResult.error) throw new Error(bookResult.error.message)
+    if (profilesResult.error) throw new Error(profilesResult.error.message)
+    if (!bookResult.data) return null
+    const names = new Map((profilesResult.data ?? []).map((profile) => [profile.id, profile.full_name]))
+    return {
+      id: chat.id,
+      book: {
+        id: bookResult.data.id,
+        title: bookResult.data.title,
+        category: bookResult.data.category,
+        exchangeType: bookResult.data.exchange_type,
+        status: bookResult.data.status,
+        imageUrls: bookResult.data.image_urls ?? [],
+      },
+      ownerId: chat.owner_id,
+      ownerName: names.get(chat.owner_id) ?? 'Thành viên',
+      requesterId: chat.requester_id,
+      requesterName: names.get(chat.requester_id) ?? 'Thành viên',
+    } satisfies BookConversation
+  },
+
+  async getChatMessages(chatId) {
+    const supabase = getSupabaseClient()!
+    const { data, error } = await supabase
+      .from('messages')
+      .select('id, chat_id, sender_id, body, created_at')
+      .eq('chat_id', chatId)
+      .order('created_at', { ascending: false })
+      .limit(100)
+    if (error) throw new Error(error.message)
+    return (data ?? []).reverse().map((row) => ({
       id: row.id,
-      bookId: row.book_id,
-      requesterId: row.requester_id,
-      ownerId: row.owner_id,
-      message: row.message,
-      status: row.status,
+      chatId: row.chat_id,
+      senderId: row.sender_id,
+      body: row.body,
       createdAt: row.created_at,
     }))
+  },
+
+  async sendChatMessage(chatId, senderId, body) {
+    const normalizedBody = body.trim()
+    if (!normalizedBody || normalizedBody.length > 2000) {
+      throw new Error('Tin nhắn cần có từ 1 đến 2000 ký tự.')
+    }
+    const supabase = getSupabaseClient()!
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({ chat_id: chatId, sender_id: senderId, body: normalizedBody })
+      .select('id, chat_id, sender_id, body, created_at')
+      .single()
+    if (error) throw new Error(error.message)
+    return {
+      id: data.id,
+      chatId: data.chat_id,
+      senderId: data.sender_id,
+      body: data.body,
+      createdAt: data.created_at,
+    }
+  },
+
+  subscribeToChatMessages(chatId, onMessage) {
+    const supabase = getSupabaseClient()!
+    const channel: RealtimeChannel = supabase
+      .channel(`booki-chat-${chatId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `chat_id=eq.${chatId}`,
+      }, (payload) => {
+        const row = payload.new as Record<string, unknown>
+        if (
+          typeof row.id === 'string' &&
+          typeof row.chat_id === 'string' &&
+          typeof row.sender_id === 'string' &&
+          typeof row.body === 'string' &&
+          typeof row.created_at === 'string'
+        ) {
+          onMessage({
+            id: row.id,
+            chatId: row.chat_id,
+            senderId: row.sender_id,
+            body: row.body,
+            createdAt: row.created_at,
+          })
+        }
+      })
+      .subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Realtime chat updates are unavailable', error)
+        }
+      })
+    return () => { void supabase.removeChannel(channel) }
+  },
+
+  async getExchangeReview(interactionId, reviewerId) {
+    const supabase = getSupabaseClient()!
+    const { data, error } = await supabase
+      .from('book_reviews')
+      .select('id, interaction_id, book_id, reviewer_id, rating, communication_rating, reliability_rating, description_rating, comment, created_at')
+      .eq('interaction_id', interactionId)
+      .eq('reviewer_id', reviewerId)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    if (!data) return null
+    const { data: profile, error: profileError } = await supabase
+      .from('public_profiles')
+      .select('full_name')
+      .eq('id', data.reviewer_id)
+      .maybeSingle()
+    if (profileError) throw new Error(profileError.message)
+    return {
+      id: data.id,
+      interactionId: data.interaction_id,
+      bookId: data.book_id,
+      reviewerId: data.reviewer_id,
+      reviewerName: profile?.full_name ?? 'Thành viên',
+      rating: data.rating,
+      communicationRating: data.communication_rating,
+      reliabilityRating: data.reliability_rating,
+      descriptionRating: data.description_rating,
+      comment: optionalText(data.comment),
+      createdAt: data.created_at,
+    }
+  },
+
+  async getMemberReviews(memberId, limit = 5) {
+    const supabase = getSupabaseClient()!
+    const { data, error } = await supabase
+      .from('book_reviews')
+      .select('id, interaction_id, book_id, reviewer_id, rating, communication_rating, reliability_rating, description_rating, comment, created_at')
+      .eq('reviewee_id', memberId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    if (error) throw new Error(error.message)
+    const reviews = data ?? []
+    const reviewerIds = [...new Set(reviews.map((review) => review.reviewer_id))]
+    const { data: profiles, error: profilesError } = reviewerIds.length > 0
+      ? await supabase.from('public_profiles').select('id, full_name').in('id', reviewerIds)
+      : { data: [], error: null }
+    if (profilesError) throw new Error(profilesError.message)
+    const names = new Map((profiles ?? []).map((profile) => [profile.id, profile.full_name]))
+    return reviews.map((review) => ({
+      id: review.id,
+      interactionId: review.interaction_id,
+      bookId: review.book_id,
+      reviewerId: review.reviewer_id,
+      reviewerName: names.get(review.reviewer_id) ?? 'Thành viên',
+      rating: review.rating,
+      communicationRating: review.communication_rating,
+      reliabilityRating: review.reliability_rating,
+      descriptionRating: review.description_rating,
+      comment: optionalText(review.comment),
+      createdAt: review.created_at,
+    }))
+  },
+
+  async getMemberTrust(memberId) {
+    const supabase = getSupabaseClient()!
+    const { data, error } = await supabase
+      .from('public_member_trust')
+      .select('completed_interactions, review_count, average_rating')
+      .eq('member_id', memberId)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    return {
+      completedInteractions: data?.completed_interactions ?? 0,
+      reviewCount: data?.review_count ?? 0,
+      averageRating: data?.average_rating ?? undefined,
+    }
+  },
+
+  async createExchangeReview(input) {
+    const supabase = getSupabaseClient()!
+    const { error } = await supabase.rpc('create_exchange_review', {
+      p_interaction_id: input.interactionId,
+      p_rating: input.rating,
+      p_communication_rating: input.communicationRating,
+      p_reliability_rating: input.reliabilityRating,
+      p_description_rating: input.descriptionRating,
+      p_comment: input.comment,
+    })
+    if (error) throw new Error(error.message)
   },
 }
 

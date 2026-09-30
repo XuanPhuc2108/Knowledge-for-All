@@ -411,7 +411,38 @@
     background: rgb(var(--color-interactive-hover) / 0.85);
   }
 
-  .team-member-lead { border-color: rgb(var(--color-accent) / 0.3); }
+  .team-member-lead {
+    isolation: isolate;
+    overflow: hidden;
+    border-color: rgb(var(--color-accent) / 0.42);
+    background:
+      radial-gradient(ellipse at 50% 0%, rgb(var(--color-accent) / 0.13), transparent 68%),
+      rgb(var(--color-interactive-surface) / 0.9);
+    box-shadow:
+      0 16px 48px rgb(0 0 0 / 0.18),
+      inset 0 1px 0 rgb(var(--color-accent) / 0.12);
+  }
+  .team-member-lead::before {
+    position: absolute;
+    z-index: -1;
+    top: -5rem;
+    left: 50%;
+    width: 14rem;
+    height: 8rem;
+    border-radius: 50%;
+    background: rgb(var(--color-accent) / 0.12);
+    content: '';
+    filter: blur(2.5rem);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+  .team-member-lead:hover {
+    border-color: rgb(var(--color-accent) / 0.62);
+    box-shadow:
+      0 20px 56px rgb(0 0 0 / 0.22),
+      0 0 28px rgb(var(--color-accent) / 0.08),
+      inset 0 1px 0 rgb(var(--color-accent) / 0.16);
+  }
   .team-member-badge {
     display: inline-flex;
     margin-bottom: 0.6rem;

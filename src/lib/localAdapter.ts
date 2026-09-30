@@ -2,7 +2,6 @@ import type {
   Book,
   BookModerationReport,
   BookReportReason,
-  BookReportStatus,
   CreateBookInput,
   CreateExchangeInput,
   ExchangeRequest,
@@ -205,11 +204,11 @@ export const localAdapter = {
     return toProfile(updated)
   },
 
-  async getBooks(limit?: number): Promise<Book[]> {
+  async getBooks(limit?: number, offset = 0): Promise<Book[]> {
     const books = readBooks().sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     )
-    return typeof limit === 'number' ? books.slice(0, limit) : books
+    return typeof limit === 'number' ? books.slice(offset, offset + limit) : books
   },
 
   async getBookById(id: string): Promise<Book | null> {
@@ -301,17 +300,24 @@ export const localAdapter = {
 
   async createExchangeRequest(
     requesterId: string,
-    ownerId: string,
     input: CreateExchangeInput,
   ): Promise<ExchangeRequest> {
+    const book = readBooks().find((entry) => entry.id === input.bookId)
+    if (!book || book.status !== 'available') throw new Error('Sách này hiện không còn khả dụng.')
+    if (book.ownerId === requesterId) throw new Error('Bạn không thể gửi đề nghị cho sách của mình.')
     const request: ExchangeRequest = {
       id: generateId(),
       bookId: input.bookId,
       requesterId,
-      ownerId,
+      ownerId: book.ownerId,
       message: input.message,
       status: 'pending',
       createdAt: now(),
+      bookTitle: book.title,
+      exchangeType: book.exchangeType,
+      bookStatus: book.status,
+      requesterName: readUsers().find((user) => user.id === requesterId)?.fullName ?? 'Thành viên',
+      ownerName: book.ownerName,
     }
     const exchanges = readExchanges()
     exchanges.push(request)
@@ -325,6 +331,57 @@ export const localAdapter = {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   },
 
+  async updateExchangeRequest(requestId, action): Promise<string> {
+    const exchanges = readExchanges()
+    const index = exchanges.findIndex((request) => request.id === requestId)
+    if (index < 0) throw new Error('Không tìm thấy đề nghị.')
+    const current = exchanges[index]
+    const actorId = getSessionUserId()
+    if (action === 'accept' || action === 'reject') {
+      if (actorId !== current.ownerId || current.status !== 'pending') throw new Error('Không thể cập nhật đề nghị này.')
+      current.status = action === 'accept' ? 'accepted' : 'rejected'
+    } else if (action === 'cancel') {
+      if (actorId !== current.requesterId || current.status !== 'pending') throw new Error('Không thể hủy đề nghị này.')
+      current.status = 'cancelled'
+    } else {
+      throw new Error('Xác nhận hoàn tất cần kết nối Supabase.')
+    }
+    writeExchanges(exchanges)
+    return current.status
+  },
+
+  async getConversation(): Promise<null> {
+    return null
+  },
+
+  async getChatMessages(): Promise<[]> {
+    return []
+  },
+
+  async sendChatMessage(): Promise<never> {
+    throw new Error('Tin nhắn giữa các thành viên cần kết nối Supabase.')
+  },
+
+  subscribeToChatMessages(): () => void {
+    return () => {}
+  },
+
+  async getExchangeReview(): Promise<null> {
+    return null
+  },
+
+  async getMemberReviews(): Promise<[]> {
+    return []
+  },
+
+  async getMemberTrust(): Promise<{ completedInteractions: number; reviewCount: number }> {
+    return { completedInteractions: 0, reviewCount: 0 }
+  },
+
+  async createExchangeReview(): Promise<void> {
+    throw new Error('Đánh giá sau tương tác cần kết nối Supabase.')
+  },
+
   async getMyAppRole(userId: string): Promise<'user'> {
     void userId
     return 'user'
@@ -334,11 +391,33 @@ export const localAdapter = {
     return []
   },
 
-  async updateModerationReport(_reportId: string, _status: BookReportStatus): Promise<void> {
+  async getStaffUsers(): Promise<[]> {
+    return []
+  },
+
+  async setStaffUserRole(): Promise<void> {
+    throw new Error('Quản lý vai trò cần kết nối Supabase.')
+  },
+
+  async getStaffSummary() {
+    return {
+      userCount: readUsers().length,
+      bookCount: readBooks().length,
+      pendingReportCount: 0,
+      activeRequestCount: readExchanges().filter((entry) => entry.status === 'pending' || entry.status === 'accepted').length,
+      completedInteractionCount: 0,
+    }
+  },
+
+  async getAuditLog(): Promise<[]> {
+    return []
+  },
+
+  async updateModerationReport(): Promise<void> {
     throw new Error('Công cụ kiểm duyệt chỉ khả dụng khi đã kết nối Supabase.')
   },
 
-  async moderateDeleteBook(_bookId: string): Promise<void> {
+  async moderateDeleteBook(): Promise<void> {
     throw new Error('Công cụ kiểm duyệt chỉ khả dụng khi đã kết nối Supabase.')
   },
 }

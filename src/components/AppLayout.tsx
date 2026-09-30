@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { BookOpen, Home, MapPin, Plus, Settings, ShieldAlert, User } from 'lucide-react'
+import { BookOpen, Home, Inbox, MapPin, Plus, Settings, ShieldAlert, User } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuthState'
@@ -12,11 +12,12 @@ const SIDEBAR_LINKS = [
   { to: '/app/add-book', icon: Plus, label: 'Đăng sách' },
   { to: '/app/nearby', icon: MapPin, label: 'Gần bạn' },
   { to: '/app/my-books', icon: BookOpen, label: 'Sách của tôi' },
+  { to: '/app/requests', icon: Inbox, label: 'Lời nhắn' },
   { to: '/app/profile', icon: User, label: 'Hồ sơ' },
   { to: '/app/settings', icon: Settings, label: 'Cài đặt' },
 ]
 
-const MOBILE_LINKS = SIDEBAR_LINKS.filter((link) => link.to !== '/app/profile')
+const MOBILE_LINKS = SIDEBAR_LINKS.filter((link) => link.to !== '/app/add-book')
 
 export interface AppLayoutContext {
   role: AppRole | null
@@ -26,27 +27,38 @@ export interface AppLayoutContext {
 export function AppLayout() {
   const location = useLocation()
   const { user } = useAuth()
-  const [role, setRole] = useState<AppRole | null>(null)
-  const [roleError, setRoleError] = useState<string | null>(null)
+  const [roleState, setRoleState] = useState<{
+    userId: string
+    role: AppRole
+    error: null
+  } | {
+    userId: string
+    role: null
+    error: string
+  } | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    setRole(null)
-    setRoleError(null)
     if (!user) return () => { cancelled = true }
     void getAdapter().getMyAppRole(user.id)
       .then((nextRole) => {
-        if (!cancelled) setRole(nextRole)
+        if (!cancelled) setRoleState({ userId: user.id, role: nextRole, error: null })
       })
       .catch((cause: unknown) => {
         if (!cancelled) {
-          setRoleError(cause instanceof Error ? cause.message : 'Không thể xác định quyền tài khoản.')
+          setRoleState({
+            userId: user.id,
+            role: null,
+            error: 'Chưa thể xác định quyền truy cập. Hãy thử tải lại trang.',
+          })
           console.error('Unable to load trusted application role', cause)
         }
       })
     return () => { cancelled = true }
   }, [user?.id])
 
+  const role = roleState && roleState.userId === user?.id ? roleState.role : null
+  const roleError = roleState && roleState.userId === user?.id ? roleState.error : null
   const staff = role !== null && role !== 'user'
   const sidebarLinks = staff
     ? [...SIDEBAR_LINKS, { to: '/app/moderation', icon: ShieldAlert, label: 'Kiểm duyệt' }]

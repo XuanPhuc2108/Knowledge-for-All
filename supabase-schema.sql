@@ -8,6 +8,8 @@ create table if not exists profiles (
   bio text,
   contact_phone text,
   contact_email text,
+  contact_zalo_url text,
+  contact_messenger_url text,
   area_label text,
   show_contact_phone boolean not null default false,
   show_contact_email boolean not null default false,

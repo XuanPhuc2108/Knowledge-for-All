@@ -124,7 +124,7 @@ export function ProfilePage() {
                 key={book.id}
                 book={book}
                 actionLabel="Xem sách"
-                onAction={() => navigate(`/app/books/${book.id}`)}
+                onAction={() => navigate(`/app/books/${book.id}`, { state: { book } })}
               />
             ))}
           </div>

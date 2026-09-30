@@ -6,10 +6,16 @@ import type { Book, BookWithDistance, CreateBookInput, UpdateBookInput } from '.
 export function useBooks(limit?: number) {
   const [books, setBooks] = useState<Book[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
+  const [nextOffset, setNextOffset] = useState(0)
   const requestId = useRef(0)
+  const pageRequestId = useRef(0)
+  const pageRequestInProgress = useRef(false)
 
-  const loadBooks = useCallback(() => getAdapter().getBooks(limit), [limit])
+  const loadBooks = useCallback(() => getAdapter().getBooks(limit, 0), [limit])
 
   useEffect(() => {
     const currentRequest = ++requestId.current
@@ -17,7 +23,10 @@ export function useBooks(limit?: number) {
       .then((data) => {
         if (currentRequest !== requestId.current) return
         setBooks(data)
+        setNextOffset(data.length)
+        setHasMore(limit !== undefined && data.length === limit)
         setError(null)
+        setLoadMoreError(null)
       })
       .catch((e: unknown) => {
         if (currentRequest !== requestId.current) return
@@ -30,16 +39,22 @@ export function useBooks(limit?: number) {
     return () => {
       if (currentRequest === requestId.current) requestId.current += 1
     }
-  }, [loadBooks])
+  }, [limit, loadBooks])
 
   const refetch = useCallback(async () => {
     const currentRequest = ++requestId.current
+    pageRequestId.current += 1
+    pageRequestInProgress.current = false
+    setLoadingMore(false)
     setLoading(true)
     try {
       const data = await loadBooks()
       if (currentRequest === requestId.current) {
         setBooks(data)
+        setNextOffset(data.length)
+        setHasMore(limit !== undefined && data.length === limit)
         setError(null)
+        setLoadMoreError(null)
       }
     } catch (e) {
       if (currentRequest === requestId.current) {
@@ -49,8 +64,37 @@ export function useBooks(limit?: number) {
     } finally {
       if (currentRequest === requestId.current) setLoading(false)
     }
-  }, [loadBooks])
-  return { books, loading, error, refetch }
+  }, [limit, loadBooks])
+
+  const loadMore = useCallback(async () => {
+    if (limit === undefined || !hasMore || pageRequestInProgress.current) return
+    pageRequestInProgress.current = true
+    const currentPageRequest = ++pageRequestId.current
+    const currentListRequest = requestId.current
+    setLoadingMore(true)
+    setLoadMoreError(null)
+    try {
+      const data = await getAdapter().getBooks(limit, nextOffset)
+      if (currentListRequest !== requestId.current || currentPageRequest !== pageRequestId.current) return
+      setBooks((current) => {
+        const existingIds = new Set(current.map((book) => book.id))
+        return [...current, ...data.filter((book) => !existingIds.has(book.id))]
+      })
+      setNextOffset((current) => current + data.length)
+      setHasMore(data.length === limit)
+    } catch (cause) {
+      if (currentListRequest !== requestId.current || currentPageRequest !== pageRequestId.current) return
+      console.error('Unable to load another page of book listings', cause)
+      setLoadMoreError('Chưa thể tải thêm sách. Hãy thử lại.')
+    } finally {
+      if (currentPageRequest === pageRequestId.current) {
+        pageRequestInProgress.current = false
+        setLoadingMore(false)
+      }
+    }
+  }, [hasMore, limit, nextOffset])
+
+  return { books, loading, loadingMore, hasMore, error, loadMoreError, loadMore, refetch }
 }
 
 export function useMyBooks(userId: string | undefined) {

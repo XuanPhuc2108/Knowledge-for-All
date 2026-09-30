@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Accessibility, Bell, BookOpen, ChevronRight, CircleUserRound, Gauge, LockKeyhole, MapPin, Monitor, Moon, Palette, ShieldCheck, Smartphone, Sparkles, Sun, Zap } from 'lucide-react'
+import { Accessibility, Bell, BookOpen, ChevronRight, CircleUserRound, Gauge, History, LockKeyhole, MapPin, Monitor, Moon, Palette, ShieldCheck, Smartphone, Sparkles, Sun, Trash2, Zap } from 'lucide-react'
 import { useAuth } from '../hooks/useAuthState'
 import { useToast } from '../hooks/useToast'
 import { useGeolocation } from '../hooks/useGeolocation'
@@ -42,6 +42,7 @@ export function SettingsPage() {
   const [showDelete, setShowDelete] = useState(false)
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [recentBooksCount, setRecentBooksCount] = useState(readRecentBooksCount)
 
   if (!user) return null
 
@@ -186,6 +187,19 @@ export function SettingsPage() {
     }
   }
 
+  const clearRecentlyViewed = () => {
+    if (recentBooksCount === 0) return
+    if (!window.confirm('Xóa lịch sử sách đã xem trên thiết bị này?')) return
+    try {
+      localStorage.removeItem('booki_recent_books')
+      setRecentBooksCount(0)
+      showToast('Đã xóa lịch sử sách đã xem trên thiết bị này.', 'success')
+    } catch (error) {
+      console.error('Unable to clear locally stored recently viewed books', error)
+      showToast('Không thể xóa lịch sử trên thiết bị này.', 'error')
+    }
+  }
+
   const settingsSections = [
     { href: '#account', label: 'Tài khoản', icon: CircleUserRound },
     { href: '#personal', label: 'Hồ sơ cá nhân', icon: BookOpen },
@@ -275,6 +289,28 @@ export function SettingsPage() {
         <p className="mt-3 text-xs leading-relaxed text-text-muted">
           Các tùy chọn có hiệu lực sau khi bấm “Lưu hồ sơ”. Vị trí chính xác và email đăng nhập không được đưa vào hồ sơ công khai.
         </p>
+        <div className="mt-5 flex flex-col gap-3 border-t border-glass/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <History aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-text-muted" />
+            <div>
+              <p className="text-sm font-medium text-text-primary">Lịch sử sách đã xem</p>
+              <p className="mt-1 text-xs text-text-muted">
+                {recentBooksCount > 0
+                  ? `${recentBooksCount} sách được lưu riêng trên thiết bị này.`
+                  : 'Chưa có lịch sử xem trên thiết bị này.'}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={recentBooksCount === 0}
+            onClick={clearRecentlyViewed}
+          >
+            <Trash2 aria-hidden="true" className="h-4 w-4" />
+            Xóa lịch sử
+          </Button>
+        </div>
       </section>
 
       <section id="location" className="settings-panel">
@@ -470,6 +506,16 @@ export function SettingsPage() {
       )}
     </div>
   )
+}
+
+function readRecentBooksCount(): number {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem('booki_recent_books') ?? '[]')
+    return Array.isArray(value) ? value.length : 0
+  } catch (error) {
+    console.warn('Unable to read locally stored recently viewed book count', error)
+    return 0
+  }
 }
 
 function SectionHeading({ title, detail }: { title: string; detail: string }) {

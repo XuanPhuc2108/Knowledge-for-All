@@ -66,13 +66,13 @@ export function BookShareSection({ bookId, title, ownerName }: BookShareSectionP
   }
 
   const downloadPng = () => {
-    if (qrPng) downloadDataUrl(qrPng, `knowledge-for-all-${safeFilename(bookId)}-qr.png`)
+    if (qrPng) downloadDataUrl(qrPng, `booki-${safeFilename(bookId)}-qr.png`)
   }
 
   const downloadSvg = () => {
     if (!qrSvg) return
     const blobUrl = URL.createObjectURL(new Blob([qrSvg], { type: 'image/svg+xml;charset=utf-8' }))
-    downloadUrl(blobUrl, `knowledge-for-all-${safeFilename(bookId)}-qr.svg`)
+    downloadUrl(blobUrl, `booki-${safeFilename(bookId)}-qr.svg`)
     window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
   }
 

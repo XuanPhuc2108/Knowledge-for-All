@@ -13,19 +13,19 @@ export function BookCarousel3DSection() {
     <section id="community-books" className="mx-auto max-w-7xl px-5 py-16 sm:px-8 md:py-24 lg:px-16">
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent-yellow">SÁCH ĐANG ĐƯỢC CHIA SẺ</p>
-          <h2 className="mt-2 text-3xl font-black tracking-tight text-text-primary sm:text-4xl">Tìm cuốn sách tiếp theo</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent-yellow">SÁCH ĐANG ĐƯỢC SHARE</p>
+          <h2 className="mt-2 text-3xl font-black tracking-tight text-text-primary sm:text-4xl">Có gì hay để đọc nè</h2>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-muted">
-            Bài đăng thật từ cộng đồng Booki. Mở chi tiết để xem tình trạng và thông tin liên hệ được chia sẻ.
+            Sách thật do mọi người đăng. Mở xem chi tiết để biết tình trạng và cách liên hệ nha.
           </p>
         </div>
         <Link to="/explore" className="inline-flex min-h-10 items-center rounded-xl border border-accent-yellow/25 bg-accent-yellow/[0.07] px-4 py-2 text-sm font-semibold text-accent-yellow transition-colors hover:bg-accent-yellow/[0.13]">
-          Khám phá tất cả sách
+          Xem hết sách
         </Link>
       </header>
 
       {loading ? (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" role="status" aria-label="Đang tải sách">
+        <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-3 lg:gap-5" role="status" aria-label="Đang tải sách">
           {[0, 1, 2].map((item) => <div key={item} className="aspect-[3/5] animate-pulse rounded-card bg-[rgb(var(--color-interactive-surface)/.7)]" />)}
         </div>
       ) : error ? (
@@ -38,13 +38,14 @@ export function BookCarousel3DSection() {
           onAction={() => navigate(user ? '/app/add-book' : '/register')}
         />
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-3 lg:gap-5">
           {books.map((book) => (
             <BookCard
               key={book.id}
               book={book}
+              compact
               actionLabel="Xem chi tiết"
-              onAction={() => navigate(user ? `/app/books/${book.id}` : `/books/${book.id}`)}
+              onAction={() => navigate(user ? `/app/books/${book.id}` : `/books/${book.id}`, { state: { book } })}
             />
           ))}
         </div>

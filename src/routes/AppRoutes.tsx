@@ -30,6 +30,8 @@ const SettingsPage = lazy(() => import('../pages/SettingsPage').then((m) => ({ d
 const BookDetailsPage = lazy(() => import('../pages/BookDetailsPage').then((m) => ({ default: m.BookDetailsPage })))
 const EditBookPage = lazy(() => import('../pages/EditBookPage').then((m) => ({ default: m.EditBookPage })))
 const ModerationPage = lazy(() => import('../pages/ModerationPage').then((m) => ({ default: m.ModerationPage })))
+const RequestsPage = lazy(() => import('../pages/RequestsPage').then((m) => ({ default: m.RequestsPage })))
+const ChatPage = lazy(() => import('../pages/ChatPage').then((m) => ({ default: m.ChatPage })))
 
 function Loading() {
   return (
@@ -174,6 +176,22 @@ export function AppRoutes({ onInitialRouteReady }: { onInitialRouteReady: () => 
               element={
                 <PageTransition>
                   <ModerationPage />
+                </PageTransition>
+              }
+            />
+            <Route
+              path="requests"
+              element={
+                <PageTransition>
+                  <RequestsPage />
+                </PageTransition>
+              }
+            />
+            <Route
+              path="messages/:chatId"
+              element={
+                <PageTransition>
+                  <ChatPage />
                 </PageTransition>
               }
             />

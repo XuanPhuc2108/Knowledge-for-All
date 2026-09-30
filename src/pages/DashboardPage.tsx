@@ -16,7 +16,16 @@ import type { BookStatus, ExchangeType } from '../types/book'
 
 export function DashboardPage({ publicMode = false }: { publicMode?: boolean }) {
   const { user } = useAuth()
-  const { books, loading, error, refetch } = useBooks()
+  const {
+    books,
+    loading,
+    loadingMore,
+    hasMore,
+    error,
+    loadMoreError,
+    loadMore,
+    refetch,
+  } = useBooks(24)
   const { favoriteIds, loading: favoritesLoading, error: favoriteError, toggleFavorite } = useFavorites(user?.id)
   const { showToast } = useToast()
   const navigate = useNavigate()
@@ -84,23 +93,23 @@ export function DashboardPage({ publicMode = false }: { publicMode?: boolean }) 
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-accent-yellow">{publicMode ? 'THƯ VIỆN BOOKI' : 'THƯ VIỆN CỘNG ĐỒNG'}</p>
-          <h1 className="text-3xl font-black tracking-tight text-text-primary sm:text-4xl">Khám phá sách</h1>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-muted">Tìm cuốn sách tiếp theo, xem tình trạng và kết nối với người chia sẻ.</p>
+          <h1 className="text-3xl font-black tracking-tight text-text-primary sm:text-4xl">Kiếm sách gì nè?</h1>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-muted">Lướt sách đang được share, xem tình trạng rồi kết nối với chủ sách nha.</p>
         </div>
-        <GradientButton onClick={() => navigate(user ? '/app/add-book' : '/register')}>{user ? '+ Đăng sách' : 'Tham gia Booki'}</GradientButton>
+        <GradientButton onClick={() => navigate(user ? '/app/add-book' : '/register')}>{user ? '+ Share sách' : 'Vào Booki'}</GradientButton>
       </div>
 
       <section aria-label="Tổng quan sách" className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <div className="glass-card rounded-2xl p-4">
-          <p className="text-xs text-text-muted">Bài đăng đang hiển thị</p>
+          <p className="text-xs text-text-muted">Sách đã tải</p>
           <p className="mt-1 text-2xl font-black text-text-primary">{books.length}</p>
         </div>
         <div className="glass-card rounded-2xl p-4">
-          <p className="text-xs text-text-muted">Có thể kết nối ngay</p>
+          <p className="text-xs text-text-muted">Có sẵn trong lượt này</p>
           <p className="mt-1 text-2xl font-black text-accent-yellow">{availableCount}</p>
         </div>
         <div className="glass-card col-span-2 rounded-2xl p-4 sm:col-span-1">
-          <p className="text-xs text-text-muted">Kết quả theo bộ lọc</p>
+          <p className="text-xs text-text-muted">Kết quả đã tải phù hợp</p>
           <p className="mt-1 text-2xl font-black text-text-primary">{filtered.length}</p>
         </div>
       </section>
@@ -110,7 +119,7 @@ export function DashboardPage({ publicMode = false }: { publicMode?: boolean }) 
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
           <input
             type="search"
-            placeholder="Tìm theo tên sách, tác giả, thể loại..."
+            placeholder="Tên sách, tác giả hay thể loại..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             className="field-control py-3 pl-10 pr-4 text-sm"
@@ -194,24 +203,51 @@ export function DashboardPage({ publicMode = false }: { publicMode?: boolean }) 
         <EmptyState title="Không thể tải danh sách sách" description={error} actionLabel="Thử lại" onAction={() => void refetch()} />
       ) : filtered.length === 0 ? (
         <EmptyState
-          title={favoritesOnly ? 'Chưa có sách yêu thích phù hợp' : 'Không tìm thấy sách phù hợp'}
-          description={favoritesOnly ? 'Lưu một bài đăng vào yêu thích để xem lại tại đây.' : 'Thử đổi từ khóa, trạng thái hoặc thể loại để mở rộng kết quả.'}
-          actionLabel="Xóa bộ lọc"
-          onAction={clearFilters}
+          title={favoritesOnly ? 'Chưa có sách yêu thích phù hợp' : hasMore ? 'Chưa thấy cuốn hợp gu trong lượt này' : 'Chưa thấy cuốn nào hợp gu'}
+          description={favoritesOnly
+            ? 'Thả tim một bài đăng để lưu lại, rồi ghé đây xem sau nha.'
+            : hasMore
+              ? 'Tải thêm sách để tìm tiếp, hoặc đổi từ khóa và bộ lọc nha.'
+              : 'Thử đổi từ khóa hoặc bộ lọc xem có cuốn nào lọt vào mắt xanh không.'}
+          actionLabel={hasMore ? loadingMore ? 'Đang tải...' : 'Tải thêm sách' : 'Reset bộ lọc'}
+          onAction={hasMore ? () => void loadMore() : clearFilters}
         />
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((book) => (
-            <BookCard
-              key={book.id}
-              book={book}
-              actionLabel="Xem chi tiết"
-              onAction={() => navigate(user ? `/app/books/${book.id}` : `/books/${book.id}`)}
-              isFavorite={favoriteIds.has(book.id)}
-              onFavorite={user && !favoritesLoading ? () => void handleFavorite(book.id, favoriteIds.has(book.id)) : undefined}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((book) => (
+              <BookCard
+                key={book.id}
+                book={book}
+                compact
+                actionLabel="Xem chi tiết"
+                onAction={() => navigate(user ? `/app/books/${book.id}` : `/books/${book.id}`, { state: { book } })}
+                isFavorite={favoriteIds.has(book.id)}
+                onFavorite={user && !favoritesLoading ? () => void handleFavorite(book.id, favoriteIds.has(book.id)) : undefined}
+              />
+            ))}
+          </div>
+          {loadMoreError && (
+            <p className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent-rose/20 bg-accent-rose/[0.06] p-3 text-sm text-accent-rose" role="alert">
+              <span>{loadMoreError}</span>
+              <button type="button" className="font-semibold underline underline-offset-2" onClick={() => void loadMore()}>
+                Thử tải lại
+              </button>
+            </p>
+          )}
+          {hasMore && (
+            <div className="mt-7 flex justify-center">
+              <button
+                type="button"
+                disabled={loadingMore}
+                onClick={() => void loadMore()}
+                className="filter-chip min-h-11 rounded-xl px-6 py-2.5 text-sm font-semibold disabled:cursor-wait disabled:opacity-60"
+              >
+                {loadingMore ? 'Đang tải thêm...' : 'Tải thêm sách'}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

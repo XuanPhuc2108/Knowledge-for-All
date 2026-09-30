@@ -5,9 +5,22 @@ import { Magnetic } from '../components/Magnetic'
 import { APP_NAME } from '../lib/constants'
 
 const TEAM = [
-  { name: 'Nguyễn Xuân Phúc', role: 'Trưởng nhóm', email: 'nguyenxuanphucdongthap123@gmail.com' },
-  { name: 'Nguyễn Thanh Trạng', role: 'Thành viên' },
-  { name: 'Cô Phạm Nguyễn Cẩm Tú', role: 'Thành viên' },
+  {
+    name: 'Nguyễn Xuân Phúc',
+    role: 'Trưởng nhóm · Phụ trách chính',
+    contribution: 'Lên ý tưởng, xây dựng và hoàn thiện website.',
+    email: 'nguyenxuanphucdongthap123@gmail.com',
+  },
+  {
+    name: 'Nguyễn Thanh Trạng',
+    role: 'Kiểm thử',
+    contribution: 'Kiểm tra các tính năng và trải nghiệm sử dụng.',
+  },
+  {
+    name: 'Cô Phạm Nguyễn Cẩm Tú',
+    role: 'Chỉ đạo',
+    contribution: 'Định hướng và chỉ đạo quá trình thực hiện.',
+  },
 ]
 
 export function Footer() {
@@ -39,18 +52,18 @@ export function Footer() {
           </Magnetic>
 
           <AnimatedText
-            text="Nền tảng chia sẻ sách quanh bạn — dữ liệu thật từ cộng đồng, kết nối tri thức không biên giới."
+            text="Có sách hay muốn share? Tìm sách để mượn hay đổi? Booki giúp bạn kết nối với mọi người quanh mình."
             scrollReveal
             className="max-w-xl text-sm leading-relaxed text-text-muted md:text-base"
           />
         </div>
 
         <div className="mb-20 text-center">
-          <h2 className="mb-3 font-black uppercase leading-[0.95] tracking-[-0.06em] text-[clamp(2.25rem,7vw,5.5rem)] text-text-primary">
-            Tri thức không biên giới
+          <h2 className="mb-3 font-black leading-[0.95] tracking-[-0.06em] text-[clamp(2.25rem,7vw,5.5rem)] text-text-primary">
+            Kiếm sách gì nè?
           </h2>
           <p className="text-[clamp(1rem,2.5vw,1.5rem)] font-medium tracking-wide text-accent-yellow">
-            Knowledge for All
+            Sách hay, share liền tay.
           </p>
         </div>
 
@@ -61,15 +74,13 @@ export function Footer() {
             </p>
             <div className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-2">
               {TEAM.map((member, index) => (
-                <article
-                  key={member.name}
-                  className={`team-member-card ${index === 0 ? 'team-member-lead sm:col-span-2' : ''}`}
-                >
+                <article key={member.name} className={`team-member-card ${index === 0 ? 'team-member-lead sm:col-span-2' : ''}`}>
                   {index === 0 && <span className="team-member-badge">TRƯỞNG NHÓM</span>}
                   <p className="text-base font-bold tracking-tight text-text-primary md:text-lg">
                     {member.name}
                   </p>
                   <p className="mt-1 text-xs text-text-muted">{member.role}</p>
+                  <p className="mx-auto mt-2 max-w-lg text-xs leading-relaxed text-text-muted">{member.contribution}</p>
                   {member.email && (
                     <a href={`mailto:${member.email}`} className="mt-2 block break-all text-xs text-accent-yellow hover:underline">
                       {member.email}
