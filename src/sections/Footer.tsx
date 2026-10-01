@@ -62,11 +62,11 @@ export function Footer() {
           <div className="booki-credit-support">
             <article className="booki-credit-mini">
               <span>Nguyễn Thanh Trạng</span>
-              <small>Kiểm thử</small>
+              <small>Kiểm thử các luồng sử dụng, góp ý để Booki ngày càng chỉn chu hơn.</small>
             </article>
             <article className="booki-credit-mini">
               <span>Cô Phạm Nguyễn Cẩm Tú</span>
-              <small>Định hướng và cố vấn</small>
+              <small>Định hướng và cố vấn, giúp dự án bám sát mục tiêu và cộng đồng.</small>
             </article>
           </div>
         </div>
