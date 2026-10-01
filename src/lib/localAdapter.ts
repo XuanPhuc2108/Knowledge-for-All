@@ -262,10 +262,11 @@ export const localAdapter = {
     writeBooks(books.filter((b) => b.id !== id))
   },
 
-  async getMyBooks(ownerId: string): Promise<Book[]> {
-    return readBooks()
+  async getMyBooks(ownerId: string, limit?: number, offset = 0): Promise<Book[]> {
+    const books = readBooks()
       .filter((b) => b.ownerId === ownerId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    return limit === undefined ? books : books.slice(offset, offset + limit)
   },
 
   async getFavoriteBookIds(userId: string): Promise<string[]> {
@@ -331,7 +332,10 @@ export const localAdapter = {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   },
 
-  async updateExchangeRequest(requestId, action): Promise<string> {
+  async updateExchangeRequest(
+    requestId: string,
+    action: 'accept' | 'reject' | 'cancel' | 'confirm-completion',
+  ): Promise<string> {
     const exchanges = readExchanges()
     const index = exchanges.findIndex((request) => request.id === requestId)
     if (index < 0) throw new Error('Không tìm thấy đề nghị.')
@@ -366,8 +370,8 @@ export const localAdapter = {
     return () => {}
   },
 
-  async getExchangeReview(): Promise<null> {
-    return null
+  async getReviewedInteractionIds(): Promise<string[]> {
+    return []
   },
 
   async getMemberReviews(): Promise<[]> {

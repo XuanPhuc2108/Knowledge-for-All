@@ -1,12 +1,11 @@
 const CACHE_PREFIX = 'knowledge-for-all-shell-'
-const CACHE_NAME = `${CACHE_PREFIX}v1`
+const CACHE_NAME = `${CACHE_PREFIX}v2`
 const APP_SHELL = ['/', '/manifest.webmanifest', '/pwa-icon.svg', '/pwa-icon-maskable.svg']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting()),
+      .then((cache) => cache.addAll(APP_SHELL)),
   )
 })
 
@@ -18,6 +17,10 @@ self.addEventListener('activate', (event) => {
       ))
       .then(() => self.clients.claim()),
   )
+})
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') void self.skipWaiting()
 })
 
 self.addEventListener('fetch', (event) => {

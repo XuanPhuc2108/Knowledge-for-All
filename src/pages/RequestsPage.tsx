@@ -42,18 +42,18 @@ export function RequestsPage() {
         if (cancelled) return
         setRequests(result)
         const completed = result.filter((request) => request.status === 'completed')
-        const checked = await Promise.all(completed.map(async (request) => {
-          try {
-            const review = await getAdapter().getExchangeReview(request.id, userId)
-            return { id: request.id, reviewed: Boolean(review), failed: false }
-          } catch (cause) {
-            console.error('Unable to check a review for a completed book request', cause)
-            return { id: request.id, reviewed: false, failed: true }
-          }
-        }))
+        const ids = completed.map((request) => request.id)
+        let reviewed: string[] = []
+        let checkFailed = false
+        try {
+          reviewed = await getAdapter().getReviewedInteractionIds(ids)
+        } catch (cause) {
+          checkFailed = true
+          console.error('Unable to check the signed-in member’s completed reviews', cause)
+        }
         if (!cancelled) {
-          setReviewedIds(new Set(checked.filter((item) => item.reviewed).map((item) => item.id)))
-          setReviewCheckFailedIds(new Set(checked.filter((item) => item.failed).map((item) => item.id)))
+          setReviewedIds(new Set(reviewed))
+          setReviewCheckFailedIds(new Set(checkFailed ? ids : []))
         }
       })
       .catch((cause: unknown) => {
@@ -223,7 +223,7 @@ export function RequestsPage() {
                   </form>
                 )}
                 <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-glass/10 pt-3">
-                  {request.chatId && (
+                  {request.chatId && ['pending', 'accepted', 'completed'].includes(request.status) && (
                     <Link to={`/app/messages/${request.chatId}`} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-accent-yellow px-3.5 py-2 text-sm font-semibold text-dark hover:brightness-105">
                       <MessageCircle aria-hidden="true" className="h-4 w-4" /> Mở cuộc trò chuyện
                     </Link>

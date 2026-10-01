@@ -72,7 +72,7 @@ export function ModerationPage() {
   }, [role, reload])
 
   useEffect(() => {
-    if (!role || role === 'user') return
+    if (role !== 'admin' && role !== 'owner') return
     let cancelled = false
     void getAdapter().getStaffSummary()
       .then((result) => { if (!cancelled) setSummary(result) })
@@ -180,7 +180,7 @@ export function ModerationPage() {
         </div>
       </header>
 
-      {summary ? (
+      {(role === 'admin' || role === 'owner') && summary ? (
         <section aria-label="Thống kê nền tảng" className="grid grid-cols-2 gap-3 md:grid-cols-5">
           <SummaryCard label="Thành viên" value={summary.userCount} />
           <SummaryCard label="Bài đăng sách" value={summary.bookCount} />
@@ -188,11 +188,11 @@ export function ModerationPage() {
           <SummaryCard label="Lượt đang kết nối" value={summary.activeRequestCount} />
           <SummaryCard label="Đã hoàn tất" value={summary.completedInteractionCount} />
         </section>
-      ) : summaryError ? (
+      ) : (role === 'admin' || role === 'owner') && summaryError ? (
         <p className="text-sm text-text-muted" role="status">{summaryError}</p>
-      ) : (
+      ) : (role === 'admin' || role === 'owner') ? (
         <div className="glass-card h-24 animate-pulse rounded-2xl" role="status" aria-label="Đang tải thống kê" />
-      )}
+      ) : null}
 
       <section>
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">

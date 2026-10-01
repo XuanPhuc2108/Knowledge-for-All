@@ -49,7 +49,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   const [systemReduced, setSystemReduced] = useState(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   )
-  const [initialized, setInitialized] = useState(false)
+  const initialized = true
   const effectiveMotion = resolveMotionPreference(settings.motion, systemReduced)
 
   useEffect(() => {
@@ -65,7 +65,6 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       )
     }
     applyTheme()
-    setInitialized(true)
     if (settings.theme !== 'system') return
     media.addEventListener('change', applyTheme)
     return () => media.removeEventListener('change', applyTheme)

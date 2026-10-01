@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, ChevronDown, Search } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { BookCard } from '../components/BookCard'
 import { EmptyState } from '../components/EmptyState'
 import { GradientButton } from '../components/GradientButton'
@@ -11,10 +11,30 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useFavorites } from '../hooks/useFavorites'
 import { BOOK_CATEGORIES, RADIUS_OPTIONS } from '../lib/constants'
 import { haversineDistance } from '../lib/geo'
+import { normalizeBookSearch } from '../lib/search'
+import { userFacingError } from '../lib/userFacingError'
 import { useToast } from '../hooks/useToast'
 import type { BookStatus, ExchangeType } from '../types/book'
 
+function parseExchangeType(value: string | null): ExchangeType | 'all' {
+  return value === 'share' || value === 'exchange' || value === 'borrow' ? value : 'all'
+}
+
+function parseCategory(value: string | null): string {
+  return value && (BOOK_CATEGORIES as readonly string[]).includes(value) ? value : 'all'
+}
+
+function parseBookStatus(value: string | null): BookStatus | 'all' {
+  return value === 'available' || value === 'loaned' || value === 'exchanged' ? value : 'all'
+}
+
+function parseRadius(value: string | null): number {
+  const radius = Number(value)
+  return RADIUS_OPTIONS.some((option) => option.value === radius) ? radius : Infinity
+}
+
 export function DashboardPage({ publicMode = false }: { publicMode?: boolean }) {
+  const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
   const {
     books,
@@ -29,22 +49,68 @@ export function DashboardPage({ publicMode = false }: { publicMode?: boolean }) 
   const { favoriteIds, loading: favoritesLoading, error: favoriteError, toggleFavorite } = useFavorites(user?.id)
   const { showToast } = useToast()
   const navigate = useNavigate()
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<ExchangeType | 'all'>('all')
-  const [statusFilter, setStatusFilter] = useState<BookStatus | 'all'>('all')
-  const [categoryFilter, setCategoryFilter] = useState('all')
-  const [sortNearby, setSortNearby] = useState(false)
-  const [radius, setRadius] = useState<number>(Infinity)
-  const [favoritesOnly, setFavoritesOnly] = useState(false)
+  const [search, setSearch] = useState(() => searchParams.get('q') ?? '')
+  const [filter, setFilter] = useState<ExchangeType | 'all'>(() => parseExchangeType(searchParams.get('type')))
+  const [statusFilter, setStatusFilter] = useState<BookStatus | 'all'>(() => parseBookStatus(searchParams.get('status')))
+  const [categoryFilter, setCategoryFilter] = useState(() => parseCategory(searchParams.get('category')))
+  const [sortNearby, setSortNearby] = useState(() => searchParams.get('nearby') === '1')
+  const [radius, setRadius] = useState<number>(() => parseRadius(searchParams.get('radius')))
+  const [favoritesOnly, setFavoritesOnly] = useState(() => searchParams.get('favorite') === '1')
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const debouncedSearch = useDebouncedValue(search, 250)
   const hasLocation = Boolean(user?.locationEnabled && user.latitude !== undefined && user.longitude !== undefined)
   const latitude = user?.latitude
   const longitude = user?.longitude
 
+  useEffect(() => {
+    const onShortcut = (event: KeyboardEvent) => {
+      if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return
+      const target = event.target
+      if (target instanceof HTMLElement && (
+        target.isContentEditable ||
+        ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName)
+      )) return
+      event.preventDefault()
+      searchInputRef.current?.focus()
+    }
+    window.addEventListener('keydown', onShortcut)
+    return () => window.removeEventListener('keydown', onShortcut)
+  }, [])
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams)
+    for (const key of ['q', 'type', 'status', 'category', 'nearby', 'radius', 'favorite']) next.delete(key)
+    if (search.trim()) next.set('q', search.trim())
+    if (filter !== 'all') next.set('type', filter)
+    if (statusFilter !== 'all') next.set('status', statusFilter)
+    if (categoryFilter !== 'all') next.set('category', categoryFilter)
+    if (sortNearby) next.set('nearby', '1')
+    if (radius !== Infinity) next.set('radius', String(radius))
+    if (favoritesOnly) next.set('favorite', '1')
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true })
+    }
+  }, [categoryFilter, favoritesOnly, filter, radius, search, searchParams, setSearchParams, sortNearby, statusFilter])
+
+  useEffect(() => {
+    const onPopState = () => {
+      const params = new URLSearchParams(window.location.search)
+      setSearch(params.get('q') ?? '')
+      setFilter(parseExchangeType(params.get('type')))
+      setStatusFilter(parseBookStatus(params.get('status')))
+      setCategoryFilter(parseCategory(params.get('category')))
+      setSortNearby(params.get('nearby') === '1')
+      setRadius(parseRadius(params.get('radius')))
+      setFavoritesOnly(params.get('favorite') === '1')
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
   const filtered = useMemo(() => {
-    const q = debouncedSearch.trim().toLowerCase()
+    const q = normalizeBookSearch(debouncedSearch)
     let result = books.filter((book) => (
-      (!q || book.title.toLowerCase().includes(q) || book.author?.toLowerCase().includes(q) || book.category.toLowerCase().includes(q)) &&
+      (!q || normalizeBookSearch(`${book.title} ${book.author ?? ''} ${book.category} ${book.description}`).includes(q)) &&
       (filter === 'all' || book.exchangeType === filter) &&
       (statusFilter === 'all' || book.status === statusFilter) &&
       (categoryFilter === 'all' || book.category === categoryFilter) &&
@@ -74,7 +140,8 @@ export function DashboardPage({ publicMode = false }: { publicMode?: boolean }) 
       await toggleFavorite(bookId)
       showToast(currentlyFavorite ? 'Đã bỏ khỏi yêu thích' : 'Đã lưu vào yêu thích', 'success')
     } catch (cause) {
-      showToast(cause instanceof Error ? cause.message : 'Không thể cập nhật yêu thích', 'error')
+      console.error('Unable to update a saved-book preference', cause)
+      showToast(userFacingError(cause, 'Chưa thể cập nhật sách yêu thích. Hãy thử lại nha.'), 'error')
     }
   }
 
@@ -87,6 +154,15 @@ export function DashboardPage({ publicMode = false }: { publicMode?: boolean }) 
     setSortNearby(false)
     setRadius(Infinity)
   }
+  const activeFilterCount = [
+    Boolean(search.trim()),
+    filter !== 'all',
+    statusFilter !== 'all',
+    categoryFilter !== 'all',
+    sortNearby,
+    radius !== Infinity,
+    favoritesOnly,
+  ].filter(Boolean).length
 
   return (
     <div className="space-y-6">
@@ -118,8 +194,10 @@ export function DashboardPage({ publicMode = false }: { publicMode?: boolean }) 
         <div className="relative min-w-0">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
           <input
+            ref={searchInputRef}
             type="search"
-            placeholder="Tên sách, tác giả hay thể loại..."
+            aria-label="Tìm theo tên sách, tác giả, thể loại hoặc mô tả"
+            placeholder="Tên sách, tác giả, thể loại... (nhấn / để tìm)"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             className="field-control py-3 pl-10 pr-4 text-sm"
@@ -143,6 +221,15 @@ export function DashboardPage({ publicMode = false }: { publicMode?: boolean }) 
       </section>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
+        {activeFilterCount > 0 && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="filter-chip rounded-full px-3.5 py-2 text-xs font-semibold text-accent-yellow sm:text-sm"
+          >
+            Xóa bộ lọc ({activeFilterCount})
+          </button>
+        )}
         {(['all', 'share', 'exchange', 'borrow'] as const).map((value) => (
           <button
             key={value}

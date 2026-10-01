@@ -19,7 +19,10 @@ Mở trình duyệt tại `http://localhost:5173`.
 4. Chạy `supabase-migration-book-contact-social.sql` nếu muốn thêm link Zalo/Messenger cho bài đăng hiện có.
 5. Chạy `supabase-migration-profile-settings-marketplace.sql` trên project hiện có để bổ sung hồ sơ/quyền riêng tư, trạng thái sách, yêu thích, báo cáo và RPC xóa tài khoản. Không chạy migration thay đổi schema trước khi sao lưu và review quyền RLS.
 6. Chạy `supabase-migration-booki-roles-moderation.sql` để thêm vai trò tin cậy và trạng thái xử lý báo cáo. Migration này cần bảng `books` và `book_reports` hiện có.
-7. Lấy **Project URL** và **anon/publishable key** từ **Project Settings → API Keys** trong Dashboard. Copy `.env.example` thành `.env.local` và điền:
+7. Chạy `supabase-migration-booki-product-completion.sql` sau các migration ở trên. Migration này thiết lập đề nghị mượn/đổi, chat theo đề nghị, đánh giá chỉ sau tương tác hoàn tất, quyền moderator/admin, nhật ký quản trị, cùng các view giới hạn dữ liệu công khai. Sao lưu và review kỹ trước khi chạy trên dữ liệu production.
+8. Chạy `supabase-migration-booki-public-profile-join.sql` để gộp hồ sơ công khai đã được cho phép vào view sách; giúp bỏ một lượt truy vấn hồ sơ riêng cho từng trang danh sách/chi tiết. Migration này vẫn làm tròn tọa độ và chỉ lấy trường hiển thị công khai.
+9. Đăng nhập tài khoản chủ sở hữu đã xác nhận email, sau đó chạy `supabase-setup-booki-owner.sql` trong SQL Editor. Script tra cứu email trong `auth.users` phía database và dừng nếu tài khoản chưa được xác nhận hoặc đã có owner khác.
+10. Lấy **Project URL** và **anon/publishable key** từ **Project Settings → API Keys** trong Dashboard. Copy `.env.example` thành `.env.local` và điền:
 
 ```env
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
@@ -39,37 +42,31 @@ Trong Supabase Dashboard, bật Google và Facebook ở **Authentication → Sig
 
 ### Khởi tạo quyền chủ sở hữu
 
-Sau khi migration vai trò đã chạy và tài khoản chủ sở hữu đã đăng nhập ít nhất một lần, chạy đoạn SQL sau trong Supabase SQL Editor. Việc cấp quyền chỉ diễn ra phía database; email không được dùng làm điều kiện phân quyền trong frontend. Bảng role chỉ cho phép một chủ sở hữu và không cấp quyền tự nâng cấp cho tài khoản thường.
+Sau khi chạy cả `supabase-migration-booki-roles-moderation.sql` và `supabase-migration-booki-product-completion.sql`, đăng ký/đăng nhập tài khoản đã xác nhận bằng email chủ sở hữu rồi chạy đoạn SQL sau trong Supabase SQL Editor. Việc cấp quyền chỉ diễn ra phía database; email không được dùng làm điều kiện phân quyền trong frontend. Bảng role chỉ cho phép một chủ sở hữu và không cấp quyền tự nâng cấp cho tài khoản thường.
 
 ```sql
 do $$
 declare
-  matching_users integer;
-  target_user_id uuid;
-  current_owner_id uuid;
+  owner_user_id uuid;
 begin
-  select count(*) into matching_users
+  select id
+    into owner_user_id
   from auth.users
-  where lower(email) = lower('nguyenxuanphucdongthap123@gmail.com');
+  where lower(email) = lower('nguyenxuanphucdongthap123@gmail.com')
+    and email_confirmed_at is not null;
 
-  if matching_users <> 1 then
-    raise exception 'Expected exactly one matching auth.users account';
+  if owner_user_id is null then
+    raise exception 'No verified account found for the configured Booki owner email';
   end if;
-
-  select id into strict target_user_id
-  from auth.users
-  where lower(email) = lower('nguyenxuanphucdongthap123@gmail.com');
-
-  select user_id into current_owner_id
-  from public.app_user_roles
-  where role = 'owner';
-
-  if current_owner_id is not null and current_owner_id <> target_user_id then
-    raise exception 'A different owner is already assigned';
+  if exists (
+    select 1 from public.app_user_roles
+    where role = 'owner' and user_id <> owner_user_id
+  ) then
+    raise exception 'An owner is already assigned; review app_user_roles before bootstrapping another owner';
   end if;
 
   insert into public.app_user_roles (user_id, role)
-  values (target_user_id, 'owner')
+  values (owner_user_id, 'owner')
   on conflict (user_id) do update set role = 'owner';
 end
 $$;
@@ -94,6 +91,7 @@ $$;
 - Định vị: tính khoảng cách Haversine, radar trực quan
 - Dashboard: tìm kiếm có debounce, lọc thể loại/hình thức/tình trạng/khoảng cách, lưu sách yêu thích
 - Chi tiết sách: người chia sẻ, liên hệ qua điện thoại/email/Zalo/Messenger nếu người đăng tự thêm, chia sẻ QR chỉ chứa URL công khai, sách liên quan và lịch sử xem trên thiết bị
+- Đề nghị mượn/đổi có trạng thái, chat riêng theo sách, xác nhận hoàn tất từ cả hai bên và đánh giá chỉ từ tương tác đã hoàn tất
 - Quản lý sách cá nhân: thống kê, lọc theo trạng thái, sửa/xóa có xác nhận
 - Hồ sơ và cài đặt: thông tin liên hệ/quyền riêng tư, định vị, chủ đề, cài PWA, đổi mật khẩu, đăng xuất và yêu cầu xóa tài khoản
 - Kiểm duyệt báo cáo có phân quyền database (`user`, `moderator`, `admin`, `owner`); quyền owner cần bootstrap bằng SQL ở trên

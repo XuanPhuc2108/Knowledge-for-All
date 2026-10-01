@@ -127,9 +127,6 @@ export interface BookConversation {
 
 export interface CommunityReview {
   id: string
-  interactionId: string
-  bookId: string
-  reviewerId: string
   reviewerName: string
   rating: number
   communicationRating: number

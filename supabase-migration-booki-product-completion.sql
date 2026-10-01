@@ -13,6 +13,9 @@ create table if not exists public.app_audit_log (
 
 alter table public.app_audit_log enable row level security;
 revoke all on public.app_audit_log from public, anon, authenticated;
+revoke insert (id, actor_id, subject_user_id, book_id, report_id, event_type, details, created_at),
+  update (id, actor_id, subject_user_id, book_id, report_id, event_type, details, created_at),
+  delete on public.app_audit_log from public, anon, authenticated;
 grant select on public.app_audit_log to authenticated;
 drop policy if exists "Staff can read audit events" on public.app_audit_log;
 create policy "Staff can read audit events"
@@ -107,7 +110,7 @@ security definer
 set search_path = pg_catalog, public
 as $$
 begin
-  if not public.has_app_role(array['moderator', 'admin', 'owner']::text[]) then
+  if not public.has_app_role(array['admin', 'owner']::text[]) then
     raise exception 'Not authorized';
   end if;
 
@@ -130,13 +133,17 @@ security definer
 set search_path = pg_catalog, public
 as $$
 begin
-  insert into public.app_audit_log (actor_id, book_id, event_type, details)
-  values (
-    auth.uid(),
-    old.id,
-    'book.moderation_deleted',
-    jsonb_build_object('title', old.title, 'owner_id', old.owner_id)
-  );
+  if auth.uid() is not null
+    and auth.uid() <> old.owner_id
+    and public.has_app_role(array['moderator', 'admin', 'owner']::text[]) then
+    insert into public.app_audit_log (actor_id, book_id, event_type, details)
+    values (
+      auth.uid(),
+      old.id,
+      'book.moderation_deleted',
+      jsonb_build_object('title', old.title, 'owner_id', old.owner_id)
+    );
+  end if;
   return old;
 end;
 $$;
@@ -148,6 +155,7 @@ for each row execute function public.audit_book_moderation_delete();
 create or replace function public.audit_report_status_change()
 returns trigger
 language plpgsql
+security definer
 security definer
 set search_path = pg_catalog, public
 as $$
@@ -183,7 +191,8 @@ create index if not exists exchange_requests_owner_status_created_idx
   on public.exchange_requests (owner_id, status, created_at desc);
 create index if not exists exchange_requests_requester_status_created_idx
   on public.exchange_requests (requester_id, status, created_at desc);
-create unique index if not exists exchange_requests_one_active_per_book_requester_idx
+drop index if exists public.exchange_requests_one_active_per_book_requester_idx;
+create index if not exists exchange_requests_active_book_requester_idx
   on public.exchange_requests (book_id, requester_id)
   where status in ('pending', 'accepted');
 
@@ -191,6 +200,9 @@ drop policy if exists "Users can create exchange requests" on public.exchange_re
 drop policy if exists "Participants can update exchange requests" on public.exchange_requests;
 drop policy if exists "Participants can insert exchange requests" on public.exchange_requests;
 revoke insert, update, delete on public.exchange_requests from public, anon, authenticated;
+revoke insert (id, book_id, requester_id, owner_id, message, status, created_at, owner_completed_at, requester_completed_at, completed_at),
+  update (id, book_id, requester_id, owner_id, message, status, created_at, owner_completed_at, requester_completed_at, completed_at)
+  on public.exchange_requests from public, anon, authenticated;
 grant select on public.exchange_requests to authenticated;
 
 create or replace function public.create_book_exchange_request(p_book_id uuid, p_message text)
@@ -216,12 +228,27 @@ begin
   select b.owner_id into target_owner
   from public.books as b
   where b.id = p_book_id and b.status = 'available'
-  for share;
+  for update;
   if target_owner is null then
     raise exception 'Book is not available';
   end if;
   if target_owner = actor_id then
     raise exception 'Cannot request your own book';
+  end if;
+  if exists (
+    select 1 from public.exchange_requests as existing
+    where existing.book_id = p_book_id
+      and existing.requester_id = actor_id
+      and existing.status in ('pending', 'accepted')
+  ) then
+    raise exception 'An active request already exists for this book';
+  end if;
+  if exists (
+    select 1 from public.exchange_requests as existing
+    where existing.book_id = p_book_id
+      and existing.status = 'accepted'
+  ) then
+    raise exception 'This book already has an active accepted request';
   end if;
 
   insert into public.exchange_requests (
@@ -294,8 +321,32 @@ begin
     if actor_id <> request_row.owner_id or request_row.status <> 'pending' then
       raise exception 'Not authorized to change this request';
     end if;
+    if p_action = 'accept' then
+      perform 1
+      from public.books as b
+      where b.id = request_row.book_id and b.status = 'available'
+      for update;
+      if not found then
+        raise exception 'Book is no longer available';
+      end if;
+      if exists (
+        select 1 from public.exchange_requests as existing
+        where existing.book_id = request_row.book_id
+          and existing.id <> request_row.id
+          and existing.status = 'accepted'
+      ) then
+        raise exception 'Another request is already accepted for this book';
+      end if;
+    end if;
     next_status := case when p_action = 'accept' then 'accepted' else 'rejected' end;
     update public.exchange_requests set status = next_status where id = p_request_id;
+    if p_action = 'accept' then
+      update public.exchange_requests
+      set status = 'rejected'
+      where book_id = request_row.book_id
+        and id <> p_request_id
+        and status = 'pending';
+    end if;
     return next_status;
   end if;
 
@@ -345,10 +396,34 @@ drop policy if exists "Chats viewable by participants" on public.chats;
 drop policy if exists "Participants can create chats" on public.chats;
 drop policy if exists "Participants can update chats" on public.chats;
 revoke insert, update, delete on public.chats from public, anon, authenticated;
+revoke insert (id, book_id, owner_id, requester_id, created_at, updated_at),
+  update (id, book_id, owner_id, requester_id, created_at, updated_at),
+  delete on public.chats from public, anon, authenticated;
 grant select on public.chats to authenticated;
+create or replace function public.can_access_book_chat(p_chat_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog, public
+as $$
+  select exists (
+    select 1
+    from public.chats as c
+    join public.exchange_requests as r
+      on r.book_id = c.book_id
+      and r.owner_id = c.owner_id
+      and r.requester_id = c.requester_id
+    where c.id = p_chat_id
+      and auth.uid() in (c.owner_id, c.requester_id)
+      and r.status in ('pending', 'accepted', 'completed')
+  );
+$$;
+revoke all on function public.can_access_book_chat(uuid) from public, anon;
+grant execute on function public.can_access_book_chat(uuid) to authenticated;
 create policy "Chats viewable by participants"
   on public.chats for select to authenticated
-  using (auth.uid() = requester_id or auth.uid() = owner_id);
+  using (public.can_access_book_chat(id));
 
 create or replace function public.update_chat_timestamp_on_message()
 returns trigger
@@ -363,32 +438,31 @@ begin
   return new;
 end;
 $$;
+drop trigger if exists messages_update_chat_timestamp on public.messages;
+create trigger messages_update_chat_timestamp
+after insert on public.messages
+for each row execute function public.update_chat_timestamp_on_message();
 
 drop policy if exists "Messages viewable by chat participants" on public.messages;
 drop policy if exists "Participants can insert messages" on public.messages;
-revoke update, delete on public.messages from public, anon, authenticated;
-grant select, insert on public.messages to authenticated;
+revoke all on public.messages from public, anon, authenticated;
+revoke insert (id, chat_id, sender_id, body, created_at),
+  update (id, chat_id, sender_id, body, created_at),
+  delete on public.messages from public, anon, authenticated;
+grant select on public.messages to authenticated;
 create policy "Messages viewable by chat participants"
   on public.messages for select to authenticated
-  using (
-    exists (
-      select 1 from public.chats as c
-      where c.id = messages.chat_id
-        and auth.uid() in (c.requester_id, c.owner_id)
-    )
-  );
+  using (public.can_access_book_chat(chat_id));
 drop policy if exists "Participants can insert messages" on public.messages;
 create policy "Participants can insert messages"
   on public.messages for insert to authenticated
   with check (
     auth.uid() = sender_id
     and char_length(btrim(body)) between 1 and 2000
-    and exists (
-      select 1 from public.chats as c
-      where c.id = messages.chat_id
-        and auth.uid() in (c.requester_id, c.owner_id)
-    )
+    and public.can_access_book_chat(chat_id)
   );
+revoke insert (id, chat_id, sender_id, body, created_at) on public.messages from authenticated;
+grant insert (chat_id, sender_id, body) on public.messages to authenticated;
 
 create table if not exists public.book_reviews (
   id uuid primary key default gen_random_uuid(),
@@ -409,11 +483,42 @@ create index if not exists book_reviews_reviewee_created_idx
   on public.book_reviews (reviewee_id, created_at desc);
 alter table public.book_reviews enable row level security;
 revoke all on public.book_reviews from public, anon, authenticated;
-grant select on public.book_reviews to anon, authenticated;
+revoke insert (id, interaction_id, book_id, reviewer_id, reviewee_id, rating, communication_rating, reliability_rating, description_rating, comment, created_at),
+  update (id, interaction_id, book_id, reviewer_id, reviewee_id, rating, communication_rating, reliability_rating, description_rating, comment, created_at),
+  delete on public.book_reviews from public, anon, authenticated;
 drop policy if exists "Public can read community reviews" on public.book_reviews;
-create policy "Public can read community reviews"
-  on public.book_reviews for select to anon, authenticated
-  using (true);
+
+create or replace view public.public_member_reviews
+with (security_barrier = true)
+as
+select
+  review.id,
+  review.reviewee_id,
+  coalesce(profile.full_name, 'Thành viên') as reviewer_name,
+  review.rating,
+  review.communication_rating,
+  review.reliability_rating,
+  review.description_rating,
+  review.comment,
+  review.created_at
+from public.book_reviews as review
+left join public.public_profiles as profile on profile.id = review.reviewer_id;
+grant select on public.public_member_reviews to anon, authenticated;
+
+create or replace function public.get_my_reviewed_interactions(p_interaction_ids uuid[])
+returns table (interaction_id uuid)
+language sql
+stable
+security definer
+set search_path = pg_catalog, public
+as $$
+  select review.interaction_id
+  from public.book_reviews as review
+  where review.reviewer_id = auth.uid()
+    and review.interaction_id = any(coalesce(p_interaction_ids, array[]::uuid[]));
+$$;
+revoke all on function public.get_my_reviewed_interactions(uuid[]) from public, anon;
+grant execute on function public.get_my_reviewed_interactions(uuid[]) to authenticated;
 
 create or replace function public.create_exchange_review(
   p_interaction_id uuid,
@@ -556,6 +661,11 @@ drop policy if exists "Trusted staff can remove books" on public.books;
 create policy "Trusted staff can remove books"
   on public.books for delete to authenticated
   using (public.has_app_role(array['moderator', 'admin', 'owner']::text[]));
+
+revoke update on public.book_reports from public, anon, authenticated;
+revoke update (id, reporter_id, book_id, reason, details, created_at, status, reviewed_at, reviewed_by)
+  on public.book_reports from public, anon, authenticated;
+grant update (status) on public.book_reports to authenticated;
 
 notify pgrst, 'reload schema';
 commit;

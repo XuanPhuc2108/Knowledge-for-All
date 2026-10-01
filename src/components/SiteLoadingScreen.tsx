@@ -7,17 +7,12 @@ interface SiteLoadingScreenProps {
 }
 
 export function SiteLoadingScreen({ ready }: SiteLoadingScreenProps) {
-  const [phase, setPhase] = useState<'loading' | 'exiting' | 'hidden'>('loading')
+  const [exitComplete, setExitComplete] = useState(false)
   const [showSlowNote, setShowSlowNote] = useState(false)
 
   useEffect(() => {
-    if (!ready) {
-      setPhase('loading')
-      return
-    }
-
-    setPhase('exiting')
-    const timeout = window.setTimeout(() => setPhase('hidden'), 220)
+    if (!ready) return
+    const timeout = window.setTimeout(() => setExitComplete(true), 220)
     return () => window.clearTimeout(timeout)
   }, [ready])
 
@@ -27,7 +22,8 @@ export function SiteLoadingScreen({ ready }: SiteLoadingScreenProps) {
     return () => window.clearTimeout(timeout)
   }, [ready])
 
-  if (phase === 'hidden') return null
+  if (exitComplete) return null
+  const phase = ready ? 'exiting' : 'loading'
 
   return (
     <div

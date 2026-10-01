@@ -4,7 +4,9 @@ export interface PwaInstallContextValue {
   canInstall: boolean
   installed: boolean
   isIOS: boolean
+  updateAvailable: boolean
   install: () => Promise<boolean>
+  updateApp: () => void
 }
 
 export const PwaInstallContext = createContext<PwaInstallContextValue | null>(null)

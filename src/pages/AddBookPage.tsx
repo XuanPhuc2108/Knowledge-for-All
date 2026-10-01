@@ -5,6 +5,7 @@ import { CameraCapture } from '../components/CameraCapture'
 import { useToast } from '../hooks/useToast'
 import { useAuth } from '../hooks/useAuthState'
 import { useMyBooks } from '../hooks/useBooks'
+import { userFacingError } from '../lib/userFacingError'
 import type { CreateBookInput } from '../types/book'
 
 export function AddBookPage() {
@@ -37,7 +38,8 @@ export function AddBookPage() {
       showToast('Đã đăng sách thành công.', 'success')
       navigate('/app/my-books')
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Không thể đăng sách', 'error')
+      console.error('Unable to create a book listing', e)
+      showToast(userFacingError(e, 'Chưa thể đăng sách. Hãy thử lại nha.'), 'error')
     } finally {
       setSaving(false)
     }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getAdapter } from '../lib/dataAdapter'
+import { userFacingError } from '../lib/userFacingError'
 
 const EMPTY_FAVORITES = new Set<string>()
 
@@ -24,7 +25,8 @@ export function useFavorites(userId: string | undefined) {
       .catch((cause: unknown) => {
         if (!cancelled) {
           setFavoriteIds(new Set())
-          setError(cause instanceof Error ? cause.message : 'Không thể tải sách yêu thích')
+          console.error('Unable to load saved-book preferences', cause)
+          setError(userFacingError(cause, 'Chưa thể tải sách yêu thích. Hãy thử lại nha.'))
         }
       })
       .finally(() => {

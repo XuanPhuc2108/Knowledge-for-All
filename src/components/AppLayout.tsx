@@ -36,18 +36,19 @@ export function AppLayout() {
     role: null
     error: string
   } | null>(null)
+  const userId = user?.id
 
   useEffect(() => {
     let cancelled = false
-    if (!user) return () => { cancelled = true }
-    void getAdapter().getMyAppRole(user.id)
+    if (!userId) return () => { cancelled = true }
+    void getAdapter().getMyAppRole(userId)
       .then((nextRole) => {
-        if (!cancelled) setRoleState({ userId: user.id, role: nextRole, error: null })
+        if (!cancelled) setRoleState({ userId, role: nextRole, error: null })
       })
       .catch((cause: unknown) => {
         if (!cancelled) {
           setRoleState({
-            userId: user.id,
+            userId,
             role: null,
             error: 'Chưa thể xác định quyền truy cập. Hãy thử tải lại trang.',
           })
@@ -55,7 +56,7 @@ export function AppLayout() {
         }
       })
     return () => { cancelled = true }
-  }, [user?.id])
+  }, [userId])
 
   const role = roleState && roleState.userId === user?.id ? roleState.role : null
   const roleError = roleState && roleState.userId === user?.id ? roleState.error : null

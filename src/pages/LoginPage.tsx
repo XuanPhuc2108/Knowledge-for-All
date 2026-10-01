@@ -5,6 +5,7 @@ import { GradientButton } from '../components/GradientButton'
 import { OAuthButtons } from '../components/OAuthButtons'
 import { useAuth } from '../hooks/useAuthState'
 import { validateLogin } from '../lib/validation'
+import { userFacingError } from '../lib/userFacingError'
 
 export function LoginPage() {
   const { login, resendSignupConfirmation, user } = useAuth()
@@ -40,7 +41,8 @@ export function LoginPage() {
       await login(email, password)
       navigate(from, { replace: true })
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Đăng nhập thất bại'
+      console.error('Unable to complete sign-in from the login form', e)
+      const message = userFacingError(e, 'Chưa thể đăng nhập. Hãy thử lại nha.')
       setErrors({ form: message })
       if (message.includes('Xác nhận email')) setConfirmationEmail(email.trim().toLowerCase())
     } finally {
@@ -57,7 +59,8 @@ export function LoginPage() {
       setErrors({})
       setConfirmationNotice('Đã gửi lại email xác nhận. Hãy kiểm tra thư đến và thư rác.')
     } catch (cause) {
-      setErrors({ form: cause instanceof Error ? cause.message : 'Không thể gửi email xác nhận.' })
+      console.error('Unable to resend the account confirmation email', cause)
+      setErrors({ form: userFacingError(cause, 'Chưa thể gửi email xác nhận. Hãy thử lại nha.') })
     } finally {
       setResendingConfirmation(false)
     }

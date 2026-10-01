@@ -7,10 +7,11 @@ import { useToast } from '../hooks/useToast'
 import { useAuth } from '../hooks/useAuthState'
 import { useBooks } from '../hooks/useBooks'
 import { useGeolocation } from '../hooks/useGeolocation'
+import { userFacingError } from '../lib/userFacingError'
 
 export function LocationSection() {
   const { user, updateProfile } = useAuth()
-  const { books } = useBooks()
+  const { books } = useBooks(24)
   const { requestLocation, latitude, longitude, loading } = useGeolocation()
   const { showToast } = useToast()
   const [enabled, setEnabled] = useState(user?.locationEnabled ?? false)
@@ -31,7 +32,8 @@ export function LocationSection() {
       setEnabled(true)
       showToast('Đã bật định vị thành công', 'success')
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Không thể bật định vị', 'error')
+      console.error('Unable to enable location for nearby book discovery', e)
+      showToast(userFacingError(e, 'Chưa bật được định vị. Bạn có thể thử lại hoặc kiểm tra quyền trình duyệt nha.'), 'error')
     }
   }
 

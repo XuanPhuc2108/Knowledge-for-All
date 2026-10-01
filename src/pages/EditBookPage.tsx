@@ -6,6 +6,7 @@ import { EmptyState } from '../components/EmptyState'
 import { useAuth } from '../hooks/useAuthState'
 import { useToast } from '../hooks/useToast'
 import { getAdapter } from '../lib/dataAdapter'
+import { userFacingError } from '../lib/userFacingError'
 import type { Book, CreateBookInput } from '../types/book'
 
 export function EditBookPage() {
@@ -37,7 +38,8 @@ export function EditBookPage() {
         setImageUrls(result.imageUrls)
       })
       .catch((cause: unknown) => {
-        if (!cancelled) setError(cause instanceof Error ? cause.message : 'Không thể tải bài đăng.')
+        console.error('Unable to load a book listing for editing', cause)
+        if (!cancelled) setError(userFacingError(cause, 'Chưa thể tải bài đăng. Hãy thử lại nha.'))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -58,7 +60,8 @@ export function EditBookPage() {
       showToast('Đã cập nhật bài đăng.', 'success')
       navigate(`/app/books/${book.id}`, { replace: true })
     } catch (cause) {
-      showToast(cause instanceof Error ? cause.message : 'Không thể cập nhật bài đăng.', 'error')
+      console.error('Unable to save an edited book listing', cause)
+      showToast(userFacingError(cause, 'Chưa thể cập nhật bài đăng. Hãy thử lại nha.'), 'error')
     } finally {
       setSaving(false)
     }

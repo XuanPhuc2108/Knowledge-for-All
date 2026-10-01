@@ -22,8 +22,12 @@ import { localAdapter } from './localAdapter'
 import { isValidMessengerUrl, isValidZaloUrl } from './validation'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
-const PUBLIC_BOOK_COLUMNS = 'id, owner_id, owner_name, title, author, category, condition, exchange_type, description, image_urls, latitude, longitude, contact_phone, contact_email, contact_zalo_url, contact_messenger_url, status, created_at, updated_at'
+const PUBLIC_BOOK_LEGACY_COLUMNS = 'id, owner_id, owner_name, title, author, category, condition, exchange_type, description, image_urls, latitude, longitude, contact_phone, contact_email, contact_zalo_url, contact_messenger_url, status, created_at, updated_at'
+const PUBLIC_BOOK_COLUMNS = `${PUBLIC_BOOK_LEGACY_COLUMNS}, public_owner_name, public_owner_avatar_url, public_owner_area_label, public_owner_contact_phone, public_owner_contact_email`
 const OWN_BOOK_COLUMNS = 'id, owner_id, owner_name, title, author, category, condition, exchange_type, description, image_urls, contact_phone, contact_email, contact_zalo_url, contact_messenger_url, status, created_at, updated_at'
+const inFlightPublicBookLists = new Map<string, Promise<Book[]>>()
+const inFlightPublicBookDetails = new Map<string, Promise<Book | null>>()
+let publicOwnerProjectionAvailable = true
 
 export interface DataAdapter {
   getCurrentUser(): Promise<UserProfile | null>
@@ -41,7 +45,7 @@ export interface DataAdapter {
   createBook(ownerId: string, ownerName: string, input: CreateBookInput): Promise<Book>
   updateBook(id: string, ownerId: string, input: UpdateBookInput): Promise<Book>
   deleteBook(id: string, ownerId: string): Promise<void>
-  getMyBooks(ownerId: string): Promise<Book[]>
+  getMyBooks(ownerId: string, limit?: number, offset?: number): Promise<Book[]>
   getFavoriteBookIds(userId: string): Promise<string[]>
   setBookFavorite(userId: string, bookId: string, favorite: boolean): Promise<void>
   reportBook(userId: string, bookId: string, reason: BookReportReason, details?: string): Promise<void>
@@ -52,7 +56,7 @@ export interface DataAdapter {
   getChatMessages(chatId: string): Promise<ChatMessage[]>
   sendChatMessage(chatId: string, senderId: string, body: string): Promise<ChatMessage>
   subscribeToChatMessages(chatId: string, onMessage: (message: ChatMessage) => void): () => void
-  getExchangeReview(interactionId: string, reviewerId: string): Promise<CommunityReview | null>
+  getReviewedInteractionIds(interactionIds: string[]): Promise<string[]>
   getMemberReviews(memberId: string, limit?: number): Promise<CommunityReview[]>
   getMemberTrust(memberId: string): Promise<MemberTrust>
   createExchangeReview(input: {
@@ -103,9 +107,46 @@ function optionalText(value: unknown): string | undefined {
   return trimmed || undefined
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function recordRows(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value) ? value.filter(isRecord) : []
+}
+
 function safeContactUrl(value: unknown, validate: (url: string) => boolean): string | undefined {
   const text = optionalText(value)
   return text && validate(text) ? text : undefined
+}
+
+function missingPublicOwnerProjection(error: { code?: string; message: string } | null): boolean {
+  return error?.code === '42703' && /public_owner_(?:name|avatar_url|area_label|contact_phone|contact_email)/i.test(error.message)
+}
+
+function disableMissingPublicOwnerProjection() {
+  if (!publicOwnerProjectionAvailable) return
+  publicOwnerProjectionAvailable = false
+  console.warn(
+    'Booki is using the legacy public-book profile lookup. Apply supabase-migration-booki-public-profile-join.sql to combine these requests.',
+  )
+}
+
+function shareInFlightRequest<T>(
+  requests: Map<string, Promise<T>>,
+  key: string,
+  load: () => Promise<T>,
+): Promise<T> {
+  const existing = requests.get(key)
+  if (existing) return existing
+
+  const request = load()
+  requests.set(key, request)
+  const clear = () => {
+    if (requests.get(key) === request) requests.delete(key)
+  }
+  void request.then(clear, clear)
+  return request
 }
 
 function mapBook(row: Record<string, unknown>): Book {
@@ -120,9 +161,9 @@ function mapBook(row: Record<string, unknown>): Book {
   return {
     id: row.id as string,
     ownerId: row.owner_id as string,
-    ownerName: optionalText(publicProfile?.full_name) ?? optionalText(row.owner_name) ?? 'Người dùng',
-    ownerAvatarUrl: optionalText(publicProfile?.avatar_url),
-    ownerAreaLabel: optionalText(publicProfile?.area_label),
+    ownerName: optionalText(row.public_owner_name) ?? optionalText(publicProfile?.full_name) ?? optionalText(row.owner_name) ?? 'Người dùng',
+    ownerAvatarUrl: optionalText(row.public_owner_avatar_url) ?? optionalText(publicProfile?.avatar_url),
+    ownerAreaLabel: optionalText(row.public_owner_area_label) ?? optionalText(publicProfile?.area_label),
     title: row.title as string,
     author: row.author as string | undefined,
     category: row.category as string,
@@ -132,8 +173,8 @@ function mapBook(row: Record<string, unknown>): Book {
     imageUrls: (row.image_urls as string[]) ?? [],
     latitude: row.latitude as number | undefined,
     longitude: row.longitude as number | undefined,
-    contactPhone: optionalText(row.contact_phone) ?? optionalText(publicProfile?.contact_phone),
-    contactEmail: optionalText(row.contact_email) ?? optionalText(publicProfile?.contact_email),
+    contactPhone: optionalText(row.contact_phone) ?? optionalText(row.public_owner_contact_phone) ?? optionalText(publicProfile?.contact_phone),
+    contactEmail: optionalText(row.contact_email) ?? optionalText(row.public_owner_contact_email) ?? optionalText(publicProfile?.contact_email),
     contactZaloUrl: safeContactUrl(row.contact_zalo_url, isValidZaloUrl),
     contactMessengerUrl: safeContactUrl(row.contact_messenger_url, isValidMessengerUrl),
     status: rawStatus === 'reserved' ? 'loaned' : rawStatus === 'shared' ? 'exchanged' : rawStatus as Book['status'],
@@ -146,6 +187,8 @@ async function mapBooksWithPublicProfiles(
   supabase: SupabaseClient,
   rows: Record<string, unknown>[],
 ): Promise<Book[]> {
+  if (rows.length === 0 || 'public_owner_name' in rows[0]) return rows.map(mapBook)
+
   const ownerIds = [...new Set(rows
     .map((row) => row.owner_id)
     .filter((ownerId): ownerId is string => typeof ownerId === 'string'))]
@@ -195,7 +238,10 @@ const supabaseAdapter: DataAdapter = {
     const supabase = getSupabaseClient()
     if (!supabase) return null
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError) throw new Error(authError.message)
+    if (authError) {
+      if (/auth session missing/i.test(authError.message)) return null
+      throw new Error(authError.message)
+    }
     if (!user) return null
     if (user.app_metadata.provider === 'email' && !user.email_confirmed_at) {
       const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' })
@@ -346,43 +392,82 @@ const supabaseAdapter: DataAdapter = {
     if (error) throw new Error(error.message)
   },
 
-  async getBooks(limit, offset = 0) {
-    const supabase = getSupabaseClient()!
-    let query = supabase
-      .from('public_books')
-      .select(PUBLIC_BOOK_COLUMNS)
-      .order('created_at', { ascending: false })
-    if (limit) query = query.range(offset, offset + limit - 1)
-    const { data, error } = await query
-    if (error) throw new Error(error.message)
-    return mapBooksWithPublicProfiles(supabase, data ?? [])
+  getBooks(limit, offset = 0) {
+    return shareInFlightRequest(inFlightPublicBookLists, JSON.stringify(['page', limit ?? null, offset]), async () => {
+      const supabase = getSupabaseClient()!
+      const loadPage = (columns: string) => {
+        let query = supabase
+          .from('public_books')
+          .select(columns)
+          .order('created_at', { ascending: false })
+        if (limit !== undefined) query = query.range(offset, offset + limit - 1)
+        return query
+      }
+      let { data, error } = await loadPage(
+        publicOwnerProjectionAvailable ? PUBLIC_BOOK_COLUMNS : PUBLIC_BOOK_LEGACY_COLUMNS,
+      )
+      if (missingPublicOwnerProjection(error)) {
+        disableMissingPublicOwnerProjection()
+        const legacyResult = await loadPage(PUBLIC_BOOK_LEGACY_COLUMNS)
+        data = legacyResult.data
+        error = legacyResult.error
+      }
+      if (error) throw new Error(error.message)
+      return mapBooksWithPublicProfiles(supabase, recordRows(data))
+    })
   },
 
-  async getBookById(id) {
-    const supabase = getSupabaseClient()!
-    const { data, error } = await supabase
-      .from('public_books')
-      .select(PUBLIC_BOOK_COLUMNS)
-      .eq('id', id)
-      .maybeSingle()
-    if (error) throw new Error(error.message)
-    if (!data) return null
-    const [book] = await mapBooksWithPublicProfiles(supabase, [data])
-    return book
+  getBookById(id) {
+    return shareInFlightRequest(inFlightPublicBookDetails, id, async () => {
+      const supabase = getSupabaseClient()!
+      const loadBook = (columns: string) => supabase
+        .from('public_books')
+        .select(columns)
+        .eq('id', id)
+        .maybeSingle()
+      let { data, error } = await loadBook(
+        publicOwnerProjectionAvailable ? PUBLIC_BOOK_COLUMNS : PUBLIC_BOOK_LEGACY_COLUMNS,
+      )
+      if (missingPublicOwnerProjection(error)) {
+        disableMissingPublicOwnerProjection()
+        const legacyResult = await loadBook(PUBLIC_BOOK_LEGACY_COLUMNS)
+        data = legacyResult.data
+        error = legacyResult.error
+      }
+      if (error) throw new Error(error.message)
+      if (!isRecord(data)) return null
+      const [book] = await mapBooksWithPublicProfiles(supabase, [data])
+      return book
+    })
   },
 
-  async getRelatedBooks(category, excludeId, limit = 4) {
-    const supabase = getSupabaseClient()!
-    const { data, error } = await supabase
-      .from('public_books')
-      .select(PUBLIC_BOOK_COLUMNS)
-      .eq('category', category)
-      .neq('id', excludeId)
-      .eq('status', 'available')
-      .order('created_at', { ascending: false })
-      .limit(limit)
-    if (error) throw new Error(error.message)
-    return mapBooksWithPublicProfiles(supabase, data ?? [])
+  getRelatedBooks(category, excludeId, limit = 4) {
+    return shareInFlightRequest(
+      inFlightPublicBookLists,
+      JSON.stringify(['related', category, excludeId, limit]),
+      async () => {
+        const supabase = getSupabaseClient()!
+        const loadRelated = (columns: string) => supabase
+          .from('public_books')
+          .select(columns)
+          .eq('category', category)
+          .neq('id', excludeId)
+          .eq('status', 'available')
+          .order('created_at', { ascending: false })
+          .limit(limit)
+        let { data, error } = await loadRelated(
+          publicOwnerProjectionAvailable ? PUBLIC_BOOK_COLUMNS : PUBLIC_BOOK_LEGACY_COLUMNS,
+        )
+        if (missingPublicOwnerProjection(error)) {
+          disableMissingPublicOwnerProjection()
+          const legacyResult = await loadRelated(PUBLIC_BOOK_LEGACY_COLUMNS)
+          data = legacyResult.data
+          error = legacyResult.error
+        }
+        if (error) throw new Error(error.message)
+        return mapBooksWithPublicProfiles(supabase, recordRows(data))
+      },
+    )
   },
 
   async getBookImages(id) {
@@ -459,13 +544,14 @@ const supabaseAdapter: DataAdapter = {
     if (error) throw new Error(error.message)
   },
 
-  async getMyBooks(ownerId) {
+  async getMyBooks(ownerId, limit, offset = 0) {
     const supabase = getSupabaseClient()!
     const booksRequest = supabase
       .from('books')
       .select(OWN_BOOK_COLUMNS)
       .eq('owner_id', ownerId)
       .order('created_at', { ascending: false })
+    if (limit !== undefined) booksRequest.range(offset, offset + limit - 1)
     const profileRequest = supabase
       .from('public_profiles')
       .select('id, full_name, avatar_url, area_label, contact_phone, contact_email')
@@ -544,7 +630,7 @@ const supabaseAdapter: DataAdapter = {
     const supabase = getSupabaseClient()!
     const { data, error } = await supabase.rpc('list_app_users_for_staff')
     if (error) throw new Error(error.message)
-    return (data ?? []).map((row) => ({
+    return (data ?? []).map((row: Record<string, unknown>) => ({
       userId: row.user_id,
       fullName: row.full_name,
       avatarUrl: optionalText(row.avatar_url),
@@ -647,7 +733,7 @@ const supabaseAdapter: DataAdapter = {
     const supabase = getSupabaseClient()!
     const { error } = await supabase
       .from('book_reports')
-      .update({ status, reviewed_at: new Date().toISOString() })
+      .update({ status })
       .eq('id', reportId)
     if (error) throw new Error(error.message)
   },
@@ -852,59 +938,32 @@ const supabaseAdapter: DataAdapter = {
     return () => { void supabase.removeChannel(channel) }
   },
 
-  async getExchangeReview(interactionId, reviewerId) {
+  async getReviewedInteractionIds(interactionIds) {
+    if (interactionIds.length === 0) return []
     const supabase = getSupabaseClient()!
-    const { data, error } = await supabase
-      .from('book_reviews')
-      .select('id, interaction_id, book_id, reviewer_id, rating, communication_rating, reliability_rating, description_rating, comment, created_at')
-      .eq('interaction_id', interactionId)
-      .eq('reviewer_id', reviewerId)
-      .maybeSingle()
+    const { data, error } = await supabase.rpc('get_my_reviewed_interactions', {
+      p_interaction_ids: interactionIds,
+    })
     if (error) throw new Error(error.message)
-    if (!data) return null
-    const { data: profile, error: profileError } = await supabase
-      .from('public_profiles')
-      .select('full_name')
-      .eq('id', data.reviewer_id)
-      .maybeSingle()
-    if (profileError) throw new Error(profileError.message)
-    return {
-      id: data.id,
-      interactionId: data.interaction_id,
-      bookId: data.book_id,
-      reviewerId: data.reviewer_id,
-      reviewerName: profile?.full_name ?? 'Thành viên',
-      rating: data.rating,
-      communicationRating: data.communication_rating,
-      reliabilityRating: data.reliability_rating,
-      descriptionRating: data.description_rating,
-      comment: optionalText(data.comment),
-      createdAt: data.created_at,
-    }
+    const rows: unknown = data
+    if (!Array.isArray(rows)) return []
+    return rows.flatMap((row: unknown) => (
+      isRecord(row) && typeof row.interaction_id === 'string' ? [row.interaction_id] : []
+    ))
   },
 
   async getMemberReviews(memberId, limit = 5) {
     const supabase = getSupabaseClient()!
     const { data, error } = await supabase
-      .from('book_reviews')
-      .select('id, interaction_id, book_id, reviewer_id, rating, communication_rating, reliability_rating, description_rating, comment, created_at')
+      .from('public_member_reviews')
+      .select('id, reviewer_name, rating, communication_rating, reliability_rating, description_rating, comment, created_at')
       .eq('reviewee_id', memberId)
       .order('created_at', { ascending: false })
       .limit(limit)
     if (error) throw new Error(error.message)
-    const reviews = data ?? []
-    const reviewerIds = [...new Set(reviews.map((review) => review.reviewer_id))]
-    const { data: profiles, error: profilesError } = reviewerIds.length > 0
-      ? await supabase.from('public_profiles').select('id, full_name').in('id', reviewerIds)
-      : { data: [], error: null }
-    if (profilesError) throw new Error(profilesError.message)
-    const names = new Map((profiles ?? []).map((profile) => [profile.id, profile.full_name]))
-    return reviews.map((review) => ({
+    return (data ?? []).map((review) => ({
       id: review.id,
-      interactionId: review.interaction_id,
-      bookId: review.book_id,
-      reviewerId: review.reviewer_id,
-      reviewerName: names.get(review.reviewer_id) ?? 'Thành viên',
+      reviewerName: review.reviewer_name,
       rating: review.rating,
       communicationRating: review.communication_rating,
       reliabilityRating: review.reliability_rating,

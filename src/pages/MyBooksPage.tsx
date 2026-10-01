@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuthState'
 import { useMyBooks } from '../hooks/useBooks'
 import { useToast } from '../hooks/useToast'
 import { STATUS_LABELS } from '../lib/constants'
+import { userFacingError } from '../lib/userFacingError'
 import type { BookStatus } from '../types/book'
 
 type BookTab = 'all' | BookStatus
@@ -20,7 +21,10 @@ const TABS: { value: BookTab; label: string }[] = [
 
 export function MyBooksPage() {
   const { user } = useAuth()
-  const { books, loading, error, refetch, updateBook, deleteBook } = useMyBooks(user?.id)
+  const {
+    books, loading, error, refetch, updateBook, deleteBook,
+    hasMore, loadingMore, loadMoreError, loadMore,
+  } = useMyBooks(user?.id)
   const { showToast } = useToast()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<BookTab>('all')
@@ -45,7 +49,8 @@ export function MyBooksPage() {
       await updateBook(bookId, { status })
       showToast(`Đã cập nhật trạng thái: ${STATUS_LABELS[status]}`, 'success')
     } catch (cause) {
-      showToast(cause instanceof Error ? cause.message : 'Cập nhật thất bại', 'error')
+      console.error('Unable to update a book listing', cause)
+      showToast(userFacingError(cause, 'Chưa thể cập nhật bài đăng. Hãy thử lại nha.'), 'error')
     } finally {
       setUpdatingId(null)
     }
@@ -59,7 +64,8 @@ export function MyBooksPage() {
       showToast('Đã xóa sách', 'success')
       setDeleteId(null)
     } catch (cause) {
-      showToast(cause instanceof Error ? cause.message : 'Xóa thất bại', 'error')
+      console.error('Unable to delete a book listing', cause)
+      showToast(userFacingError(cause, 'Chưa thể xóa bài đăng. Hãy thử lại nha.'), 'error')
     } finally {
       setDeleting(false)
     }
@@ -83,7 +89,7 @@ export function MyBooksPage() {
         <Button onClick={() => navigate('/app/add-book')}>Đăng sách</Button>
       </header>
 
-      <section aria-label="Tổng số sách" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <section aria-label="Số sách đã tải" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {TABS.map((tab) => (
           <button
             key={tab.value}
@@ -100,6 +106,7 @@ export function MyBooksPage() {
           </button>
         ))}
       </section>
+      {hasMore && <p className="text-xs text-text-muted">Đang hiển thị {books.length} bài đăng gần đây nhất.</p>}
 
       <nav aria-label="Lọc sách theo trạng thái" className="flex gap-2 overflow-x-auto pb-1">
         {TABS.map((tab) => (
@@ -123,8 +130,18 @@ export function MyBooksPage() {
           onAction={() => navigate('/app/add-book')}
         />
       ) : filteredBooks.length === 0 ? (
-        <EmptyState title="Không có sách ở trạng thái này" description="Chọn trạng thái khác hoặc đổi tình trạng một bài đăng." />
+        hasMore ? (
+          <EmptyState
+            title="Chưa thấy sách ở trạng thái này trong lượt đã tải"
+            description="Tải thêm bài đăng để kiểm tra các sách còn lại nha."
+            actionLabel={loadingMore ? 'Đang tải...' : 'Tải thêm bài đăng'}
+            onAction={() => void loadMore()}
+          />
+        ) : (
+          <EmptyState title="Không có sách ở trạng thái này" description="Chọn trạng thái khác hoặc đổi tình trạng một bài đăng." />
+        )
       ) : (
+        <>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {filteredBooks.map((book) => (
             <article key={book.id} className="space-y-3">
@@ -162,6 +179,20 @@ export function MyBooksPage() {
             </article>
           ))}
         </div>
+        {loadMoreError && (
+          <p className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent-rose/20 bg-accent-rose/[0.06] p-3 text-sm text-accent-rose" role="alert">
+            <span>{loadMoreError}</span>
+            <button type="button" className="font-semibold underline underline-offset-2" onClick={() => void loadMore()}>Thử tải lại</button>
+          </p>
+        )}
+        {hasMore && (
+          <div className="flex justify-center">
+            <Button variant="outline" disabled={loadingMore} onClick={() => void loadMore()}>
+              {loadingMore ? 'Đang tải...' : 'Tải thêm bài đăng'}
+            </Button>
+          </div>
+        )}
+        </>
       )}
 
       {deleteId && (

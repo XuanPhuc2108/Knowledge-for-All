@@ -11,6 +11,7 @@ import { useFavorites } from '../hooks/useFavorites'
 import { useToast } from '../hooks/useToast'
 import { getAdapter, getAdapterMode } from '../lib/dataAdapter'
 import { CONDITION_LABELS, EXCHANGE_LABELS, STATUS_LABELS } from '../lib/constants'
+import { formatDistance, haversineDistance } from '../lib/geo'
 import { userFacingError } from '../lib/userFacingError'
 import type { Book, BookReportReason, CommunityReview, MemberTrust } from '../types/book'
 
@@ -21,7 +22,7 @@ const REPORT_REASONS: { value: BookReportReason; label: string }[] = [
   { value: 'other', label: 'Lý do khác' },
 ]
 
-export function BookDetailsPage() {
+export function BookDetailsPage({ publicMode = false }: { publicMode?: boolean }) {
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
   const routeBook = (location.state as { book?: Book } | null)?.book
@@ -47,6 +48,7 @@ export function BookDetailsPage() {
   const [memberReviews, setMemberReviews] = useState<CommunityReview[]>([])
   const [trustLoadFailed, setTrustLoadFailed] = useState(false)
   const displayedBook = book?.id === id ? book : initialBook
+  const ownerId = displayedBook?.ownerId
   const recentBooks = useMemo(
     () => readRecentBooks(displayedBook?.id),
     [displayedBook?.id],
@@ -100,11 +102,11 @@ export function BookDetailsPage() {
   }, [displayedBook])
 
   useEffect(() => {
-    if (!displayedBook) return
+    if (!ownerId) return
     let cancelled = false
     void Promise.all([
-      getAdapter().getMemberTrust(displayedBook.ownerId),
-      getAdapter().getMemberReviews(displayedBook.ownerId, 5),
+      getAdapter().getMemberTrust(ownerId),
+      getAdapter().getMemberReviews(ownerId, 5),
     ]).then(([trust, reviews]) => {
       if (cancelled) return
       setMemberTrust(trust)
@@ -115,18 +117,20 @@ export function BookDetailsPage() {
       if (!cancelled) setTrustLoadFailed(true)
     })
     return () => { cancelled = true }
-  }, [displayedBook?.ownerId])
+  }, [ownerId])
 
   useEffect(() => {
-    if (!displayedBook) return
+    if (!displayedBook || !publicMode) return
     const previousTitle = document.title
     const description = displayedBook.description.trim().slice(0, 160)
+    const canonicalUrl = new URL(`/books/${encodeURIComponent(displayedBook.id)}`, window.location.origin).toString()
     const tags = [
       { key: 'name', name: 'description', content: description },
+      { key: 'name', name: 'robots', content: 'index, follow' },
       { key: 'property', name: 'og:title', content: `${displayedBook.title} | Booki` },
       { key: 'property', name: 'og:description', content: description },
       { key: 'property', name: 'og:type', content: 'book' },
-      { key: 'property', name: 'og:url', content: `${window.location.origin}/books/${encodeURIComponent(displayedBook.id)}` },
+      { key: 'property', name: 'og:url', content: canonicalUrl },
       ...(displayedBook.imageUrls[0] ? [{ key: 'property', name: 'og:image', content: displayedBook.imageUrls[0] }] : []),
     ]
     const previousTags = tags.map(({ key, name, content }) => {
@@ -142,16 +146,27 @@ export function BookDetailsPage() {
       element.setAttribute('content', content)
       return { element, existed, previous }
     })
+    let canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]')
+    const canonicalExisted = Boolean(canonical)
+    if (!canonical) {
+      canonical = document.createElement('link')
+      canonical.rel = 'canonical'
+      document.head.append(canonical)
+    }
+    const previousCanonical = canonical.href
+    canonical.href = canonicalUrl
     document.title = `${displayedBook.title} | Booki`
     return () => {
       document.title = previousTitle
+      if (!canonicalExisted) canonical.remove()
+      else canonical.href = previousCanonical
       previousTags.forEach(({ element, existed, previous }) => {
         if (!existed) element.remove()
         else if (previous === null) element.removeAttribute('content')
         else element.setAttribute('content', previous)
       })
     }
-  }, [displayedBook])
+  }, [displayedBook, publicMode])
 
   const submitReport = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -173,31 +188,31 @@ export function BookDetailsPage() {
     } finally {
       setReporting(false)
     }
+  }
 
-    const submitRequest = async (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault()
-      if (!user || !displayedBook) return
-      const message = requestMessage.trim()
-      if (message.length < 10 || message.length > 1000) {
-        setRequestError('Lời nhắn cần có từ 10 đến 1000 ký tự.')
-        return
-      }
-      setRequestError(null)
-      setRequesting(true)
-      try {
-        const request = await getAdapter().createExchangeRequest(user.id, {
-          bookId: displayedBook.id,
-          message,
-        })
-        showToast('Đã gửi lời đề nghị đến người đăng.', 'success')
-        if (request.chatId) navigate(`/app/messages/${request.chatId}`)
-        else navigate('/app/requests')
-      } catch (cause) {
-        console.error('Unable to create a book request', cause)
-        setRequestError(userFacingError(cause, 'Chưa thể gửi lời đề nghị. Hãy thử lại nha.'))
-      } finally {
-        setRequesting(false)
-      }
+  const submitRequest = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!user || !displayedBook) return
+    const message = requestMessage.trim()
+    if (message.length < 10 || message.length > 1000) {
+      setRequestError('Lời nhắn cần có từ 10 đến 1000 ký tự.')
+      return
+    }
+    setRequestError(null)
+    setRequesting(true)
+    try {
+      const request = await getAdapter().createExchangeRequest(user.id, {
+        bookId: displayedBook.id,
+        message,
+      })
+      showToast('Đã gửi lời đề nghị đến người đăng.', 'success')
+      if (request.chatId) navigate(`/app/messages/${request.chatId}`)
+      else navigate('/app/requests')
+    } catch (cause) {
+      console.error('Unable to create a book request', cause)
+      setRequestError(userFacingError(cause, 'Chưa thể gửi lời đề nghị. Hãy thử lại nha.'))
+    } finally {
+      setRequesting(false)
     }
   }
 
@@ -257,6 +272,18 @@ export function BookDetailsPage() {
               </div>
             </div>
             {displayedBook.ownerAreaLabel && <p className="mt-1 flex items-center gap-1.5 text-sm text-text-muted"><MapPin className="h-4 w-4" />{displayedBook.ownerAreaLabel}</p>}
+            {user?.locationEnabled && user.latitude !== undefined && user.longitude !== undefined &&
+              displayedBook.latitude !== undefined && displayedBook.longitude !== undefined && (
+              <p className="mt-1 flex items-center gap-1.5 text-sm text-text-muted">
+                <MapPin aria-hidden="true" className="h-4 w-4" />
+                Cách bạn {formatDistance(haversineDistance(
+                  user.latitude,
+                  user.longitude,
+                  displayedBook.latitude,
+                  displayedBook.longitude,
+                ))} từ bạn
+              </p>
+            )}
             <p className="mt-2 text-xs text-text-muted">
               Đăng ngày {new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(new Date(displayedBook.createdAt))}
             </p>
@@ -270,7 +297,7 @@ export function BookDetailsPage() {
             {!displayedBook.contactPhone && !displayedBook.contactEmail && !displayedBook.contactZaloUrl && !displayedBook.contactMessengerUrl && (
               <div>
                 <p className="text-sm leading-relaxed text-text-muted">
-                  Người đăng chưa công khai số điện thoại hoặc email. Bạn có thể lưu sách và theo dõi cập nhật khi họ bổ sung thông tin.
+                  Người đăng chưa thêm cách liên hệ trên bài đăng này. Bạn có thể gửi lời đề nghị để trao đổi ngay trên Booki.
                 </p>
                 {isOwner && (
                   <Link to="/app/settings#personal" className="mt-3 inline-flex text-sm font-semibold text-accent-yellow hover:underline">
@@ -284,7 +311,10 @@ export function BookDetailsPage() {
             {user && !isOwner && (
               <Button variant="outline" disabled={favoritesLoading} onClick={() => void toggleFavorite(displayedBook.id).then(
                 () => showToast(favorite ? 'Đã bỏ khỏi yêu thích' : 'Đã lưu vào yêu thích', 'success'),
-                (cause: unknown) => showToast(cause instanceof Error ? cause.message : 'Không thể cập nhật yêu thích', 'error'),
+                (cause: unknown) => {
+                  console.error('Unable to update a saved-book preference', cause)
+                  showToast(userFacingError(cause, 'Chưa thể cập nhật sách yêu thích. Hãy thử lại nha.'), 'error')
+                },
               )}>
                 <Heart className={`h-4 w-4 ${favorite ? 'fill-accent-rose text-accent-rose' : ''}`} />
                 {favorite ? 'Đã yêu thích' : 'Yêu thích'}

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { signInWithOAuthProvider } from '../lib/supabase'
+import { userFacingError } from '../lib/userFacingError'
 
 interface OAuthButtonsProps {
   disabled?: boolean
@@ -36,13 +37,11 @@ export function OAuthButtons({
       const { error } = await signInWithOAuthProvider(provider)
       if (error) throw error
     } catch (e) {
-      onError(
-        e instanceof Error
-          ? e.message
-          : provider === 'google'
-            ? 'Đăng nhập bằng Google thất bại'
-            : 'Đăng nhập bằng Facebook thất bại',
-      )
+      console.error(`Unable to start ${provider} OAuth`, e)
+      onError(userFacingError(
+        e,
+        provider === 'google' ? 'Chưa thể kết nối Google. Hãy thử lại nha.' : 'Chưa thể kết nối Facebook. Hãy thử lại nha.',
+      ))
       setProviderLoading(provider, false)
     }
   }

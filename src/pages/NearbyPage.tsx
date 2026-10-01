@@ -10,6 +10,7 @@ import { useAuth } from '../hooks/useAuthState'
 import { useNearbyBooks } from '../hooks/useBooks'
 import { useGeolocation } from '../hooks/useGeolocation'
 import { RADIUS_OPTIONS } from '../lib/constants'
+import { userFacingError } from '../lib/userFacingError'
 
 export function NearbyPage() {
   const { user, updateProfile } = useAuth()
@@ -18,7 +19,7 @@ export function NearbyPage() {
   const navigate = useNavigate()
   const [radius, setRadius] = useState<number>(Infinity)
 
-  const { books, loading, error, refetch } = useNearbyBooks(
+  const { books, loading, error, refetch, hasMore, loadingMore, loadMoreError, loadMore } = useNearbyBooks(
     user?.latitude,
     user?.longitude,
     radius,
@@ -36,7 +37,8 @@ export function NearbyPage() {
       })
       showToast('Đã bật định vị', 'success')
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Không thể bật định vị', 'error')
+      console.error('Unable to enable location for nearby book discovery', e)
+      showToast(userFacingError(e, 'Chưa bật được định vị. Bạn có thể thử lại hoặc kiểm tra quyền trình duyệt nha.'), 'error')
     }
   }
 
@@ -62,7 +64,7 @@ export function NearbyPage() {
       <header className="mb-7">
         <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-accent-yellow">KẾT NỐI QUANH BẠN</p>
         <h1 className="text-3xl font-black tracking-tight text-text-primary sm:text-4xl">Sách gần bạn</h1>
-        <p className="mt-2 text-sm text-text-muted">Khám phá những cuốn sách được chia sẻ trong khu vực.</p>
+        <p className="mt-2 text-sm text-text-muted">Khám phá những cuốn sách được chia sẻ trong khu vực. Khoảng cách là ước tính và chỉ hiển thị tương đối.</p>
       </header>
 
       <div className="mb-8 flex justify-center">
@@ -100,17 +102,32 @@ export function NearbyPage() {
         />
       ) : books.length === 0 ? (
         <EmptyState
-          title="Chưa có sách nào gần bạn"
-          description="Thử mở rộng bán kính tìm kiếm hoặc đăng sách đầu tiên."
-          actionLabel="Đăng sách"
-          onAction={() => navigate('/app/add-book')}
+          title={hasMore ? 'Chưa thấy sách phù hợp trong lượt này' : 'Chưa có sách nào gần bạn'}
+          description={hasMore
+            ? 'Tải thêm bài đăng để tiếp tục tìm trong khu vực đã chọn.'
+            : 'Thử mở rộng bán kính tìm kiếm hoặc đăng sách đầu tiên.'}
+          actionLabel={hasMore ? loadingMore ? 'Đang tải...' : 'Tải thêm sách' : 'Đăng sách'}
+          onAction={hasMore ? () => void loadMore() : () => navigate('/app/add-book')}
         />
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {books.map((book) => (
-            <BookCard key={book.id} book={book} />
-          ))}
-        </div>
+        <>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {books.map((book) => <BookCard key={book.id} book={book} compact />)}
+          </div>
+          {loadMoreError && (
+            <p className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent-rose/20 bg-accent-rose/[0.06] p-3 text-sm text-accent-rose" role="alert">
+              <span>{loadMoreError}</span>
+              <button type="button" className="font-semibold underline underline-offset-2" onClick={() => void loadMore()}>Thử tải lại</button>
+            </p>
+          )}
+          {hasMore && (
+            <div className="mt-7 flex justify-center">
+              <Button variant="outline" disabled={loadingMore} onClick={() => void loadMore()}>
+                {loadingMore ? 'Đang tải...' : 'Tải thêm sách'}
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

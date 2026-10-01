@@ -9,6 +9,7 @@ import { useAppSettings } from '../hooks/useAppSettings'
 import type { AppTheme, MotionPreference } from '../hooks/appSettingsTypes'
 import { getAdapterMode } from '../lib/dataAdapter'
 import { isValidEmail, isValidPhone, validatePassword } from '../lib/validation'
+import { userFacingError } from '../lib/userFacingError'
 import { Button } from '../components/Button'
 
 const fieldClass = 'field-control px-3.5 py-2.5 text-sm'
@@ -81,7 +82,8 @@ export function SettingsPage() {
       setNotice('Đã lưu thông tin hồ sơ và quyền hiển thị.')
       showToast('Đã lưu hồ sơ', 'success')
     } catch (error) {
-      setProfileError(error instanceof Error ? error.message : 'Không thể lưu hồ sơ.')
+      console.error('Unable to save account profile and privacy settings', error)
+      setProfileError(userFacingError(error, 'Chưa thể lưu hồ sơ. Hãy thử lại nha.'))
     } finally {
       setProfileSaving(false)
     }
@@ -103,7 +105,8 @@ export function SettingsPage() {
       })
       showToast('Đã bật định vị', 'success')
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Không thể cập nhật định vị', 'error')
+      console.error('Unable to update account location preference', error)
+      showToast(userFacingError(error, 'Chưa thể cập nhật định vị. Hãy thử lại nha.'), 'error')
     }
   }
 
@@ -125,7 +128,8 @@ export function SettingsPage() {
         setSettings((current) => ({ ...current, notificationsEnabled: true }))
       }
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Không thể yêu cầu quyền thông báo.', 'error')
+      console.error('Unable to request browser notification permission', error)
+      showToast(userFacingError(error, 'Chưa thể yêu cầu quyền thông báo.'), 'error')
     }
   }
 
@@ -150,7 +154,8 @@ export function SettingsPage() {
       setConfirmPassword('')
       showToast('Đã cập nhật mật khẩu', 'success')
     } catch (error) {
-      setPasswordError(error instanceof Error ? error.message : 'Không thể đổi mật khẩu.')
+      console.error('Unable to change the account password', error)
+      setPasswordError(userFacingError(error, 'Chưa thể đổi mật khẩu. Hãy thử lại nha.'))
     } finally {
       setPasswordSaving(false)
     }
@@ -161,7 +166,8 @@ export function SettingsPage() {
       await logout()
       navigate('/login', { replace: true })
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Không thể đăng xuất', 'error')
+      console.error('Unable to sign out from settings', error)
+      showToast(userFacingError(error, 'Chưa thể đăng xuất. Hãy thử lại nha.'), 'error')
     }
   }
 
@@ -172,7 +178,8 @@ export function SettingsPage() {
       await deleteAccount()
       navigate('/', { replace: true })
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Không thể xóa tài khoản', 'error')
+      console.error('Unable to delete the account', error)
+      showToast(userFacingError(error, 'Chưa thể xóa tài khoản. Hãy thử lại nha.'), 'error')
     } finally {
       setDeleting(false)
     }
@@ -183,7 +190,8 @@ export function SettingsPage() {
       const accepted = await install()
       if (accepted) showToast('Đã bắt đầu cài đặt ứng dụng', 'success')
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Không thể mở lời nhắc cài đặt.', 'error')
+      console.error('Unable to open the app installation prompt', error)
+      showToast(userFacingError(error, 'Chưa thể mở lời nhắc cài đặt.'), 'error')
     }
   }
 

@@ -98,13 +98,18 @@ export function useBooks(limit?: number) {
 }
 
 export function useMyBooks(userId: string | undefined) {
+  const pageSize = 24
   const [books, setBooks] = useState<Book[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
   const [loadedOwnerId, setLoadedOwnerId] = useState<string | undefined>()
   const [error, setError] = useState<string | null>(null)
+  const pageRequestInProgress = useRef(false)
 
   const fetchMyBooks = useCallback(
-    () => (userId ? getAdapter().getMyBooks(userId) : Promise.resolve([])),
+    () => (userId ? getAdapter().getMyBooks(userId, pageSize, 0) : Promise.resolve([])),
     [userId],
   )
 
@@ -114,6 +119,8 @@ export function useMyBooks(userId: string | undefined) {
       .then((data) => {
         if (cancelled) return
         setBooks(data)
+        setHasMore(data.length === pageSize)
+        setLoadMoreError(null)
         setLoadedOwnerId(userId)
         setError(null)
       })
@@ -131,13 +138,16 @@ export function useMyBooks(userId: string | undefined) {
     return () => {
       cancelled = true
     }
-  }, [fetchMyBooks, userId])
+  }, [fetchMyBooks, pageSize, userId])
 
   const refetch = useCallback(async () => {
+    pageRequestInProgress.current = false
     setLoading(true)
     try {
       const data = await fetchMyBooks()
       setBooks(data)
+      setHasMore(data.length === pageSize)
+      setLoadMoreError(null)
       setLoadedOwnerId(userId)
       setError(null)
     } catch (e) {
@@ -148,7 +158,28 @@ export function useMyBooks(userId: string | undefined) {
     } finally {
       setLoading(false)
     }
-  }, [fetchMyBooks, userId])
+  }, [fetchMyBooks, pageSize, userId])
+
+  const loadMore = useCallback(async () => {
+    if (!userId || !hasMore || pageRequestInProgress.current) return
+    pageRequestInProgress.current = true
+    setLoadingMore(true)
+    setLoadMoreError(null)
+    try {
+      const data = await getAdapter().getMyBooks(userId, pageSize, books.length)
+      setBooks((current) => {
+        const existingIds = new Set(current.map((book) => book.id))
+        return [...current, ...data.filter((book) => !existingIds.has(book.id))]
+      })
+      setHasMore(data.length === pageSize)
+    } catch (cause) {
+      console.error('Unable to load another page of user book listings', cause)
+      setLoadMoreError('Chưa thể tải thêm sách của bạn. Hãy thử lại.')
+    } finally {
+      pageRequestInProgress.current = false
+      setLoadingMore(false)
+    }
+  }, [books.length, hasMore, pageSize, userId])
 
   const createBook = async (ownerName: string, input: CreateBookInput) => {
     if (!userId) throw new Error('Chưa đăng nhập')
@@ -175,6 +206,10 @@ export function useMyBooks(userId: string | undefined) {
     books: userId && ownsLoadedBooks ? books : [],
     loading: Boolean(userId) && (loading || !ownsLoadedBooks),
     error: ownsLoadedBooks ? error : null,
+    hasMore,
+    loadingMore,
+    loadMoreError,
+    loadMore,
     refetch,
     createBook,
     updateBook,
@@ -188,7 +223,7 @@ export function useNearbyBooks(
   radiusMeters = Infinity,
   excludeOwnerId?: string,
 ) {
-  const { books, loading, error, refetch } = useBooks()
+  const { books, loading, error, refetch, hasMore, loadingMore, loadMoreError, loadMore } = useBooks(24)
 
   const nearby: BookWithDistance[] = books
     .filter((b) => {
@@ -214,5 +249,5 @@ export function useNearbyBooks(
     })
     .sort((a, b) => (a.distanceMeters ?? Infinity) - (b.distanceMeters ?? Infinity))
 
-  return { books: nearby, loading, error, refetch }
+  return { books: nearby, loading, error, refetch, hasMore, loadingMore, loadMoreError, loadMore }
 }

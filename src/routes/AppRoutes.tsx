@@ -93,7 +93,7 @@ export function AppRoutes({ onInitialRouteReady }: { onInitialRouteReady: () => 
                 <div className="app-shell min-h-screen bg-dark">
                   <Navbar variant="app" />
                   <main className="mx-auto max-w-7xl px-5 pb-16 pt-24 sm:px-8 lg:px-16">
-                    <BookDetailsPage />
+                    <BookDetailsPage publicMode />
                   </main>
                 </div>
               </PageTransition>

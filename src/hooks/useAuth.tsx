@@ -7,6 +7,7 @@ import {
 } from 'react'
 import { getAdapter } from '../lib/dataAdapter'
 import { getSupabaseClient } from '../lib/supabase'
+import { userFacingError } from '../lib/userFacingError'
 import { AuthContext } from './authContext'
 import type { AuthContextValue } from '../types/auth'
 import type { UserProfile } from '../types/user'
@@ -23,7 +24,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(null)
     } catch (e) {
       setUser(null)
-      setError(e instanceof Error ? e.message : 'Không thể tải hồ sơ người dùng')
+      console.error('Unable to load the signed-in user profile', e)
+      setError(userFacingError(e, 'Chưa thể tải hồ sơ. Vui lòng tải lại trang nha.'))
     }
   }, [])
 
@@ -71,7 +73,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (profile) setUser(profile)
       return profile
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Đăng ký thất bại'
+      console.error('Unable to register the account', e)
+      const msg = userFacingError(e, 'Chưa thể tạo tài khoản. Hãy thử lại nha.')
       setError(msg)
       throw e
     }
@@ -87,7 +90,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const profile = await getAdapter().login({ email, password })
       setUser(profile)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Đăng nhập thất bại'
+      console.error('Unable to sign in the account', e)
+      const msg = userFacingError(e, 'Chưa thể đăng nhập. Hãy thử lại nha.')
       setError(msg)
       throw e
     }
@@ -99,7 +103,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null)
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Đăng xuất thất bại')
+      console.error('Unable to sign out the account', e)
+      setError(userFacingError(e, 'Chưa thể đăng xuất. Hãy thử lại nha.'))
       throw e
     }
   }, [])

@@ -5,6 +5,7 @@ import { GradientButton } from '../components/GradientButton'
 import { OAuthButtons } from '../components/OAuthButtons'
 import { useAuth } from '../hooks/useAuthState'
 import { validateRegister } from '../lib/validation'
+import { userFacingError } from '../lib/userFacingError'
 
 export function RegisterPage() {
   const { register, resendSignupConfirmation, user } = useAuth()
@@ -46,7 +47,8 @@ export function RegisterPage() {
       }
       navigate('/app/add-book')
     } catch (e) {
-      setErrors({ form: e instanceof Error ? e.message : 'Đăng ký thất bại' })
+      console.error('Unable to complete registration', e)
+      setErrors({ form: userFacingError(e, 'Chưa thể tạo tài khoản. Hãy thử lại nha.') })
     } finally {
       setLoading(false)
     }
@@ -60,7 +62,8 @@ export function RegisterPage() {
       await resendSignupConfirmation(pendingEmail)
       setNotice('Đã gửi lại email xác nhận. Hãy kiểm tra thư đến và thư rác.')
     } catch (cause) {
-      setErrors({ form: cause instanceof Error ? cause.message : 'Không thể gửi email xác nhận.' })
+      console.error('Unable to resend the account confirmation email', cause)
+      setErrors({ form: userFacingError(cause, 'Chưa thể gửi email xác nhận. Hãy thử lại nha.') })
     } finally {
       setResending(false)
     }
