@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test:guard": "node --experimental-strip-types --test tests/bookiGuard.test.ts",
+    "migrate:book-covers": "node scripts/migrate-book-cover-data-urls.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

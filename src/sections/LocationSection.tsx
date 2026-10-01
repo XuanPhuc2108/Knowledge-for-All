@@ -40,7 +40,7 @@ export function LocationSection({ books }: { books: Book[] }) {
   const userLng = longitude ?? user?.longitude
 
   return (
-    <section id="location" className="px-5 py-20 sm:px-8 md:py-32 lg:px-16">
+    <section id="location" className="booki-ambient-section px-5 py-20 sm:px-8 md:py-32 lg:px-16">
       <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
         <FadeIn>
           <h2

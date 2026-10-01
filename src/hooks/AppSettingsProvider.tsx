@@ -7,6 +7,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dark',
   notificationsEnabled: false,
   motion: 'auto',
+  soundEnabled: true,
+  soundVolume: 0.55,
 }
 
 interface NavigatorWithCapabilities extends Navigator {

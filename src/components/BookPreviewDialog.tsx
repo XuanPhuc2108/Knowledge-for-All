@@ -90,6 +90,7 @@ export function BookPreviewDialog({
               <button
                 ref={closeButtonRef}
                 type="button"
+                data-sound="close"
                 onClick={onClose}
                 aria-label="Đóng xem nhanh"
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-text-muted transition-colors hover:bg-[rgb(var(--color-interactive-surface)/.8)] hover:text-text-primary"
@@ -113,6 +114,7 @@ export function BookPreviewDialog({
                 {onFavorite && (
                   <button
                     type="button"
+                    data-sound="favorite"
                     onClick={() => onFavorite(book.id)}
                     aria-label={isFavorite ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}
                     aria-pressed={isFavorite}

@@ -10,15 +10,17 @@ import { LocationSection } from '../sections/LocationSection'
 import { SafetySection } from '../sections/SafetySection'
 import { SiteShareSection } from '../sections/SiteShareSection'
 import { UploadPreviewSection } from '../sections/UploadPreviewSection'
+import { BookiAmbient } from '../components/BookiAmbient'
 
 export function LandingPage() {
   const bookData = useBooks(6)
 
   return (
     <div className="noise-overlay relative overflow-x-clip">
+      <BookiAmbient variant="landing" />
       <ScrollProgress />
       <Navbar variant="landing" />
-      <main>
+      <main className="relative z-10">
         <HeroSection />
         <BookCarousel3DSection {...bookData} />
         <HowItWorksSection />
@@ -28,7 +30,9 @@ export function LandingPage() {
         <CTASection />
         <SiteShareSection />
       </main>
-      <Footer />
+      <div className="relative z-10">
+        <Footer />
+      </div>
     </div>
   )
 }

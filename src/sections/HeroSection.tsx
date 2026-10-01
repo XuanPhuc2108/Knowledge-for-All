@@ -17,22 +17,14 @@ export function HeroSection() {
   const handleAddBook = () => navigate(user ? '/app/add-book' : '/register')
 
   return (
-    <section className="main-wrapper relative flex min-h-[100svh] items-center overflow-x-clip bg-hero-mesh px-5 pt-24 sm:px-8 lg:px-16">
+    <section className="main-wrapper booki-hero-ambient relative flex min-h-[100svh] items-center overflow-x-clip bg-hero-mesh px-5 pt-24 sm:px-8 lg:px-16">
       <div className="pointer-events-none absolute inset-0" aria-hidden="true">
         <div className="hero-blob absolute -left-20 top-20 h-72 w-72 rounded-full bg-accent-yellow/20 blur-3xl" />
         <div className="hero-blob absolute -right-20 top-32 h-80 w-80 rounded-full bg-accent-yellow/[0.08] blur-3xl" />
         <div className="hero-blob absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-white/[0.035] blur-3xl" />
       </div>
 
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.04]"
-        style={{
-          backgroundImage:
-            'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)',
-          backgroundSize: '60px 60px',
-        }}
-        aria-hidden="true"
-      />
+      <div className="booki-hero-grid pointer-events-none absolute inset-0" aria-hidden="true" />
 
       <div className="relative z-10 mx-auto grid w-full min-w-0 max-w-7xl items-center gap-12 lg:grid-cols-2">
         <div className="min-w-0">

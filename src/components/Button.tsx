@@ -4,6 +4,7 @@ import type { ButtonHTMLAttributes } from 'react'
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger'
   size?: 'sm' | 'md' | 'lg'
+  'data-sound'?: string
 }
 
 export function Button({
@@ -11,10 +12,12 @@ export function Button({
   size = 'md',
   className,
   children,
+  'data-sound': sound,
   ...props
 }: ButtonProps) {
   return (
     <button
+      data-sound={sound ?? (variant === 'primary' ? 'primary' : variant === 'danger' ? 'warning' : 'tap')}
       className={clsx(
         'app-button inline-flex items-center justify-center gap-2 rounded-xl font-semibold tracking-[-0.01em] transition-[background-color,border-color,color,transform,box-shadow] duration-200 active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-dark disabled:pointer-events-none disabled:opacity-50',
         {

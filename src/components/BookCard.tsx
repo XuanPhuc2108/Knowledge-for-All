@@ -15,6 +15,7 @@ interface BookCardProps {
   isFavorite?: boolean
   onFavorite?: () => void
   onPreview?: () => void
+  priority?: boolean
 }
 
 export function BookCard({
@@ -25,6 +26,7 @@ export function BookCard({
   isFavorite = false,
   onFavorite,
   onPreview,
+  priority = false,
 }: BookCardProps) {
   return (
     <article
@@ -44,6 +46,7 @@ export function BookCard({
           imageUrls={book.imageUrls}
           title={book.title}
           compact={compact}
+          priority={priority}
         />
         <span className="absolute left-3 top-3 rounded-full border border-accent-yellow/20 bg-dark/80 px-3 py-1 text-xs font-semibold text-accent-yellow backdrop-blur-md">
           {EXCHANGE_LABELS[book.exchangeType]}
@@ -54,6 +57,7 @@ export function BookCard({
         {onPreview && (
           <button
             type="button"
+            data-sound="open"
             aria-label={`Xem nhanh ${book.title}`}
             onClick={(event) => { event.stopPropagation(); onPreview() }}
             className="absolute bottom-3 left-3 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-dark/80 px-3 text-xs font-semibold text-text-primary shadow-lg backdrop-blur-sm transition-colors hover:bg-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow"
@@ -65,6 +69,7 @@ export function BookCard({
         {onFavorite && (
           <button
             type="button"
+            data-sound="favorite"
             aria-label={isFavorite ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}
             aria-pressed={isFavorite}
             onClick={(event) => { event.stopPropagation(); onFavorite() }}
@@ -139,11 +144,13 @@ function BookCardCover({
   imageUrls,
   title,
   compact,
+  priority,
 }: {
   bookId: string
   imageUrls: string[]
   title: string
   compact?: boolean
+  priority: boolean
 }) {
   const imageUrl = imageUrls[0]?.trim() || ILLUSTRATIONS.defaultCover
 
@@ -155,7 +162,8 @@ function BookCardCover({
         alt={`Bìa sách ${title}`}
         width={600}
         height={800}
-        loading="lazy"
+        loading={priority ? 'eager' : 'lazy'}
+        fetchPriority={priority ? 'high' : 'auto'}
         sizes={compact
           ? '(max-width: 420px) 92vw, (max-width: 1024px) 46vw, 360px'
           : '(max-width: 640px) 92vw, (max-width: 1280px) 44vw, 360px'}

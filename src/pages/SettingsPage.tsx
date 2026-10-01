@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Accessibility, Bell, BookOpen, ChevronRight, CircleUserRound, Eye, EyeOff, Gauge, History, LockKeyhole, MapPin, Monitor, Moon, Palette, ShieldCheck, Smartphone, Sparkles, Sun, Trash2, Zap } from 'lucide-react'
+import { Accessibility, Bell, BookOpen, ChevronRight, CircleUserRound, Eye, EyeOff, Gauge, History, LockKeyhole, MapPin, Monitor, Moon, Palette, ShieldCheck, Smartphone, Sparkles, Sun, Trash2, Volume2, VolumeX, Zap } from 'lucide-react'
 import { useAuth } from '../hooks/useAuthState'
 import { useToast } from '../hooks/useToast'
 import { useGeolocation } from '../hooks/useGeolocation'
@@ -214,6 +214,7 @@ export function SettingsPage() {
     { href: '#privacy', label: 'Quyền riêng tư', icon: ShieldCheck },
     { href: '#location', label: 'Định vị', icon: MapPin },
     { href: '#notifications', label: 'Thông báo', icon: Bell },
+    { href: '#sound', label: 'Âm thanh', icon: Volume2 },
     { href: '#theme', label: 'Giao diện', icon: Palette },
     { href: '#motion', label: 'Hiệu ứng chuyển động', icon: Sparkles },
     { href: '#install', label: 'Cài ứng dụng', icon: Smartphone },
@@ -387,6 +388,56 @@ export function SettingsPage() {
             })}
           </div>
         </fieldset>
+      </section>
+
+      <section id="sound" className="settings-panel">
+        <SectionHeading
+          title="Âm thanh"
+          detail="Âm chào và tiếng chạm ngắn, được lưu riêng trên thiết bị này."
+        />
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            {settings.soundEnabled
+              ? <Volume2 className="mt-0.5 h-5 w-5 text-accent-yellow" aria-hidden="true" />
+              : <VolumeX className="mt-0.5 h-5 w-5 text-text-muted" aria-hidden="true" />}
+            <div>
+              <p className="text-sm font-semibold text-text-primary">
+                {settings.soundEnabled ? 'Âm thanh đang bật' : 'Âm thanh đang tắt'}
+              </p>
+              <p className="mt-1 max-w-xl text-xs leading-relaxed text-text-muted">
+                Trình duyệt chỉ cho phép phát sau tương tác đầu tiên; Booki dùng âm tổng hợp rất nhỏ, không tải tệp âm thanh.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            data-sound="off"
+            aria-pressed={settings.soundEnabled}
+            onClick={() => setSettings((current) => ({ ...current, soundEnabled: !current.soundEnabled }))}
+            className="inline-flex min-h-10 items-center justify-center rounded-xl border border-glass/15 bg-[rgb(var(--color-interactive-surface)/.7)] px-4 py-2 text-sm font-semibold text-text-primary transition-colors hover:bg-[rgb(var(--color-interactive-hover)/.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow"
+          >
+            {settings.soundEnabled ? 'Tắt âm thanh' : 'Bật âm thanh'}
+          </button>
+        </div>
+        <label className="mt-5 flex max-w-xl flex-col gap-2 text-sm text-text-primary">
+          <span className="flex items-center justify-between gap-4">
+            <span className="font-medium">Âm lượng</span>
+            <span className="text-xs tabular-nums text-text-muted">{Math.round(settings.soundVolume * 100)}%</span>
+          </span>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={settings.soundVolume}
+            onChange={(event) => {
+              const soundVolume = Number(event.currentTarget.value)
+              setSettings((current) => ({ ...current, soundVolume }))
+            }}
+            aria-label="Âm lượng hiệu ứng âm thanh"
+            className="w-full accent-[rgb(var(--color-accent))]"
+          />
+        </label>
       </section>
 
       <section id="motion" className="settings-panel">

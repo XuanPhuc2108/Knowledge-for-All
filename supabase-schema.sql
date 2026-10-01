@@ -42,6 +42,9 @@ create table if not exists books (
   updated_at timestamptz default now()
 );
 
+create index if not exists books_created_at_id_desc_idx
+  on books (created_at desc, id desc);
+
 create table if not exists exchange_requests (
   id uuid primary key default gen_random_uuid(),
   book_id uuid references books(id) on delete cascade not null,

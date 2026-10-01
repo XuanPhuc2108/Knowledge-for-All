@@ -6,4 +6,6 @@ export interface AppSettings {
   theme: AppTheme
   notificationsEnabled: boolean
   motion: MotionPreference
+  soundEnabled: boolean
+  soundVolume: number
 }

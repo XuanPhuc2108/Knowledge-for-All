@@ -9,6 +9,7 @@ import { AppRoutes } from './routes/AppRoutes'
 import { CommandPalette } from './components/CommandPalette'
 import { PwaInstallProvider } from './hooks/usePwaInstall'
 import { AppSettingsProvider } from './hooks/AppSettingsProvider'
+import { AudioFeedback } from './components/AudioFeedback'
 
 function ApplicationContent() {
   const { loading: authLoading } = useAuthState()
@@ -23,6 +24,7 @@ function ApplicationContent() {
         <AppRoutes onInitialRouteReady={markInitialRouteReady} />
       </div>
       <CommandPalette />
+      <AudioFeedback />
       <SiteLoadingScreen ready={ready} />
     </>
   )

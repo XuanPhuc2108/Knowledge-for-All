@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuthState'
 import { getAdapter } from '../lib/dataAdapter'
 import type { AppRole } from '../lib/dataAdapter'
 import { Navbar } from './Navbar'
+import { BookiAmbient } from './BookiAmbient'
 
 const SIDEBAR_LINKS = [
   { to: '/app', icon: Home, label: 'Khám phá' },
@@ -70,8 +71,9 @@ export function AppLayout() {
 
   return (
     <div className="app-shell min-h-screen bg-dark">
+      <BookiAmbient variant="app" />
       <Navbar variant="app" />
-      <div className="mx-auto flex max-w-[1400px] gap-8 px-4 pb-28 pt-24 sm:px-6 lg:px-10">
+      <div className="app-layout-content relative z-10 mx-auto flex max-w-[1400px] gap-8 px-4 pb-28 pt-24 sm:px-6 lg:px-10">
         <aside className="hidden w-60 shrink-0 lg:block">
           <nav className="app-sidebar glass-card sticky top-28 space-y-1 rounded-2xl p-2">
             {sidebarLinks.map(({ to, icon: Icon, label }) => (

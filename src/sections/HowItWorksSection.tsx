@@ -36,7 +36,7 @@ export function HowItWorksSection() {
   return (
     <section
       id="how-it-works"
-      className="how-it-works-section rounded-t-[2rem] border-y px-5 py-20 sm:rounded-t-[2.75rem] sm:px-8 md:py-28 lg:rounded-t-[3.5rem] lg:px-16"
+      className="how-it-works-section booki-ambient-section rounded-t-[2rem] border-y px-5 py-20 sm:rounded-t-[2.75rem] sm:px-8 md:py-28 lg:rounded-t-[3.5rem] lg:px-16"
     >
       <FadeIn className="mb-16 text-center">
         <h2

@@ -468,11 +468,10 @@ export function DashboardPage({ publicMode = false }: { publicMode?: boolean }) 
                   : 'Sách phù hợp với bạn'}
           </h2>
           <AnimatePresence mode="popLayout" initial={false}>
-            <motion.div layout className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((book) => (
+            <motion.div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {filtered.map((book, index) => (
                 <motion.div
                   key={book.id}
-                  layout
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 4 }}
@@ -480,6 +479,7 @@ export function DashboardPage({ publicMode = false }: { publicMode?: boolean }) 
                 >
                   <BookCard
                     book={book}
+                    priority={index === 0}
                     compact
                     actionLabel="Xem chi tiết"
                     onAction={() => openBookDetails(book)}

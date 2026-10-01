@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { LogIn, Plus, Search, UserPlus, X } from 'lucide-react'
+import { LogIn, Plus, Search, UserPlus, Volume2, VolumeX, X } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { UserProfile } from '../types/user'
 import { Button } from './Button'
@@ -18,9 +18,11 @@ interface MobileMenuProps {
   user: UserProfile | null
   onLogout: () => void
   variant: 'landing' | 'app'
+  soundEnabled: boolean
+  onToggleSound: () => void
 }
 
-export function MobileMenu({ open, onClose, user, onLogout, variant }: MobileMenuProps) {
+export function MobileMenu({ open, onClose, user, onLogout, variant, soundEnabled, onToggleSound }: MobileMenuProps) {
   const navigate = useNavigate()
 
   return (
@@ -131,6 +133,20 @@ export function MobileMenu({ open, onClose, user, onLogout, variant }: MobileMen
                   </li>
                 </>
               )}
+              <li>
+                <button
+                  type="button"
+                  data-sound="off"
+                  aria-pressed={soundEnabled}
+                  onClick={onToggleSound}
+                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-text-muted transition-colors hover:bg-[rgb(var(--color-interactive-surface)/.8)] hover:text-text-primary"
+                >
+                  {soundEnabled
+                    ? <Volume2 className="h-4 w-4" aria-hidden="true" />
+                    : <VolumeX className="h-4 w-4" aria-hidden="true" />}
+                  {soundEnabled ? 'Tắt âm thanh' : 'Bật âm thanh'}
+                </button>
+              </li>
             </ul>
 
             <div className="mt-8 flex flex-col gap-3">

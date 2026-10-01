@@ -2,10 +2,18 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import { ToastContext, type ToastItem, type ToastType } from './toastContext'
+import { useAppSettings } from '../hooks/useAppSettings'
+import { playSound } from '../lib/soundEffects'
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const { settings } = useAppSettings()
+  const settingsRef = useRef(settings)
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const timers = useRef(new Map<string, number>())
+
+  useEffect(() => {
+    settingsRef.current = settings
+  }, [settings])
 
   useEffect(
     () => () => {
@@ -18,6 +26,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
     const id = crypto.randomUUID()
     setToasts((prev) => [...prev, { id, message, type }])
+    if (settingsRef.current.soundEnabled && type !== 'info') {
+      playSound(type === 'success' ? 'success' : 'error', settingsRef.current.soundVolume)
+    }
     const timer = window.setTimeout(() => {
       setToasts((prev) => prev.filter((toast) => toast.id !== id))
       timers.current.delete(id)

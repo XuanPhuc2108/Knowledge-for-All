@@ -50,10 +50,11 @@ export function BookCarousel3DSection({ books, loading, error, refetch }: BookCa
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-3 lg:gap-5">
-          {books.map((book) => (
+          {books.map((book, index) => (
             <BookCard
               key={book.id}
               book={book}
+              priority={index === 0}
               compact
               actionLabel="Xem chi tiết"
               onAction={() => navigate(user ? `/app/books/${book.id}` : `/books/${book.id}`, { state: { book } })}

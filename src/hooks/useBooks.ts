@@ -1,37 +1,106 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useAuth } from './useAuthState'
 import { getAdapter } from '../lib/dataAdapter'
 import { haversineDistance } from '../lib/geo'
 import type { Book, BookWithDistance, CreateBookInput, UpdateBookInput } from '../types/book'
 
+interface CachedBookListing {
+  books: Book[]
+  hasMore: boolean
+  cachedAt: number
+}
+
+const BOOK_LIST_CACHE_TTL_MS = 90_000
+const BOOK_LIST_CACHE_MAX_ENTRIES = 12
+const bookListingCache = new Map<string, CachedBookListing>()
+
+function bookListingCacheKey(userId: string | undefined, limit: number | undefined) {
+  return `${userId ?? 'public'}:${limit ?? 'all'}`
+}
+
+function peekCachedBookListing(key: string): CachedBookListing | undefined {
+  const cached = bookListingCache.get(key)
+  if (!cached || Date.now() - cached.cachedAt > BOOK_LIST_CACHE_TTL_MS) return undefined
+  return cached
+}
+
+function getCachedBookListing(key: string): CachedBookListing | undefined {
+  const cached = peekCachedBookListing(key)
+  if (!cached) return undefined
+  bookListingCache.delete(key)
+  bookListingCache.set(key, cached)
+  return cached
+}
+
+function cacheBookListing(key: string, books: Book[], hasMore: boolean) {
+  bookListingCache.delete(key)
+  bookListingCache.set(key, { books, hasMore, cachedAt: Date.now() })
+  while (bookListingCache.size > BOOK_LIST_CACHE_MAX_ENTRIES) {
+    const oldestKey = bookListingCache.keys().next().value
+    if (oldestKey === undefined) break
+    bookListingCache.delete(oldestKey)
+  }
+}
+
+export function invalidateBookListings(userId: string) {
+  const prefix = `${userId}:`
+  for (const key of bookListingCache.keys()) {
+    if (key.startsWith(prefix)) bookListingCache.delete(key)
+  }
+}
+
 export function useBooks(limit?: number) {
-  const [books, setBooks] = useState<Book[]>([])
-  const [loading, setLoading] = useState(true)
+  const { user, loading: authLoading } = useAuth()
+  const cacheKey = bookListingCacheKey(user?.id, limit)
+  const initialCache = peekCachedBookListing(cacheKey)
+  const [books, setBooks] = useState<Book[]>(() => initialCache?.books ?? [])
+  const [dataKey, setDataKey] = useState(cacheKey)
+  const [loading, setLoading] = useState(!initialCache)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [hasMore, setHasMore] = useState(false)
+  const [hasMore, setHasMore] = useState(initialCache?.hasMore ?? false)
   const [error, setError] = useState<string | null>(null)
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
-  const [nextOffset, setNextOffset] = useState(0)
+  const [nextOffset, setNextOffset] = useState(initialCache?.books.length ?? 0)
   const requestId = useRef(0)
   const pageRequestId = useRef(0)
   const pageRequestInProgress = useRef(false)
+  const activeCache = dataKey === cacheKey ? undefined : peekCachedBookListing(cacheKey)
+  const visibleBooks = authLoading
+    ? []
+    : dataKey === cacheKey ? books : activeCache?.books ?? []
+  const visibleHasMore = authLoading
+    ? false
+    : dataKey === cacheKey ? hasMore : activeCache?.hasMore ?? false
+  const visibleLoading = authLoading || (dataKey === cacheKey ? loading : !activeCache)
 
   const loadBooks = useCallback(() => getAdapter().getBooks(limit, 0), [limit])
 
   useEffect(() => {
+    if (authLoading) return
     const currentRequest = ++requestId.current
+    pageRequestId.current += 1
+    pageRequestInProgress.current = false
+    const cached = getCachedBookListing(cacheKey)
     void loadBooks()
       .then((data) => {
         if (currentRequest !== requestId.current) return
+        const hasNextPage = limit !== undefined && data.length === limit
+        cacheBookListing(cacheKey, data, hasNextPage)
+        setDataKey(cacheKey)
         setBooks(data)
         setNextOffset(data.length)
-        setHasMore(limit !== undefined && data.length === limit)
+        setHasMore(hasNextPage)
         setError(null)
         setLoadMoreError(null)
       })
       .catch((e: unknown) => {
         if (currentRequest !== requestId.current) return
         console.error('Unable to load book listings', e)
-        setError('Chưa thể tải danh sách sách. Vui lòng thử lại.')
+        setDataKey(cacheKey)
+        setBooks(cached?.books ?? [])
+        setNextOffset(cached?.books.length ?? 0)
+        setHasMore(cached?.hasMore ?? false)
+        setError(cached?.books.length ? null : 'Chưa thể tải danh sách sách. Vui lòng thử lại.')
       })
       .finally(() => {
         if (currentRequest === requestId.current) setLoading(false)
@@ -39,35 +108,50 @@ export function useBooks(limit?: number) {
     return () => {
       if (currentRequest === requestId.current) requestId.current += 1
     }
-  }, [limit, loadBooks])
+  }, [authLoading, cacheKey, limit, loadBooks])
 
   const refetch = useCallback(async () => {
+    const cached = getCachedBookListing(cacheKey)
     const currentRequest = ++requestId.current
     pageRequestId.current += 1
     pageRequestInProgress.current = false
     setLoadingMore(false)
-    setLoading(true)
+    setLoading(!cached)
+    setError(null)
     try {
       const data = await loadBooks()
       if (currentRequest === requestId.current) {
+        const hasNextPage = limit !== undefined && data.length === limit
+        cacheBookListing(cacheKey, data, hasNextPage)
+        setDataKey(cacheKey)
         setBooks(data)
         setNextOffset(data.length)
-        setHasMore(limit !== undefined && data.length === limit)
+        setHasMore(hasNextPage)
         setError(null)
         setLoadMoreError(null)
       }
     } catch (e) {
       if (currentRequest === requestId.current) {
         console.error('Unable to refresh book listings', e)
-        setError('Chưa thể tải danh sách sách. Vui lòng thử lại.')
+        setDataKey(cacheKey)
+        setBooks(cached?.books ?? [])
+        setNextOffset(cached?.books.length ?? 0)
+        setHasMore(cached?.hasMore ?? false)
+        setError(cached?.books.length ? null : 'Chưa thể tải danh sách sách. Vui lòng thử lại.')
       }
     } finally {
       if (currentRequest === requestId.current) setLoading(false)
     }
-  }, [limit, loadBooks])
+  }, [cacheKey, limit, loadBooks])
 
   const loadMore = useCallback(async () => {
-    if (limit === undefined || !hasMore || pageRequestInProgress.current) return
+    if (
+      authLoading ||
+      dataKey !== cacheKey ||
+      limit === undefined ||
+      !hasMore ||
+      pageRequestInProgress.current
+    ) return
     pageRequestInProgress.current = true
     const currentPageRequest = ++pageRequestId.current
     const currentListRequest = requestId.current
@@ -76,12 +160,13 @@ export function useBooks(limit?: number) {
     try {
       const data = await getAdapter().getBooks(limit, nextOffset)
       if (currentListRequest !== requestId.current || currentPageRequest !== pageRequestId.current) return
-      setBooks((current) => {
-        const existingIds = new Set(current.map((book) => book.id))
-        return [...current, ...data.filter((book) => !existingIds.has(book.id))]
-      })
-      setNextOffset((current) => current + data.length)
-      setHasMore(data.length === limit)
+      const existingIds = new Set(books.map((book) => book.id))
+      const updatedBooks = [...books, ...data.filter((book) => !existingIds.has(book.id))]
+      const hasNextPage = data.length === limit
+      cacheBookListing(cacheKey, updatedBooks, hasNextPage)
+      setBooks(updatedBooks)
+      setNextOffset(nextOffset + data.length)
+      setHasMore(hasNextPage)
     } catch (cause) {
       if (currentListRequest !== requestId.current || currentPageRequest !== pageRequestId.current) return
       console.error('Unable to load another page of book listings', cause)
@@ -92,9 +177,18 @@ export function useBooks(limit?: number) {
         setLoadingMore(false)
       }
     }
-  }, [hasMore, limit, nextOffset])
+  }, [authLoading, books, cacheKey, dataKey, hasMore, limit, nextOffset])
 
-  return { books, loading, loadingMore, hasMore, error, loadMoreError, loadMore, refetch }
+  return {
+    books: visibleBooks,
+    loading: visibleLoading,
+    loadingMore: dataKey === cacheKey && loadingMore,
+    hasMore: visibleHasMore,
+    error: dataKey === cacheKey ? error : null,
+    loadMoreError: dataKey === cacheKey ? loadMoreError : null,
+    loadMore,
+    refetch,
+  }
 }
 
 export function useMyBooks(userId: string | undefined) {
@@ -184,6 +278,7 @@ export function useMyBooks(userId: string | undefined) {
   const createBook = async (ownerName: string, input: CreateBookInput) => {
     if (!userId) throw new Error('Chưa đăng nhập')
     const book = await getAdapter().createBook(userId, ownerName, input)
+    invalidateBookListings(userId)
     setBooks((prev) => [book, ...prev])
     return book
   }
@@ -191,6 +286,7 @@ export function useMyBooks(userId: string | undefined) {
   const updateBook = async (id: string, input: UpdateBookInput) => {
     if (!userId) throw new Error('Chưa đăng nhập')
     const book = await getAdapter().updateBook(id, userId, input)
+    invalidateBookListings(userId)
     setBooks((prev) => prev.map((b) => (b.id === id ? book : b)))
     return book
   }
@@ -198,6 +294,7 @@ export function useMyBooks(userId: string | undefined) {
   const deleteBook = async (id: string) => {
     if (!userId) throw new Error('Chưa đăng nhập')
     await getAdapter().deleteBook(id, userId)
+    invalidateBookListings(userId)
     setBooks((prev) => prev.filter((b) => b.id !== id))
   }
 

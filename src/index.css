@@ -21,6 +21,45 @@
     --color-accent-secondary: 249 115 22;
     --color-how-surface: 32 28 21;
   }
+
+  :root[data-theme='light'] .booki-ambient::before {
+    background-size: 34px 34px;
+    opacity: 0.075;
+  }
+
+  :root[data-theme='light'] .booki-ambient-cover {
+    border-color: rgb(95 77 48 / 0.055);
+    background:
+      linear-gradient(90deg, transparent 0 88%, rgb(95 77 48 / 0.04) 88.5% 89%, transparent 90%),
+      linear-gradient(142deg, rgb(203 159 75 / 0.045), transparent 53%);
+  }
+
+  :root[data-theme='light'] .booki-ambient-pages {
+    border-color: rgb(95 77 48 / 0.06);
+    background:
+      repeating-linear-gradient(180deg, transparent 0 1.45rem, rgb(95 77 48 / 0.02) 1.5rem 1.55rem),
+      radial-gradient(ellipse at 90% 20%, rgb(180 112 46 / 0.035), transparent 70%);
+  }
+
+  :root[data-theme='aurora'] .booki-ambient-light {
+    top: 10%;
+    right: -10rem;
+    background: radial-gradient(ellipse, rgb(91 93 209 / 0.105), transparent 68%);
+  }
+
+  :root[data-theme='aurora'] .booki-ambient-pages {
+    background:
+      repeating-linear-gradient(180deg, transparent 0 1.45rem, rgb(182 198 242 / 0.022) 1.5rem 1.55rem),
+      radial-gradient(ellipse at 90% 20%, rgb(105 218 226 / 0.05), transparent 70%);
+  }
+
+  :root[data-theme='aurora'] .booki-hero-ambient::before {
+    border-color: rgb(182 198 242 / 0.075);
+    background:
+      repeating-linear-gradient(180deg, transparent 0 1.35rem, rgb(182 198 242 / 0.022) 1.4rem 1.45rem),
+      linear-gradient(145deg, rgb(171 132 255 / 0.045), transparent 58%);
+  }
+
   :root[data-theme='light'] {
     color-scheme: light;
     --color-dark: 243 242 237;
@@ -415,6 +454,177 @@
     background-size: auto, 24px 24px;
     content: '';
     pointer-events: none;
+  }
+
+  .booki-ambient {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    contain: paint;
+  }
+
+  .booki-ambient::before {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgb(var(--color-glass) / 0.2) 0.65px, transparent 0.8px);
+    background-size: 30px 30px;
+    content: '';
+    opacity: 0.13;
+    mask-image: linear-gradient(180deg, #000 0%, transparent 64%);
+  }
+
+  .booki-ambient::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: min(72rem, 78%);
+    background: linear-gradient(180deg, rgb(var(--color-glass) / 0.012), transparent);
+    content: '';
+  }
+
+  .booki-ambient-light {
+    position: absolute;
+    top: 3rem;
+    right: -13rem;
+    width: 36rem;
+    height: 46rem;
+    border-radius: 50%;
+    background: radial-gradient(ellipse, rgb(var(--color-accent) / 0.075), transparent 68%);
+    filter: blur(28px);
+  }
+
+  .booki-ambient-cover {
+    position: absolute;
+    top: 18%;
+    right: -10rem;
+    width: 26rem;
+    height: 39rem;
+    border: 1px solid rgb(var(--color-glass) / 0.045);
+    border-radius: 2rem;
+    background:
+      linear-gradient(90deg, transparent 0 88%, rgb(var(--color-glass) / 0.045) 88.5% 89%, transparent 90%),
+      linear-gradient(142deg, rgb(var(--color-accent) / 0.03), transparent 53%);
+    box-shadow: inset 1.1rem 0 rgb(var(--color-glass) / 0.012);
+    opacity: 0.72;
+    transform: rotate(12deg);
+  }
+
+  .booki-ambient-pages {
+    position: absolute;
+    top: 50%;
+    left: -12rem;
+    width: 26rem;
+    height: 19rem;
+    border-top: 1px solid rgb(var(--color-glass) / 0.055);
+    border-bottom: 1px solid rgb(var(--color-glass) / 0.035);
+    background:
+      repeating-linear-gradient(180deg, transparent 0 1.45rem, rgb(var(--color-glass) / 0.018) 1.5rem 1.55rem),
+      radial-gradient(ellipse at 90% 20%, rgb(var(--color-accent-secondary) / 0.055), transparent 70%);
+    opacity: 0.55;
+    transform: rotate(-11deg);
+  }
+
+  .booki-ambient-landing {
+    height: 100%;
+  }
+
+  .booki-ambient-landing .booki-ambient-cover {
+    top: 20%;
+    right: 4%;
+    width: 19rem;
+    height: 31rem;
+    opacity: 0.28;
+  }
+
+  .booki-ambient-landing .booki-ambient-pages {
+    top: 66%;
+    left: -11rem;
+    opacity: 0.3;
+  }
+
+  .booki-hero-ambient {
+    isolation: isolate;
+  }
+
+  .booki-hero-ambient::before,
+  .booki-hero-ambient::after {
+    position: absolute;
+    z-index: 0;
+    pointer-events: none;
+    content: '';
+  }
+
+  .booki-hero-ambient::before {
+    top: 14%;
+    right: 40%;
+    width: clamp(12rem, 24vw, 23rem);
+    height: clamp(20rem, 40vw, 34rem);
+    border: 1px solid rgb(var(--color-glass) / 0.055);
+    border-radius: 1.5rem;
+    background:
+      repeating-linear-gradient(180deg, transparent 0 1.35rem, rgb(var(--color-glass) / 0.018) 1.4rem 1.45rem),
+      linear-gradient(145deg, rgb(var(--color-accent) / 0.035), transparent 58%);
+    box-shadow: inset 0.65rem 0 rgb(var(--color-glass) / 0.016);
+    opacity: 0.6;
+    transform: rotate(-9deg);
+  }
+
+  .booki-hero-ambient::after {
+    top: 20%;
+    right: 34%;
+    width: clamp(12rem, 24vw, 23rem);
+    height: clamp(20rem, 40vw, 34rem);
+    border: 1px solid rgb(var(--color-glass) / 0.035);
+    border-radius: 1.5rem;
+    background: linear-gradient(130deg, rgb(var(--color-glass) / 0.018), transparent 55%);
+    opacity: 0.52;
+    transform: rotate(6deg);
+  }
+
+  .booki-hero-grid {
+    z-index: 1;
+    background-image:
+      linear-gradient(rgb(var(--color-glass) / 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(var(--color-glass) / 0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: linear-gradient(180deg, #000 0%, transparent 84%);
+    opacity: 0.42;
+  }
+
+  .booki-ambient-section {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .booki-ambient-section::before {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 78% 18%, rgb(var(--color-accent) / 0.055), transparent 48%),
+      radial-gradient(ellipse at 8% 84%, rgb(var(--color-accent-secondary) / 0.025), transparent 45%);
+    content: '';
+    pointer-events: none;
+  }
+
+  .booki-ambient-section > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .how-it-works-section.booki-ambient-section::before {
+    background:
+      radial-gradient(ellipse at 52% 0%, rgb(var(--color-accent) / 0.065), transparent 48%),
+      linear-gradient(135deg, rgb(var(--color-glass) / 0.012), transparent 60%);
+  }
+
+  #safety.booki-ambient-section::before {
+    background:
+      radial-gradient(ellipse at 20% 18%, rgb(var(--color-accent) / 0.05), transparent 48%),
+      radial-gradient(ellipse at 82% 90%, rgb(var(--color-accent-secondary) / 0.035), transparent 48%);
   }
 
   .book-cover-stage {
@@ -824,6 +1034,12 @@
     body { background-attachment: scroll; }
     .glass-card { backdrop-filter: none; }
     .glass-panel { backdrop-filter: none; }
+    .booki-ambient-light { top: 1rem; right: -17rem; filter: blur(20px); }
+    .booki-ambient-cover { right: -16rem; opacity: 0.36; }
+    .booki-ambient-pages { left: -18rem; opacity: 0.3; }
+    .booki-hero-ambient::before { right: 18%; opacity: 0.36; }
+    .booki-hero-ambient::after { display: none; }
+    .booki-hero-grid { background-size: 76px 76px; opacity: 0.28; }
     .booki-credit-support {
       grid-template-columns: 1fr;
     }
@@ -1267,6 +1483,10 @@
   .app-shell {
     position: relative;
     isolation: isolate;
+  }
+
+  .app-layout-content {
+    min-height: calc(100vh - 5rem);
   }
 
   .app-sidebar {

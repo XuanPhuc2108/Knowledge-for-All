@@ -11,7 +11,7 @@ const SAFETY_CARDS = [
 
 export function SafetySection() {
   return (
-    <section id="safety" className="px-5 py-20 sm:px-8 md:py-32 lg:px-16">
+    <section id="safety" className="booki-ambient-section px-5 py-20 sm:px-8 md:py-32 lg:px-16">
       <FadeIn className="mb-12 text-center">
         <h2
           className="font-black text-text-primary"

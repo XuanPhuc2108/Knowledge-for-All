@@ -38,7 +38,7 @@ export function GradientButton({
 }: GradientButtonProps) {
   if (href && !disabled) {
     return (
-      <Link to={href} className={clsx(gradientClasses, 'w-full', className)}>
+      <Link to={href} data-sound="primary" className={clsx(gradientClasses, 'w-full', className)}>
         <ButtonContent icon={icon}>{children}</ButtonContent>
       </Link>
     )
@@ -49,6 +49,7 @@ export function GradientButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
+      data-sound="primary"
       className={clsx(gradientClasses, className)}
     >
       <ButtonContent icon={icon}>{children}</ButtonContent>
