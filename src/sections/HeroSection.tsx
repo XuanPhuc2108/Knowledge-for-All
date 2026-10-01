@@ -1,6 +1,4 @@
 import { BookOpen, Camera, MapPin, Users } from 'lucide-react'
-import gsap from 'gsap'
-import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatedText } from '../components/AnimatedText'
 import { FadeIn } from '../components/FadeIn'
@@ -10,7 +8,6 @@ import { GsapMorphText } from '../components/GsapMorphText'
 import { Magnetic } from '../components/Magnetic'
 import { Button } from '../components/Button'
 import { useAuth } from '../hooks/useAuthState'
-import { useReducedMotion } from '../hooks/useReducedMotion'
 import { APP_NAME, APP_TAGLINE } from '../lib/constants'
 import { ILLUSTRATIONS } from '../lib/images'
 
@@ -24,24 +21,6 @@ const HERO_FEATURES = [
 export function HeroSection() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const reduced = useReducedMotion()
-  const visualRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (reduced || !visualRef.current) return
-    const ctx = gsap.context(() => {
-      gsap.from('.hero-card', {
-        opacity: 0,
-        y: 40,
-        scale: 0.9,
-        duration: 0.9,
-        stagger: 0.12,
-        ease: 'power3.out',
-        delay: 0.3,
-      })
-    }, visualRef)
-    return () => ctx.revert()
-  }, [reduced])
 
   const handleAddBook = () => navigate(user ? '/app/add-book' : '/register')
 
@@ -63,8 +42,8 @@ export function HeroSection() {
         aria-hidden="true"
       />
 
-      <div className="relative z-10 mx-auto grid w-full max-w-7xl items-center gap-12 lg:grid-cols-2">
-        <div>
+      <div className="relative z-10 mx-auto grid w-full min-w-0 max-w-7xl items-center gap-12 lg:grid-cols-2">
+        <div className="min-w-0">
           <FadeIn delay={0.1} y={20}>
             <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-accent-yellow/90">
               {APP_TAGLINE}
@@ -82,9 +61,9 @@ export function HeroSection() {
 
           <FadeIn delay={0.35} y={20}>
             <AnimatedText
-              text="Có sách hay thì share liền tay. Booki giúp mình kiếm, cho mượn với đổi sách dễ dàng hơn nghen."
+              text="Có sách hay thì share liền tay. Booki giúp bạn tìm, cho mượn và đổi sách dễ dàng hơn."
               scrollReveal={false}
-              className="mb-8 max-w-lg text-lg leading-relaxed text-text-muted"
+              className="mb-8 max-w-lg break-words text-lg leading-relaxed text-text-muted"
             />
           </FadeIn>
 
@@ -101,13 +80,13 @@ export function HeroSection() {
 
           <FadeIn delay={0.55} y={10}>
             <p className="mt-8 text-xs text-text-muted">
-              Thấy cuốn hợp gu thì mình coi tình trạng với cách liên hệ liền nha.
+              Thấy cuốn hợp gu? Xem tình trạng và cách liên hệ ngay.
             </p>
           </FadeIn>
         </div>
 
-        <FadeIn delay={0.4} className="relative mx-auto w-full max-w-lg lg:max-w-none">
-          <div ref={visualRef} className="relative h-[420px] w-full rounded-[2rem] border border-accent-yellow/15 bg-[radial-gradient(circle_at_50%_42%,rgb(var(--color-accent)/.12),transparent_48%),rgb(var(--color-dark-secondary)/.35)] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.06),0_24px_70px_rgb(0_0_0_/_0.18)]">
+        <FadeIn delay={0.4} className="relative mx-auto w-full min-w-0 max-w-lg lg:max-w-none">
+          <div className="relative h-[420px] w-full min-w-0 rounded-[2rem] border border-accent-yellow/15 bg-[radial-gradient(circle_at_50%_42%,rgb(var(--color-accent)/.12),transparent_48%),rgb(var(--color-dark-secondary)/.35)] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.06),0_24px_70px_rgb(0_0_0_/_0.18)]">
             <div className="pointer-events-none absolute inset-6 rounded-[1.5rem] border border-white/[0.06]" aria-hidden="true" />
             <div className="hero-artwork absolute inset-0" aria-label="Minh họa cách Booki kết nối người đọc" role="img">
               <ImageWithSkeleton
@@ -116,13 +95,13 @@ export function HeroSection() {
                 width={800}
                 height={1024}
                 sizes="(max-width: 480px) 144px, 184px"
-                wrapperClassName="hero-card hero-book-cover absolute left-1/2 top-1/2 h-56 w-44 -translate-x-1/2 -translate-y-1/2 rounded-2xl sm:h-72 sm:w-52"
+                wrapperClassName="hero-book-cover absolute left-1/2 top-1/2 h-56 w-44 -translate-x-1/2 -translate-y-1/2 rounded-2xl sm:h-72 sm:w-52"
                 className="h-full w-full rounded-2xl border border-glass/20 object-cover shadow-[0_32px_80px_rgb(0_0_0_/_0.42)]"
                 loading="eager"
                 fetchPriority="high"
               />
-              {HERO_FEATURES.map(({ icon: Icon, label, position }, index) => (
-                <div key={label} className={`hero-feature hero-card absolute ${position}`} style={{ '--feature-index': index } as React.CSSProperties}>
+              {HERO_FEATURES.map(({ icon: Icon, label, position }) => (
+                <div key={label} className={`hero-feature absolute ${position}`}>
                   <Icon className="h-4 w-4 shrink-0 text-accent-yellow" aria-hidden="true" />
                   <span>{label}</span>
                 </div>
@@ -134,7 +113,7 @@ export function HeroSection() {
               width={96}
               height={96}
               sizes="96px"
-              wrapperClassName="hero-card absolute -bottom-2 right-0 hidden h-24 w-24 rounded-xl sm:block"
+              wrapperClassName="absolute -bottom-2 right-0 hidden h-24 w-24 rounded-xl sm:block"
               className="h-full w-full rounded-xl border-2 border-accent-yellow/30 object-cover shadow-lg"
               loading="lazy"
             />

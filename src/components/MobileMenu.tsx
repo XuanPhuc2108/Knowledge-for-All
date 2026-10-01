@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { LogIn, Plus, UserPlus, X } from 'lucide-react'
+import { LogIn, Plus, Search, UserPlus, X } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { UserProfile } from '../types/user'
 import { Button } from './Button'
@@ -51,6 +51,19 @@ export function MobileMenu({ open, onClose, user, onLogout, variant }: MobileMen
             <ul className="space-y-1.5">
               {variant === 'landing' &&
                 <>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose()
+                        window.dispatchEvent(new Event('booki:open-command-palette'))
+                      }}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-accent-yellow transition-colors hover:bg-[rgb(var(--color-interactive-surface)/.8)]"
+                    >
+                      <Search className="h-4 w-4" aria-hidden="true" />
+                      Tìm sách nhanh
+                    </button>
+                  </li>
                   <li>
                     <Link
                       to={user ? '/app' : '/'}

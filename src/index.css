@@ -407,10 +407,61 @@
     color: rgb(var(--color-accent));
   }
 
+  .animate-book-favorite-pop {
+    animation: book-favorite-pop 180ms cubic-bezier(0.2, 0.8, 0.3, 1.25);
+  }
+
+  @keyframes book-favorite-pop {
+    50% { transform: scale(1.22); }
+  }
+
   .team-member-card:hover {
     transform: translateY(-2px);
     border-color: rgb(var(--color-accent) / 0.25);
     background: rgb(var(--color-interactive-hover) / 0.85);
+  }
+
+  article.glass-card:focus-within {
+    outline: 2px solid rgb(var(--color-accent) / 0.72);
+    outline-offset: 3px;
+  }
+
+  .book-detail-page {
+    min-width: 0;
+  }
+
+  .book-detail-ambient {
+    position: absolute;
+    z-index: -1;
+    top: -2rem;
+    right: -8%;
+    left: -8%;
+    height: 34rem;
+    overflow: hidden;
+    opacity: 0.2;
+    filter: blur(58px) saturate(1.15);
+    pointer-events: none;
+    mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / 0.72) 58%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / 0.72) 58%, transparent 100%);
+  }
+
+  .book-detail-ambient img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1.08);
+  }
+
+  .book-cover-tilt {
+    --cover-tilt-x: 0deg;
+    --cover-tilt-y: 0deg;
+  }
+
+  @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    :root:not([data-motion='reduced']) .book-cover-tilt-target {
+      transform: perspective(900px) rotateX(var(--cover-tilt-x)) rotateY(var(--cover-tilt-y));
+      transition: transform 180ms ease-out;
+    }
   }
 
   .team-member-lead {
@@ -431,34 +482,43 @@
   .team-lead-orbit {
     position: absolute;
     z-index: 0;
-    top: 50%;
-    left: 50%;
-    width: min(82%, 35rem);
-    height: 76%;
-    border: 1px dashed rgb(var(--color-accent) / 0.17);
+    width: 7rem;
+    height: 7rem;
+    border: 1px solid rgb(255 255 255 / 0.34);
     border-radius: 50%;
     pointer-events: none;
-    transform: translate(-50%, -50%);
+    box-shadow: 0 0 20px rgb(255 255 255 / 0.06), inset 0 0 16px rgb(255 255 255 / 0.035);
   }
   .team-lead-orbit::before {
     position: absolute;
-    top: 10%;
+    top: 0.8rem;
     left: 50%;
-    width: 0.48rem;
-    height: 0.48rem;
-    border: 2px solid rgb(var(--color-dark-secondary));
+    width: 0.35rem;
+    height: 0.35rem;
     border-radius: 50%;
-    background: rgb(var(--color-accent));
-    box-shadow: 0 0 12px rgb(var(--color-accent) / 0.62);
+    background: #fff;
+    box-shadow: 0 0 12px rgb(255 255 255 / 0.7);
     content: '';
     transform: translateX(-50%);
   }
+  .team-lead-orbit-top {
+    top: -3.2rem;
+    left: -3.2rem;
+  }
+  .team-lead-orbit-bottom {
+    right: -3.2rem;
+    bottom: -3.2rem;
+  }
   @media (prefers-reduced-motion: no-preference) {
     :root:not([data-motion='reduced']) .team-lead-orbit {
-      animation: team-lead-orbit 24s linear infinite;
+      animation: team-lead-orbit 28s linear infinite;
+    }
+    :root:not([data-motion='reduced']) .team-lead-orbit-bottom {
+      animation-direction: reverse;
+      animation-duration: 34s;
     }
     @keyframes team-lead-orbit {
-      to { transform: translate(-50%, -50%) rotate(360deg); }
+      to { transform: rotate(360deg); }
     }
   }
   .team-member-lead::before {
@@ -591,6 +651,9 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .animate-book-favorite-pop {
+      animation: none;
+    }
     html, body, #root { scroll-behavior: auto; transition: none; }
     *, *::before, *::after {
       scroll-behavior: auto !important;
@@ -943,6 +1006,7 @@
     .landing-nav-link::after,
     .landing-home-link,
     .landing-explore-link,
+    .book-cover-tilt-target,
     .app-sidebar-link::before,
     .app-mobile-nav-link,
     .app-button,

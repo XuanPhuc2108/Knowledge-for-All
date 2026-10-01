@@ -59,7 +59,7 @@ export function LoginPage() {
     try {
       await resendSignupConfirmation(confirmationEmail)
       setErrors({})
-      setConfirmationNotice('Đã gửi lại mã OTP rồi. Nhớ kiểm tra thư đến với thư rác nghen.')
+      setConfirmationNotice('Đã gửi lại mã OTP. Vui lòng kiểm tra hộp thư đến và thư rác.')
     } catch (cause) {
       console.error('Unable to resend the account confirmation email', cause)
       setErrors({ form: userFacingError(cause, 'Chưa thể gửi email xác nhận. Hãy thử lại nha.') })
@@ -81,7 +81,7 @@ export function LoginPage() {
       navigate(from, { replace: true })
     } catch (cause) {
       console.error('Unable to verify the email code during sign-in', cause)
-      setErrors({ otp: userFacingError(cause, 'Mã OTP chưa đúng hoặc đã hết hạn. Thử lại nghen.') })
+      setErrors({ otp: userFacingError(cause, 'Mã OTP không chính xác hoặc đã hết hạn. Vui lòng thử lại.') })
     } finally {
       setVerifying(false)
     }
@@ -90,7 +90,7 @@ export function LoginPage() {
   return (
     <AuthCard
       title="Đăng nhập"
-      subtitle="Vô lại Booki, kiếm cuốn hợp gu nghen."
+      subtitle="Đăng nhập Booki để tiếp tục tìm và chia sẻ những cuốn sách hay."
       footerText="Chưa có tài khoản?"
       footerLink="/register"
       footerLinkLabel="Đăng ký ngay"

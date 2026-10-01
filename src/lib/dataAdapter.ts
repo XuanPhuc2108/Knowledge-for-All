@@ -322,7 +322,7 @@ const supabaseAdapter: DataAdapter = {
     })
     if (error) throw new Error(error.message)
     if (!data.user?.email_confirmed_at) {
-      throw new Error('Mã OTP chưa xác nhận được email. Kiểm tra lại mã rồi thử lại nghen.')
+      throw new Error('Chưa xác nhận được email. Vui lòng kiểm tra lại mã OTP.')
     }
     const profile = await this.getCurrentUser()
     if (!profile) throw new Error('Email đã xác nhận nhưng chưa tải được hồ sơ. Vui lòng đăng nhập lại.')

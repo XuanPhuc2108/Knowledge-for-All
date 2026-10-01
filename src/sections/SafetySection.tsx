@@ -5,7 +5,7 @@ import { FadeIn } from '../components/FadeIn'
 const SAFETY_CARDS = [
   'Mình tự chọn thông tin liên hệ nào được hiện',
   'Không công khai vị trí chính xác của thành viên',
-  'Hỏi kỹ tình trạng sách trước khi nhận nghen',
+  'Hỏi rõ tình trạng sách trước khi nhận',
   'Hẹn trao sách ở chỗ an toàn, thuận tiện cho đôi bên',
 ]
 
@@ -17,7 +17,7 @@ export function SafetySection() {
           className="font-black text-text-primary"
           style={{ fontSize: 'clamp(2.5rem, 7vw, 4rem)' }}
         >
-          Chia sẻ vui, nhớ an toàn nghen
+          Chia sẻ sách vui, gặp nhau vẫn nhớ an toàn
         </h2>
       </FadeIn>
 

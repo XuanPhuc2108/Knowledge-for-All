@@ -39,7 +39,7 @@ export function EditBookPage() {
       })
       .catch((cause: unknown) => {
         console.error('Unable to load a book listing for editing', cause)
-        if (!cancelled) setError(userFacingError(cause, 'Chưa thể tải bài đăng. Hãy thử lại nha.'))
+        if (!cancelled) setError(userFacingError(cause, 'Chưa thể tải bài đăng. Vui lòng thử lại.'))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -61,7 +61,7 @@ export function EditBookPage() {
       navigate(`/app/books/${book.id}`, { replace: true })
     } catch (cause) {
       console.error('Unable to save an edited book listing', cause)
-      showToast(userFacingError(cause, 'Chưa thể cập nhật bài đăng. Hãy thử lại nha.'), 'error')
+      showToast(userFacingError(cause, 'Chưa thể cập nhật bài đăng. Vui lòng thử lại.'), 'error')
     } finally {
       setSaving(false)
     }

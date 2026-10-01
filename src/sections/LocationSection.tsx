@@ -32,7 +32,7 @@ export function LocationSection({ books }: { books: Book[] }) {
       showToast('Đã bật định vị thành công', 'success')
     } catch (e) {
       console.error('Unable to enable location for nearby book discovery', e)
-      showToast(userFacingError(e, 'Chưa bật được định vị. Bạn có thể thử lại hoặc kiểm tra quyền trình duyệt nha.'), 'error')
+      showToast(userFacingError(e, 'Chưa bật được định vị. Hãy thử lại hoặc kiểm tra quyền truy cập vị trí của trình duyệt.'), 'error')
     }
   }
 
@@ -50,7 +50,7 @@ export function LocationSection({ books }: { books: Book[] }) {
             Tìm sách ở gần bạn hơn
           </h2>
           <p className="mb-8 text-lg text-text-muted">
-            Muốn kiếm sách quanh mình thì bật định vị nha. Booki chỉ tính khoảng cách gần đúng; không tiện thì cứ lướt sách bình thường nghen.
+            Bật định vị để xem sách ở gần bạn. Booki chỉ hiển thị khoảng cách ước tính; bạn vẫn có thể lướt sách mà không chia sẻ vị trí.
           </p>
           <Button onClick={() => void handleEnable()} disabled={loading}>
             <LocateFixed className="h-4 w-4" />

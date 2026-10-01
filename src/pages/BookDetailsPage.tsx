@@ -184,7 +184,7 @@ export function BookDetailsPage({ publicMode = false }: { publicMode?: boolean }
       setReportDetails('')
     } catch (cause) {
       console.error('Unable to report a public book listing', cause)
-      setReportError(userFacingError(cause, 'Chưa thể gửi báo cáo. Hãy thử lại nha.'))
+      setReportError(userFacingError(cause, 'Chưa thể gửi báo cáo. Vui lòng thử lại.'))
     } finally {
       setReporting(false)
     }
@@ -210,7 +210,7 @@ export function BookDetailsPage({ publicMode = false }: { publicMode?: boolean }
       else navigate('/app/requests')
     } catch (cause) {
       console.error('Unable to create a book request', cause)
-      setRequestError(userFacingError(cause, 'Chưa thể gửi lời đề nghị. Hãy thử lại nha.'))
+      setRequestError(userFacingError(cause, 'Chưa thể gửi lời đề nghị. Vui lòng thử lại.'))
     } finally {
       setRequesting(false)
     }
@@ -224,14 +224,39 @@ export function BookDetailsPage({ publicMode = false }: { publicMode?: boolean }
 
   const isOwner = user?.id === displayedBook.ownerId
   const favorite = favoriteIds.has(displayedBook.id)
+  const handleCoverPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (
+      event.pointerType !== 'mouse' ||
+      document.documentElement.dataset.motion === 'reduced' ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) return
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const x = (event.clientX - bounds.left) / bounds.width
+    const y = (event.clientY - bounds.top) / bounds.height
+    event.currentTarget.style.setProperty('--cover-tilt-x', `${(0.5 - y) * 4}deg`)
+    event.currentTarget.style.setProperty('--cover-tilt-y', `${(x - 0.5) * 4}deg`)
+  }
+  const resetCoverTilt = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.currentTarget.style.setProperty('--cover-tilt-x', '0deg')
+    event.currentTarget.style.setProperty('--cover-tilt-y', '0deg')
+  }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5">
+    <div className="book-detail-page relative isolate mx-auto max-w-5xl space-y-5">
+      {displayedBook.imageUrls[0] && (
+        <div className="book-detail-ambient" aria-hidden="true">
+          <img src={displayedBook.imageUrls[0]} alt="" width={800} height={1067} loading="lazy" decoding="async" />
+        </div>
+      )}
       <button type="button" onClick={() => navigate(-1)} className="filter-chip mb-1 inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-sm">
         <ArrowLeft className="h-4 w-4" /> Quay lại
       </button>
       <article className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.9fr)]">
-        <div className="glass-card overflow-hidden rounded-[1.5rem]">
+        <div
+          className="book-cover-tilt glass-card relative overflow-hidden rounded-[1.5rem]"
+          onPointerMove={handleCoverPointerMove}
+          onPointerLeave={resetCoverTilt}
+        >
           {displayedBook.imageUrls[0] ? (
             <ImageWithSkeleton
               src={displayedBook.imageUrls[0]}
@@ -241,7 +266,7 @@ export function BookDetailsPage({ publicMode = false }: { publicMode?: boolean }
               loading="eager"
               fetchPriority="high"
               wrapperClassName="aspect-[3/4] w-full bg-[rgb(var(--color-interactive-surface)/.7)]"
-              className="h-full w-full object-contain"
+              className="book-cover-tilt-target h-full w-full object-contain"
             />
           ) : (
             <div className="flex aspect-[4/3] items-center justify-center bg-[rgb(var(--color-interactive-surface)/.7)] text-text-muted">Chưa có ảnh bìa</div>
@@ -313,7 +338,7 @@ export function BookDetailsPage({ publicMode = false }: { publicMode?: boolean }
                 () => showToast(favorite ? 'Đã bỏ khỏi yêu thích' : 'Đã lưu vào yêu thích', 'success'),
                 (cause: unknown) => {
                   console.error('Unable to update a saved-book preference', cause)
-                  showToast(userFacingError(cause, 'Chưa thể cập nhật sách yêu thích. Hãy thử lại nha.'), 'error')
+                  showToast(userFacingError(cause, 'Chưa thể cập nhật sách yêu thích. Vui lòng thử lại.'), 'error')
                 },
               )}>
                 <Heart className={`h-4 w-4 ${favorite ? 'fill-accent-rose text-accent-rose' : ''}`} />

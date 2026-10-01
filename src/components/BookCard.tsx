@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Heart, Mail, MapPin, MessageCircle, Phone } from 'lucide-react'
+import { Eye, Heart, Mail, MapPin, MessageCircle, Phone } from 'lucide-react'
 import { CONDITION_LABELS, EXCHANGE_LABELS, STATUS_LABELS } from '../lib/constants'
 import { formatDistance } from '../lib/geo'
 import { ILLUSTRATIONS } from '../lib/images'
@@ -14,6 +14,7 @@ interface BookCardProps {
   compact?: boolean
   isFavorite?: boolean
   onFavorite?: () => void
+  onPreview?: () => void
 }
 
 export function BookCard({
@@ -23,6 +24,7 @@ export function BookCard({
   compact,
   isFavorite = false,
   onFavorite,
+  onPreview,
 }: BookCardProps) {
   return (
     <article
@@ -49,15 +51,26 @@ export function BookCard({
         <span className="absolute right-3 top-3 rounded-full bg-dark/70 px-2 py-1 text-xs text-text-primary backdrop-blur-sm">
           {STATUS_LABELS[book.status]}
         </span>
+        {onPreview && (
+          <button
+            type="button"
+            aria-label={`Xem nhanh ${book.title}`}
+            onClick={(event) => { event.stopPropagation(); onPreview() }}
+            className="absolute bottom-3 left-3 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-dark/80 px-3 text-xs font-semibold text-text-primary shadow-lg backdrop-blur-sm transition-colors hover:bg-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow"
+          >
+            <Eye className="h-4 w-4" aria-hidden="true" />
+            Xem nhanh
+          </button>
+        )}
         {onFavorite && (
           <button
             type="button"
             aria-label={isFavorite ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}
             aria-pressed={isFavorite}
             onClick={(event) => { event.stopPropagation(); onFavorite() }}
-            className="absolute bottom-3 right-3 rounded-full bg-dark/75 p-2 text-text-primary backdrop-blur-sm hover:text-accent-rose focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow"
+            className="absolute bottom-3 right-3 rounded-full bg-dark/75 p-2 text-text-primary backdrop-blur-sm transition-transform hover:scale-110 active:scale-95 hover:text-accent-rose focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow"
           >
-            <Heart className={`h-4 w-4 ${isFavorite ? 'fill-accent-rose text-accent-rose' : ''}`} />
+            <Heart className={`h-4 w-4 ${isFavorite ? 'animate-book-favorite-pop fill-accent-rose text-accent-rose' : ''}`} />
           </button>
         )}
       </div>
@@ -112,7 +125,7 @@ export function BookCard({
           </div>
         )}
         {onAction && (
-          <Button variant="outline" size="sm" className="w-full" onClick={onAction}>
+          <Button variant="outline" size="sm" className="w-full focus-visible:ring-2" onClick={onAction}>
             {actionLabel}
           </Button>
         )}
@@ -148,7 +161,7 @@ function BookCardCover({
           : '(max-width: 640px) 92vw, (max-width: 1280px) 44vw, 360px'}
         wrapperClassName={compact ? 'mx-auto h-full w-full p-3' : 'h-full w-full'}
         className={clsx(
-          'h-full w-full transition-transform duration-500 group-hover:scale-[1.035]',
+          'h-full w-full transition-transform duration-500 group-hover:scale-[1.035] motion-reduce:transition-none motion-reduce:group-hover:scale-100',
           compact ? 'object-contain' : 'object-cover',
         )}
       />

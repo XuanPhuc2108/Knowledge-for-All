@@ -6,6 +6,7 @@ import { useAuth as useAuthState } from './hooks/useAuthState'
 import { useAppSettings } from './hooks/useAppSettings'
 import { ToastProvider } from './components/Toast'
 import { AppRoutes } from './routes/AppRoutes'
+import { CommandPalette } from './components/CommandPalette'
 import { PwaInstallProvider } from './hooks/usePwaInstall'
 import { AppSettingsProvider } from './hooks/AppSettingsProvider'
 
@@ -21,6 +22,7 @@ function ApplicationContent() {
       <div aria-busy={!ready}>
         <AppRoutes onInitialRouteReady={markInitialRouteReady} />
       </div>
+      <CommandPalette />
       <SiteLoadingScreen ready={ready} />
     </>
   )

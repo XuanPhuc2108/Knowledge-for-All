@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { BookOpen, LogIn, Plus, UserPlus } from 'lucide-react'
+import { BookOpen, LogIn, Plus, Search, UserPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuthState'
@@ -7,6 +7,8 @@ import { APP_NAME } from '../lib/constants'
 import { Button } from './Button'
 import { GradientButton } from './GradientButton'
 import { MobileMenu } from './MobileMenu'
+
+const openCommandPalette = () => window.dispatchEvent(new Event('booki:open-command-palette'))
 
 const NAV_LINKS = [{ href: '#upload', label: 'Đăng sách' }]
 
@@ -56,7 +58,6 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
               {APP_NAME}
             </span>
           </Link>
-
           {variant === 'landing' && (
             <>
               <Link to={user ? '/app' : '/'} className="landing-home-link md:hidden">
@@ -92,6 +93,15 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
           )}
 
           <div className="hidden items-center gap-3 md:flex">
+            <button
+              type="button"
+              onClick={openCommandPalette}
+              className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-glass/10 bg-[rgb(var(--color-interactive-surface)/.55)] px-3 text-sm text-text-muted transition-colors hover:bg-[rgb(var(--color-interactive-hover)/.85)] hover:text-text-primary"
+            >
+              <Search className="h-4 w-4" aria-hidden="true" />
+              Tìm nhanh
+              <kbd className="hidden rounded border border-glass/10 px-1.5 py-0.5 text-[10px] lg:inline">Ctrl/⌘ K</kbd>
+            </button>
             {user ? (
               <>
                 <Link to="/app/profile" className="max-w-40 truncate text-sm font-medium text-text-primary transition-colors hover:text-accent-yellow">

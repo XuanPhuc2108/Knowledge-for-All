@@ -44,7 +44,7 @@ export function RegisterPage() {
     try {
       const profile = await register(fullName, email, password)
       if (!profile) {
-        setNotice('Booki gửi mã OTP tới email của bạn rồi nè. Nhập mã bên dưới để xác nhận tài khoản nghen.')
+        setNotice('Mã OTP đã được gửi tới email của bạn. Nhập mã bên dưới để xác nhận tài khoản.')
         setPendingEmail(email.trim().toLowerCase())
         return
       }
@@ -70,7 +70,7 @@ export function RegisterPage() {
       navigate('/app/add-book')
     } catch (cause) {
       console.error('Unable to verify the signup code', cause)
-      setErrors({ otp: userFacingError(cause, 'Mã OTP chưa đúng hoặc đã hết hạn. Thử lại nghen.') })
+      setErrors({ otp: userFacingError(cause, 'Mã OTP không chính xác hoặc đã hết hạn. Vui lòng thử lại.') })
     } finally {
       setVerifying(false)
     }
@@ -82,7 +82,7 @@ export function RegisterPage() {
     setErrors({})
     try {
       await resendSignupConfirmation(pendingEmail)
-      setNotice('Đã gửi lại mã OTP rồi. Nhớ kiểm tra thư đến với thư rác nghen.')
+      setNotice('Đã gửi lại mã OTP. Vui lòng kiểm tra hộp thư đến và thư rác.')
     } catch (cause) {
       console.error('Unable to resend the account confirmation email', cause)
       setErrors({ form: userFacingError(cause, 'Chưa thể gửi email xác nhận. Hãy thử lại nha.') })
@@ -94,7 +94,7 @@ export function RegisterPage() {
   return (
     <AuthCard
       title="Đăng ký"
-      subtitle="Tạo tài khoản rồi vô hội mê sách với tụi mình nghen."
+      subtitle="Tạo tài khoản để đăng sách, lưu cuốn yêu thích và kết nối với cộng đồng đọc sách."
       footerText="Đã có tài khoản?"
       footerLink="/login"
       footerLinkLabel="Đăng nhập"
@@ -153,7 +153,7 @@ export function RegisterPage() {
         {pendingEmail && (
           <div className="space-y-3">
             <p className="text-xs leading-relaxed text-text-muted">
-              Mã được gửi tới <span className="font-semibold text-text-primary">{pendingEmail}</span>. Nhớ nghía cả mục thư rác nghen.
+              Mã được gửi tới <span className="font-semibold text-text-primary">{pendingEmail}</span>. Hãy kiểm tra cả mục thư rác nếu chưa thấy email.
             </p>
             <div>
               <label htmlFor="signup-otp" className="mb-1.5 block text-sm font-medium">Mã OTP 6 số</label>

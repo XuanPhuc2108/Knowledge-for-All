@@ -109,7 +109,7 @@ export function PwaInstallProvider({ children }: { children: ReactNode }) {
       {updateWorker && (
         <aside className="fixed inset-x-0 bottom-4 z-[120] flex justify-center px-4" aria-live="polite">
           <div className="glass-card flex max-w-xl flex-wrap items-center justify-between gap-3 rounded-2xl p-3 shadow-lg">
-            <p className="text-sm text-text-primary">Có bản Booki mới, cập nhật để dùng phiên bản mới nhất nha.</p>
+            <p className="text-sm text-text-primary">Đã có phiên bản Booki mới. Cập nhật để sử dụng phiên bản mới nhất.</p>
             <Button size="sm" onClick={updateApp}>Cập nhật</Button>
           </div>
         </aside>

@@ -50,7 +50,7 @@ export function MyBooksPage() {
       showToast(`Đã cập nhật trạng thái: ${STATUS_LABELS[status]}`, 'success')
     } catch (cause) {
       console.error('Unable to update a book listing', cause)
-      showToast(userFacingError(cause, 'Chưa thể cập nhật bài đăng. Hãy thử lại nha.'), 'error')
+      showToast(userFacingError(cause, 'Chưa thể cập nhật bài đăng. Vui lòng thử lại.'), 'error')
     } finally {
       setUpdatingId(null)
     }
@@ -65,7 +65,7 @@ export function MyBooksPage() {
       setDeleteId(null)
     } catch (cause) {
       console.error('Unable to delete a book listing', cause)
-      showToast(userFacingError(cause, 'Chưa thể xóa bài đăng. Hãy thử lại nha.'), 'error')
+      showToast(userFacingError(cause, 'Chưa thể xóa bài đăng. Vui lòng thử lại.'), 'error')
     } finally {
       setDeleting(false)
     }
@@ -133,7 +133,7 @@ export function MyBooksPage() {
         hasMore ? (
           <EmptyState
             title="Chưa thấy sách ở trạng thái này trong lượt đã tải"
-            description="Tải thêm bài đăng để kiểm tra các sách còn lại nha."
+            description="Tải thêm bài đăng để xem các sách còn lại."
             actionLabel={loadingMore ? 'Đang tải...' : 'Tải thêm bài đăng'}
             onAction={() => void loadMore()}
           />

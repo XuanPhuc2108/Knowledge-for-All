@@ -7,7 +7,7 @@ import { APP_NAME } from '../lib/constants'
 const TEAM = [
   {
     name: 'Nguyễn Xuân Phúc',
-    role: 'Trưởng nhóm · Phụ trách chính',
+    role: 'Trưởng nhóm · Người phát triển chính',
     contribution: 'Lên ý tưởng, xây dựng và hoàn thiện website.',
     email: 'nguyenxuanphucdongthap123@gmail.com',
   },
@@ -52,7 +52,7 @@ export function Footer() {
           </Magnetic>
 
           <AnimatedText
-            text="Có sách hay thì share, đang kiếm sách thì ghé Booki nghen. Mình kết nối với nhau để sách được đọc thêm nhiều lần."
+            text="Có sách hay thì share liền tay; đang kiếm sách thì ghé Booki. Biết đâu lại gặp đúng cuốn đang tìm."
             scrollReveal
             className="max-w-xl text-sm leading-relaxed text-text-muted md:text-base"
           />
@@ -75,7 +75,12 @@ export function Footer() {
             <div className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-2">
               {TEAM.map((member, index) => (
                 <article key={member.name} className={`team-member-card ${index === 0 ? 'team-member-lead sm:col-span-2' : ''}`}>
-                  {index === 0 && <span className="team-lead-orbit" aria-hidden="true" />}
+                  {index === 0 && (
+                    <>
+                      <span className="team-lead-orbit team-lead-orbit-top" aria-hidden="true" />
+                      <span className="team-lead-orbit team-lead-orbit-bottom" aria-hidden="true" />
+                    </>
+                  )}
                   {index === 0 && <span className="team-member-badge">TRƯỞNG NHÓM</span>}
                   <p className="text-base font-bold tracking-tight text-text-primary md:text-lg">
                     {member.name}

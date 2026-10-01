@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return profile
     } catch (e) {
       console.error('Unable to verify the signup email OTP', e)
-      const msg = userFacingError(e, 'Mã OTP chưa đúng hoặc đã hết hạn. Thử lại nghen.')
+      const msg = userFacingError(e, 'Mã OTP không chính xác hoặc đã hết hạn. Vui lòng thử lại.')
       setError(msg)
       throw e
     }

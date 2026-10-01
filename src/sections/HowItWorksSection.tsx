@@ -5,14 +5,14 @@ const STEPS = [
   {
     num: '01',
     title: 'Tạo tài khoản',
-    desc: 'Đăng ký bằng email rồi nhập mã OTP gửi tới hộp thư, hoặc vào nhanh bằng Google/Facebook nghen.',
+    desc: 'Đăng ký bằng email và xác nhận mã OTP, hoặc đăng nhập nhanh bằng Google/Facebook.',
     icon: UserPlus,
     tone: 'bg-accent-yellow/[0.13] border-accent-yellow/20',
   },
   {
     num: '02',
     title: 'Bật định vị',
-    desc: 'Muốn kiếm sách quanh mình thì bật; không tiện chia sẻ vị trí cứ lướt toàn bộ bình thường nha.',
+    desc: 'Bật định vị để tìm sách gần bạn. Không muốn chia sẻ vị trí thì vẫn xem được toàn bộ sách.',
     icon: MapPin,
     tone: 'bg-[rgb(var(--color-interactive-surface)/.82)] border-glass/10',
   },
@@ -26,7 +26,7 @@ const STEPS = [
   {
     num: '04',
     title: 'Kết nối & trao đổi',
-    desc: 'Xem cách liên hệ người đăng, gửi lời đề nghị rồi hẹn nhau trao sách cho đàng hoàng.',
+    desc: 'Xem thông tin liên hệ, gửi lời đề nghị và thống nhất cách trao sách.',
     icon: HeartHandshake,
     tone: 'bg-accent-yellow/[0.13] border-accent-yellow/20',
   },

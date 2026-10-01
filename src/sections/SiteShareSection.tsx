@@ -46,7 +46,7 @@ export function SiteShareSection() {
       showToast('Chép link Booki xong rồi, gửi hội bạn thôi!', 'success')
     } catch (cause) {
       console.error('Unable to copy the Booki website URL', cause)
-      showToast('Chưa chép được link. Bạn thử lại hoặc chép từ thanh địa chỉ nghen.', 'error')
+      showToast('Chưa chép được liên kết. Hãy thử lại hoặc sao chép từ thanh địa chỉ.', 'error')
     }
   }
 
@@ -79,10 +79,10 @@ export function SiteShareSection() {
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-yellow">GỬI BOOKI CHO HỘI BẠN</p>
           <h2 id="site-share-title" className="mt-3 text-2xl font-black tracking-tight text-text-primary sm:text-3xl">
-            Quét một cái, vô hội mê sách liền
+            Quét mã, kiếm sách hay
           </h2>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-text-muted">
-            Mã này dẫn tới trang chủ Booki thôi, không kèm tài khoản hay thông tin riêng tư. Gửi vô nhóm chat là rủ bạn bè ghé chơi được rồi nghen.
+            Mã này chỉ dẫn tới trang chủ Booki, không chứa tài khoản hay thông tin riêng tư. Chia sẻ với bạn bè để cùng ghé xem sách.
           </p>
           <a href={SITE_URL} className="mt-4 inline-block break-all text-sm font-medium text-accent-yellow hover:underline">
             {SITE_URL}
@@ -97,7 +97,7 @@ export function SiteShareSection() {
             <img src={qr} alt="Mã QR dẫn đến trang chủ Booki" width={192} height={192} decoding="async" className="h-48 w-48 rounded-2xl bg-white p-2 shadow-[0_14px_36px_rgb(0_0_0_/_0.2)]" />
           ) : (
             <div className="grid h-48 w-48 place-items-center rounded-2xl bg-[rgb(var(--color-interactive-surface)/.8)] p-4 text-center text-sm text-text-muted" role="status">
-              Chưa tạo được mã QR. Bạn vẫn có thể dùng link bên cạnh nghen.
+              Chưa tạo được mã QR. Bạn vẫn có thể dùng liên kết bên cạnh.
             </div>
           )}
           <Button variant="outline" size="sm" disabled={!qr} onClick={downloadQr}>Tải mã QR PNG</Button>

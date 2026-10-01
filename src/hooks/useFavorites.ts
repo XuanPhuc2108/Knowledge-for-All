@@ -26,7 +26,7 @@ export function useFavorites(userId: string | undefined) {
         if (!cancelled) {
           setFavoriteIds(new Set())
           console.error('Unable to load saved-book preferences', cause)
-          setError(userFacingError(cause, 'Chưa thể tải sách yêu thích. Hãy thử lại nha.'))
+          setError(userFacingError(cause, 'Chưa thể tải sách yêu thích. Vui lòng thử lại.'))
         }
       })
       .finally(() => {

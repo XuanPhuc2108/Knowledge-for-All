@@ -8,7 +8,7 @@ import { useAuth } from '../hooks/useAuthState'
 
 const BULLETS = [
   'Chụp hình bìa hoặc tải ảnh có sẵn.',
-  'Ghi tên sách, tác giả với tình trạng thiệt nha.',
+  'Ghi rõ tên sách, tác giả và tình trạng hiện tại.',
   'Chọn tặng, cho mượn hay đổi sách.',
   'Muốn sửa hay gỡ bài thì quản lý trong Sách của tôi.',
 ]
@@ -42,7 +42,7 @@ export function UploadPreviewSection() {
             <span className="text-gold-gradient">share liền tay</span>
           </h2>
           <AnimatedText
-            text="Chụp bìa, ghi vài dòng cho rõ rồi chọn cách chia sẻ. Có sách hay thì chuyền tay nhau đọc nghen."
+            text="Chụp bìa, ghi vài dòng cho rõ rồi chọn cách chia sẻ. Sách hay đọc một mình vui, chuyền tay nhau còn vui hơn."
             scrollReveal
             className="mb-8 text-base leading-relaxed text-text-muted"
           />

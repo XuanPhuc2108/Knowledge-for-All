@@ -40,7 +40,7 @@ export function OAuthButtons({
       console.error(`Unable to start ${provider} OAuth`, e)
       onError(userFacingError(
         e,
-        provider === 'google' ? 'Chưa thể kết nối Google. Hãy thử lại nha.' : 'Chưa thể kết nối Facebook. Hãy thử lại nha.',
+        provider === 'google' ? 'Chưa thể kết nối Google. Vui lòng thử lại.' : 'Chưa thể kết nối Facebook. Vui lòng thử lại.',
       ))
       setProviderLoading(provider, false)
     }
