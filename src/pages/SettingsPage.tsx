@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Accessibility, Bell, BookOpen, ChevronRight, CircleUserRound, Eye, EyeOff, Gauge, History, LockKeyhole, MapPin, Monitor, Moon, Palette, ShieldCheck, Smartphone, Sparkles, Sun, Trash2, Volume2, VolumeX, Zap } from 'lucide-react'
+import { Accessibility, Bell, BookOpen, ChevronRight, CircleUserRound, Eye, EyeOff, Gauge, History, ImagePlus, LockKeyhole, MapPin, Monitor, Moon, Palette, ShieldCheck, Smartphone, Sparkles, Sun, Trash2, Volume2, VolumeX, Zap } from 'lucide-react'
 import { useAuth } from '../hooks/useAuthState'
 import { useToast } from '../hooks/useToast'
 import { useGeolocation } from '../hooks/useGeolocation'
@@ -11,6 +11,8 @@ import { getAdapterMode } from '../lib/dataAdapter'
 import { isValidEmail, isValidPhone, validatePassword } from '../lib/validation'
 import { userFacingError } from '../lib/userFacingError'
 import { Button } from '../components/Button'
+import { ImageWithSkeleton } from '../components/ImageWithSkeleton'
+import { compressImage } from '../lib/imageCompression'
 
 const fieldClass = 'field-control px-3.5 py-2.5 text-sm'
 
@@ -30,6 +32,8 @@ export function SettingsPage() {
   const [showEmail, setShowEmail] = useState(user?.showContactEmail ?? false)
   const [showArea, setShowArea] = useState(user?.showArea ?? false)
   const [profileSaving, setProfileSaving] = useState(false)
+  const [avatarSaving, setAvatarSaving] = useState(false)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
   const [profileError, setProfileError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [permission, setPermission] = useState(
@@ -46,6 +50,33 @@ export function SettingsPage() {
   const [recentBooksCount, setRecentBooksCount] = useState(readRecentBooksCount)
 
   if (!user) return null
+
+  const updateAvatar = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0]
+    event.currentTarget.value = ''
+    if (!file) return
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.type)) {
+      setProfileError('Ảnh đại diện cần ở định dạng JPG, PNG, WebP hoặc AVIF.')
+      return
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setProfileError('Ảnh đại diện cần nhỏ hơn 8 MB.')
+      return
+    }
+    setProfileError(null)
+    setAvatarSaving(true)
+    try {
+      const avatarUrl = await compressImage(file, 512, 0.78)
+      await updateProfile({ avatarUrl })
+      setNotice('Đã cập nhật ảnh đại diện.')
+      showToast('Đã cập nhật ảnh đại diện', 'success')
+    } catch (cause) {
+      console.error('Unable to update profile avatar', cause)
+      setProfileError(userFacingError(cause, 'Chưa thể cập nhật ảnh đại diện. Hãy thử lại nha.'))
+    } finally {
+      setAvatarSaving(false)
+    }
+  }
 
   const saveProfile = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -271,6 +302,45 @@ export function SettingsPage() {
         {notice && <p className="mt-4 rounded-lg bg-accent-teal/10 p-3 text-sm text-accent-teal" role="status">{notice}</p>}
         {profileError && <p className="mt-4 rounded-lg bg-accent-rose/10 p-3 text-sm text-accent-rose" role="alert">{profileError}</p>}
         <form onSubmit={(event) => void saveProfile(event)} className="mt-4 space-y-4">
+          <div className="flex flex-wrap items-center gap-4">
+            {user.avatarUrl ? (
+              <ImageWithSkeleton
+                src={user.avatarUrl}
+                alt=""
+                width={72}
+                height={72}
+                loading="lazy"
+                wrapperClassName="h-[4.5rem] w-[4.5rem] shrink-0 rounded-2xl"
+                className="h-full w-full rounded-2xl border border-glass/10 object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="grid h-[4.5rem] w-[4.5rem] shrink-0 place-items-center rounded-2xl border border-accent-yellow/20 bg-accent-yellow/10 text-2xl font-bold text-accent-yellow">
+                {user.fullName.trim().charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/avif"
+                onChange={(event) => void updateAvatar(event)}
+                className="sr-only"
+                aria-label="Chọn ảnh đại diện"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={avatarSaving}
+                onClick={() => avatarInputRef.current?.click()}
+              >
+                <ImagePlus className="h-4 w-4" aria-hidden="true" />
+                {avatarSaving ? 'Đang cập nhật ảnh...' : 'Đổi ảnh đại diện'}
+              </Button>
+              <p className="mt-1.5 text-xs text-text-muted">Ảnh được tự động thu nhỏ trước khi tải lên.</p>
+            </div>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <TextField id="display-name" label="Tên hiển thị" value={name} onChange={setName} required maxLength={100} autoComplete="name" />
             <TextField id="contact-phone" label="Số điện thoại liên hệ" value={phone} onChange={setPhone} type="tel" placeholder="Để trống nếu không muốn lưu" autoComplete="tel" />

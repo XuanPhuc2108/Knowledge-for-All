@@ -47,7 +47,7 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
         className={clsx(
           'site-header fixed left-0 right-0 top-0 z-50 transition-[background-color,border-color] duration-200',
           scrolled || variant === 'app'
-            ? 'border-b border-glass/15 bg-dark/92 shadow-[0_8px_28px_rgb(0_0_0_/_0.16)] backdrop-blur-2xl'
+            ? 'border-b border-glass/12 bg-dark/70 shadow-[0_6px_20px_rgb(0_0_0_/_0.12)] backdrop-blur-md'
             : 'bg-transparent',
         )}
       >

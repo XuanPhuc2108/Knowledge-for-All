@@ -4,25 +4,25 @@ let audioContext: AudioContext | null = null
 const lastEffectAt = new Map<SoundEvent, number>()
 
 const SOUND_PATTERNS: Record<SoundEvent, Array<{ frequency: number; offset: number; duration: number; gain: number }>> = {
-  tap: [{ frequency: 690, offset: 0, duration: 0.045, gain: 0.009 }],
-  primary: [{ frequency: 760, offset: 0, duration: 0.055, gain: 0.012 }],
+  tap: [{ frequency: 690, offset: 0, duration: 0.045, gain: 0.03 }],
+  primary: [{ frequency: 760, offset: 0, duration: 0.055, gain: 0.038 }],
   favorite: [
-    { frequency: 600, offset: 0, duration: 0.07, gain: 0.012 },
-    { frequency: 820, offset: 0.045, duration: 0.085, gain: 0.01 },
+    { frequency: 600, offset: 0, duration: 0.07, gain: 0.035 },
+    { frequency: 820, offset: 0.045, duration: 0.085, gain: 0.03 },
   ],
   open: [
-    { frequency: 500, offset: 0, duration: 0.09, gain: 0.009 },
-    { frequency: 660, offset: 0.055, duration: 0.1, gain: 0.008 },
+    { frequency: 500, offset: 0, duration: 0.09, gain: 0.03 },
+    { frequency: 660, offset: 0.055, duration: 0.1, gain: 0.025 },
   ],
-  close: [{ frequency: 540, offset: 0, duration: 0.065, gain: 0.008 }],
+  close: [{ frequency: 540, offset: 0, duration: 0.065, gain: 0.025 }],
   success: [
-    { frequency: 587, offset: 0, duration: 0.09, gain: 0.01 },
-    { frequency: 740, offset: 0.07, duration: 0.12, gain: 0.009 },
+    { frequency: 587, offset: 0, duration: 0.09, gain: 0.032 },
+    { frequency: 740, offset: 0.07, duration: 0.12, gain: 0.03 },
   ],
-  warning: [{ frequency: 390, offset: 0, duration: 0.1, gain: 0.009 }],
+  warning: [{ frequency: 390, offset: 0, duration: 0.1, gain: 0.03 }],
   error: [
-    { frequency: 420, offset: 0, duration: 0.07, gain: 0.008 },
-    { frequency: 330, offset: 0.055, duration: 0.09, gain: 0.007 },
+    { frequency: 420, offset: 0, duration: 0.07, gain: 0.028 },
+    { frequency: 330, offset: 0.055, duration: 0.09, gain: 0.024 },
   ],
 }
 

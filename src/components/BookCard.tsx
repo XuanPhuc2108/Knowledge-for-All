@@ -1,6 +1,8 @@
 import clsx from 'clsx'
 import { Eye, Heart, Mail, MapPin, MessageCircle, Phone } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { CONDITION_LABELS, EXCHANGE_LABELS, STATUS_LABELS } from '../lib/constants'
+import { getAdapter } from '../lib/dataAdapter'
 import { formatDistance } from '../lib/geo'
 import { ILLUSTRATIONS } from '../lib/images'
 import type { BookWithDistance } from '../types/book'
@@ -152,10 +154,39 @@ function BookCardCover({
   compact?: boolean
   priority: boolean
 }) {
-  const imageUrl = imageUrls[0]?.trim() || ILLUSTRATIONS.defaultCover
+  const stageRef = useRef<HTMLDivElement>(null)
+  const [loadedImageUrls, setLoadedImageUrls] = useState<string[] | null>(null)
+  const hasImageUrls = imageUrls.length > 0
+  const displayImageUrls = hasImageUrls ? imageUrls : loadedImageUrls ?? []
+  const imageUrl = displayImageUrls[0]?.trim() || ILLUSTRATIONS.defaultCover
+
+  useEffect(() => {
+    if (hasImageUrls) return
+    const loadImages = () => {
+      void getAdapter().getBookImages(bookId)
+        .then(setLoadedImageUrls)
+        .catch((cause: unknown) => {
+          console.warn('Unable to load a book cover image', cause)
+          setLoadedImageUrls([])
+        })
+    }
+    if (typeof IntersectionObserver === 'undefined') {
+      loadImages()
+      return
+    }
+    const node = stageRef.current
+    if (!node) return
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return
+      observer.disconnect()
+      loadImages()
+    }, { rootMargin: '320px 0px' })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [bookId, hasImageUrls])
 
   return (
-    <div id={`book-cover-${bookId}`} className="h-full w-full">
+    <div ref={stageRef} id={`book-cover-${bookId}`} className="h-full w-full">
       <ImageWithSkeleton
         src={imageUrl}
         fallbackSrc={ILLUSTRATIONS.defaultCover}

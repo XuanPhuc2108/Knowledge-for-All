@@ -25,11 +25,17 @@ import { isValidMessengerUrl, isValidZaloUrl } from './validation'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 const BOOK_COVER_BUCKET = 'book-covers'
+const PROFILE_AVATAR_BUCKET = 'profile-avatars'
 const PUBLIC_BOOK_LEGACY_COLUMNS = 'id, owner_id, owner_name, title, author, category, condition, exchange_type, description, image_urls, latitude, longitude, contact_phone, contact_email, contact_zalo_url, contact_messenger_url, status, created_at, updated_at'
 const PUBLIC_BOOK_COLUMNS = `${PUBLIC_BOOK_LEGACY_COLUMNS}, public_owner_name, public_owner_avatar_url, public_owner_area_label, public_owner_contact_phone, public_owner_contact_email`
+const PUBLIC_BOOK_LIST_LEGACY_COLUMNS = PUBLIC_BOOK_LEGACY_COLUMNS.replace(', image_urls', '')
+const PUBLIC_BOOK_LIST_COLUMNS = `${PUBLIC_BOOK_LIST_LEGACY_COLUMNS}, public_owner_name, public_owner_avatar_url, public_owner_area_label, public_owner_contact_phone, public_owner_contact_email`
 const OWN_BOOK_COLUMNS = 'id, owner_id, owner_name, title, author, category, condition, exchange_type, description, image_urls, contact_phone, contact_email, contact_zalo_url, contact_messenger_url, status, moderation_status, created_at, updated_at'
 const inFlightPublicBookLists = new Map<string, Promise<Book[]>>()
 const inFlightPublicBookDetails = new Map<string, Promise<Book | null>>()
+const inFlightBookImages = new Map<string, Promise<string[]>>()
+const cachedBookImages = new Map<string, { imageUrls: string[]; cachedAt: number }>()
+const BOOK_IMAGE_CACHE_MAX_ENTRIES = 24
 let publicOwnerProjectionAvailable = true
 
 export interface DataAdapter {
@@ -128,8 +134,8 @@ function safeContactUrl(value: unknown, validate: (url: string) => boolean): str
   return text && validate(text) ? text : undefined
 }
 
-function getOwnedBookCoverPath(url: string, ownerId: string): string | undefined {
-  const marker = `/storage/v1/object/public/${BOOK_COVER_BUCKET}/`
+function getOwnedBookCoverPath(url: string, ownerId: string, bucket = BOOK_COVER_BUCKET): string | undefined {
+  const marker = `/storage/v1/object/public/${bucket}/`
   const markerIndex = url.indexOf(marker)
   if (markerIndex === -1) return undefined
   try {
@@ -140,14 +146,19 @@ function getOwnedBookCoverPath(url: string, ownerId: string): string | undefined
   }
 }
 
-async function removeBookCoverObjects(supabase: SupabaseClient, paths: string[]) {
+async function removeBookCoverObjects(
+  supabase: SupabaseClient,
+  paths: string[],
+  bucket = BOOK_COVER_BUCKET,
+) {
   if (paths.length === 0) return
-  const { error } = await supabase.storage.from(BOOK_COVER_BUCKET).remove(paths)
+  const { error } = await supabase.storage.from(bucket).remove(paths)
   if (error) console.error('Unable to clean up replaced book-cover images', error)
 }
 
 async function prepareBookImages(
   supabase: SupabaseClient,
+  bucket: string,
   ownerId: string,
   imageUrls: string[],
 ): Promise<{ imageUrls: string[]; uploadedPaths: string[] }> {
@@ -168,7 +179,7 @@ async function prepareBookImages(
 
       const path = `${ownerId}/${crypto.randomUUID()}.${extension}`
       const { error } = await supabase.storage
-        .from(BOOK_COVER_BUCKET)
+        .from(bucket)
         .upload(path, blob, {
           cacheControl: '31536000',
           contentType: blob.type,
@@ -176,13 +187,23 @@ async function prepareBookImages(
         })
       if (error) throw new Error(`Không thể tải ảnh bìa lên kho lưu trữ: ${error.message}`)
       uploadedPaths.push(path)
-      nextImageUrls[index] = supabase.storage.from(BOOK_COVER_BUCKET).getPublicUrl(path).data.publicUrl
+      nextImageUrls[index] = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl
     }
     return { imageUrls: nextImageUrls, uploadedPaths }
   } catch (cause) {
-    await removeBookCoverObjects(supabase, uploadedPaths)
+    await removeBookCoverObjects(supabase, uploadedPaths, bucket)
     throw cause
   }
+}
+
+async function prepareProfileAvatar(supabase: SupabaseClient, ownerId: string, dataUrl: string) {
+  const { imageUrls, uploadedPaths } = await prepareBookImages(
+    supabase,
+    PROFILE_AVATAR_BUCKET,
+    ownerId,
+    [dataUrl],
+  )
+  return { avatarUrl: imageUrls[0], uploadedPath: uploadedPaths[0] }
 }
 
 function missingPublicOwnerProjection(error: { code?: string; message: string } | null): boolean {
@@ -212,6 +233,16 @@ function shareInFlightRequest<T>(
   }
   void request.then(clear, clear)
   return request
+}
+
+function cacheBookImages(id: string, imageUrls: string[]) {
+  cachedBookImages.delete(id)
+  cachedBookImages.set(id, { imageUrls, cachedAt: Date.now() })
+  while (cachedBookImages.size > BOOK_IMAGE_CACHE_MAX_ENTRIES) {
+    const oldestId = cachedBookImages.keys().next().value
+    if (oldestId === undefined) break
+    cachedBookImages.delete(oldestId)
+  }
 }
 
 function mapBook(row: Record<string, unknown>): Book {
@@ -443,8 +474,25 @@ const supabaseAdapter: DataAdapter = {
   async updateProfile(userId, input) {
     const supabase = getSupabaseClient()!
     const payload: Record<string, unknown> = { updated_at: new Date().toISOString() }
+    let uploadedAvatarPath: string | undefined
+    let previousAvatarUrl: string | undefined
     if (input.fullName !== undefined) payload.full_name = input.fullName
-    if (input.avatarUrl !== undefined) payload.avatar_url = input.avatarUrl
+    if (input.avatarUrl !== undefined) {
+      if (input.avatarUrl.startsWith('data:')) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', userId)
+          .single()
+        if (profileError) throw new Error(profileError.message)
+        previousAvatarUrl = optionalText(profile.avatar_url)
+        const avatar = await prepareProfileAvatar(supabase, userId, input.avatarUrl)
+        payload.avatar_url = avatar.avatarUrl
+        uploadedAvatarPath = avatar.uploadedPath
+      } else {
+        payload.avatar_url = input.avatarUrl || null
+      }
+    }
     if (input.bio !== undefined) payload.bio = input.bio || null
     if (input.contactPhone !== undefined) payload.contact_phone = input.contactPhone || null
     if (input.contactEmail !== undefined) payload.contact_email = input.contactEmail || null
@@ -463,9 +511,20 @@ const supabaseAdapter: DataAdapter = {
         payload.location_accuracy = null
       }
     }
-    const { data, error } = await supabase.from('profiles').update(payload).eq('id', userId).select().single()
-    if (error) throw new Error(error.message)
-    return mapProfile(data)
+    try {
+      const { data, error } = await supabase.from('profiles').update(payload).eq('id', userId).select().single()
+      if (error) throw new Error(error.message)
+      const previousPath = previousAvatarUrl
+        ? getOwnedBookCoverPath(previousAvatarUrl, userId, PROFILE_AVATAR_BUCKET)
+        : undefined
+      if (previousPath) await removeBookCoverObjects(supabase, [previousPath], PROFILE_AVATAR_BUCKET)
+      return mapProfile(data)
+    } catch (cause) {
+      if (uploadedAvatarPath) {
+        await removeBookCoverObjects(supabase, [uploadedAvatarPath], PROFILE_AVATAR_BUCKET)
+      }
+      throw cause
+    }
   },
 
   async deleteAccount() {
@@ -503,11 +562,11 @@ const supabaseAdapter: DataAdapter = {
         return query
       }
       let { data, error } = await loadPage(
-        publicOwnerProjectionAvailable ? PUBLIC_BOOK_COLUMNS : PUBLIC_BOOK_LEGACY_COLUMNS,
+        publicOwnerProjectionAvailable ? PUBLIC_BOOK_LIST_COLUMNS : PUBLIC_BOOK_LIST_LEGACY_COLUMNS,
       )
       if (missingPublicOwnerProjection(error)) {
         disableMissingPublicOwnerProjection()
-        const legacyResult = await loadPage(PUBLIC_BOOK_LEGACY_COLUMNS)
+        const legacyResult = await loadPage(PUBLIC_BOOK_LIST_LEGACY_COLUMNS)
         data = legacyResult.data
         error = legacyResult.error
       }
@@ -555,11 +614,11 @@ const supabaseAdapter: DataAdapter = {
           .order('created_at', { ascending: false })
           .limit(limit)
         let { data, error } = await loadRelated(
-          publicOwnerProjectionAvailable ? PUBLIC_BOOK_COLUMNS : PUBLIC_BOOK_LEGACY_COLUMNS,
+          publicOwnerProjectionAvailable ? PUBLIC_BOOK_LIST_COLUMNS : PUBLIC_BOOK_LIST_LEGACY_COLUMNS,
         )
         if (missingPublicOwnerProjection(error)) {
           disableMissingPublicOwnerProjection()
-          const legacyResult = await loadRelated(PUBLIC_BOOK_LEGACY_COLUMNS)
+          const legacyResult = await loadRelated(PUBLIC_BOOK_LIST_LEGACY_COLUMNS)
           data = legacyResult.data
           error = legacyResult.error
         }
@@ -570,20 +629,32 @@ const supabaseAdapter: DataAdapter = {
   },
 
   async getBookImages(id) {
-    const supabase = getSupabaseClient()!
-    const { data, error } = await supabase
-      .from('books')
-      .select('image_urls')
-      .eq('id', id)
-      .maybeSingle()
-    if (error) throw new Error(error.message)
-    return (data?.image_urls as string[] | null) ?? []
+    const cached = cachedBookImages.get(id)
+    if (cached && Date.now() - cached.cachedAt < 5 * 60_000) {
+      cachedBookImages.delete(id)
+      cachedBookImages.set(id, cached)
+      return cached.imageUrls
+    }
+    if (cached) cachedBookImages.delete(id)
+    return shareInFlightRequest(inFlightBookImages, id, async () => {
+      const supabase = getSupabaseClient()!
+      const { data, error } = await supabase
+        .from('books')
+        .select('cover_url:image_urls->>0')
+        .eq('id', id)
+        .maybeSingle()
+      if (error) throw new Error(error.message)
+      const imageUrl = typeof data?.cover_url === 'string' ? data.cover_url : ''
+      const imageUrls = imageUrl ? [imageUrl] : []
+      cacheBookImages(id, imageUrls)
+      return imageUrls
+    })
   },
 
   async createBook(ownerId, ownerName, input) {
     const supabase = getSupabaseClient()!
     const timestamp = new Date().toISOString()
-    const images = await prepareBookImages(supabase, ownerId, input.imageUrls)
+    const images = await prepareBookImages(supabase, BOOK_COVER_BUCKET, ownerId, input.imageUrls)
     const payload = {
       owner_id: ownerId,
       owner_name: ownerName,
@@ -634,7 +705,7 @@ const supabaseAdapter: DataAdapter = {
         .single()
       if (existingError) throw new Error(existingError.message)
       oldImageUrls = (existing.image_urls as string[] | null) ?? []
-      const images = await prepareBookImages(supabase, ownerId, input.imageUrls)
+      const images = await prepareBookImages(supabase, BOOK_COVER_BUCKET, ownerId, input.imageUrls)
       payload.image_urls = images.imageUrls
       newImagePaths = images.uploadedPaths
     }
@@ -655,6 +726,7 @@ const supabaseAdapter: DataAdapter = {
         .select(OWN_BOOK_COLUMNS)
         .single()
       if (error) throw new Error(error.message)
+      cachedBookImages.delete(id)
       const retainedImages = new Set((input.imageUrls ?? []).map((url) => getOwnedBookCoverPath(url, ownerId)))
       const replacedPaths = oldImageUrls
         .map((url) => getOwnedBookCoverPath(url, ownerId))
@@ -678,6 +750,7 @@ const supabaseAdapter: DataAdapter = {
     if (loadError) throw new Error(loadError.message)
     const { error } = await supabase.from('books').delete().eq('id', id).eq('owner_id', ownerId)
     if (error) throw new Error(error.message)
+    cachedBookImages.delete(id)
     const paths = ((existing.image_urls as string[] | null) ?? [])
       .map((url) => getOwnedBookCoverPath(url, ownerId))
       .filter((path): path is string => Boolean(path))

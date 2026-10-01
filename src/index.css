@@ -634,10 +634,11 @@
   .book-cover-stage::before {
     position: absolute;
     z-index: -1;
-    inset: 8%;
+    inset: 3%;
     background:
-      radial-gradient(ellipse at 50% 44%, rgb(var(--color-accent) / 0.19), transparent 58%),
-      radial-gradient(ellipse at 50% 70%, rgb(var(--color-accent-secondary) / 0.1), transparent 67%);
+      radial-gradient(ellipse at 50% 36%, rgb(var(--color-accent) / 0.3), transparent 58%),
+      radial-gradient(ellipse at 50% 66%, rgb(var(--color-accent-secondary) / 0.16), transparent 67%),
+      radial-gradient(ellipse at 18% 52%, rgb(var(--color-accent) / 0.1), transparent 52%);
     content: '';
     pointer-events: none;
   }
@@ -1032,6 +1033,7 @@
 
   @media (max-width: 767px) {
     body { background-attachment: scroll; }
+    .site-header { backdrop-filter: none; -webkit-backdrop-filter: none; }
     .glass-card { backdrop-filter: none; }
     .glass-panel { backdrop-filter: none; }
     .booki-ambient-light { top: 1rem; right: -17rem; filter: blur(20px); }

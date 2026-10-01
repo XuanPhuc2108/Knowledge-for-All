@@ -1,7 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Heart, MapPin, X } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CONDITION_LABELS, EXCHANGE_LABELS, STATUS_LABELS } from '../lib/constants'
+import { getAdapter } from '../lib/dataAdapter'
 import { formatDistance } from '../lib/geo'
 import { ILLUSTRATIONS } from '../lib/images'
 import type { BookWithDistance } from '../types/book'
@@ -26,6 +27,10 @@ export function BookPreviewDialog({
   const dialogRef = useRef<HTMLElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
+  const [loadedImages, setLoadedImages] = useState<{ bookId: string; imageUrls: string[] } | null>(null)
+  const loadedImageUrls = loadedImages && loadedImages.bookId === book?.id
+    ? loadedImages.imageUrls
+    : null
 
   useEffect(() => {
     if (!book) return
@@ -61,6 +66,20 @@ export function BookPreviewDialog({
       previousFocusRef.current?.focus()
     }
   }, [book, onClose])
+
+  useEffect(() => {
+    if (!book || book.imageUrls.length > 0) return
+    let active = true
+    void getAdapter().getBookImages(book.id)
+      .then((imageUrls) => {
+        if (active) setLoadedImages({ bookId: book.id, imageUrls })
+      })
+      .catch((cause: unknown) => {
+        console.warn('Unable to load preview book cover', cause)
+        if (active) setLoadedImages({ bookId: book.id, imageUrls: [] })
+      })
+    return () => { active = false }
+  }, [book])
 
   return (
     <AnimatePresence>
@@ -101,7 +120,7 @@ export function BookPreviewDialog({
             <div className="grid gap-4 sm:grid-cols-[minmax(0,0.82fr)_minmax(0,1fr)] sm:items-center">
               <div className="relative mx-auto aspect-[4/3] w-full max-w-[18rem] overflow-hidden rounded-2xl bg-[rgb(var(--color-interactive-surface)/.75)] sm:aspect-[3/4]">
                 <ImageWithSkeleton
-                  src={book.imageUrls[0] || ILLUSTRATIONS.defaultCover}
+                  src={book.imageUrls[0] || loadedImageUrls?.[0] || ILLUSTRATIONS.defaultCover}
                   fallbackSrc={ILLUSTRATIONS.defaultCover}
                   alt={`Bìa sách ${book.title}`}
                   width={600}
