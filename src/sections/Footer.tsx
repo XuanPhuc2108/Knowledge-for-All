@@ -75,6 +75,7 @@ export function Footer() {
             <div className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-2">
               {TEAM.map((member, index) => (
                 <article key={member.name} className={`team-member-card ${index === 0 ? 'team-member-lead sm:col-span-2' : ''}`}>
+                  {index === 0 && <span className="team-lead-orbit" aria-hidden="true" />}
                   {index === 0 && <span className="team-member-badge">TRƯỞNG NHÓM</span>}
                   <p className="text-base font-bold tracking-tight text-text-primary md:text-lg">
                     {member.name}

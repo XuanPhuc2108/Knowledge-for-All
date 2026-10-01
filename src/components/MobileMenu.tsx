@@ -50,17 +50,38 @@ export function MobileMenu({ open, onClose, user, onLogout, variant }: MobileMen
 
             <ul className="space-y-1.5">
               {variant === 'landing' &&
-                LANDING_LINKS.map((link) => (
-                  <li key={link.href}>
-                    <a
-                      href={link.href}
+                <>
+                  <li>
+                    <Link
+                      to={user ? '/app' : '/'}
                       onClick={onClose}
-                      className="block rounded-xl px-3 py-2.5 text-base text-text-muted transition-colors hover:bg-[rgb(var(--color-interactive-surface)/.8)] hover:text-text-primary"
+                      className="block rounded-xl px-3 py-2.5 text-base font-semibold text-text-primary transition-colors hover:bg-[rgb(var(--color-interactive-surface)/.8)]"
                     >
-                      {link.label}
-                    </a>
+                      Trang chủ
+                    </Link>
                   </li>
-                ))}
+                  <li>
+                    <Link
+                      to="/explore"
+                      onClick={onClose}
+                      className="landing-explore-menu-link block rounded-xl px-3 py-2.5 text-base font-bold text-accent-yellow transition-colors"
+                    >
+                      Khám phá
+                    </Link>
+                  </li>
+                  {LANDING_LINKS.map((link) => (
+                    <li key={link.href}>
+                      <a
+                        href={link.href}
+                        onClick={onClose}
+                        className="block rounded-xl px-3 py-2.5 text-sm text-text-muted transition-colors hover:bg-[rgb(var(--color-interactive-surface)/.8)] hover:text-text-primary"
+                      >
+                        {link.label}
+                      </a>
+                    </li>
+                  ))}
+                </>
+                }
 
               {user && (
                 <>

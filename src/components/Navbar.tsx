@@ -8,7 +8,7 @@ import { Button } from './Button'
 import { GradientButton } from './GradientButton'
 import { MobileMenu } from './MobileMenu'
 
-const NAV_LINKS = [{ href: '#upload', label: 'Đăng sách', action: 'upload' as const }]
+const NAV_LINKS = [{ href: '#upload', label: 'Đăng sách' }]
 
 export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' }) {
   const [scrolled, setScrolled] = useState(false)
@@ -59,13 +59,21 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
 
           {variant === 'landing' && (
             <>
+              <Link to={user ? '/app' : '/'} className="landing-home-link md:hidden">
+                Trang chủ
+              </Link>
               <Link to="/explore" className="landing-explore-link md:hidden">
                 Khám phá
               </Link>
-              <ul className="hidden items-center gap-5 md:flex">
+              <ul className="hidden items-center gap-3 lg:gap-5 md:flex">
+                <li>
+                  <Link to={user ? '/app' : '/'} className="landing-home-link">
+                    Trang chủ
+                  </Link>
+                </li>
                 <li>
                   <Link to="/explore" className="landing-explore-link">
-                    Khám phá sách
+                    Khám phá
                   </Link>
                 </li>
                 {NAV_LINKS.map((link) => (
@@ -107,7 +115,7 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
                     Đăng nhập
                   </Button>
                 </Link>
-                <GradientButton href="/register" icon={<UserPlus className="h-4 w-4" />}>
+                <GradientButton onClick={() => navigate('/register')} icon={<UserPlus className="h-4 w-4" />}>
                   Đăng ký
                 </GradientButton>
               </>

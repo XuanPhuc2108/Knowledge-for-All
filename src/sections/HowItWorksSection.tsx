@@ -1,11 +1,5 @@
-import gsap from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { Camera, HeartHandshake, MapPin, UserPlus } from 'lucide-react'
-import { useEffect, useRef } from 'react'
 import { FadeIn } from '../components/FadeIn'
-import { useReducedMotion } from '../hooks/useReducedMotion'
-
-gsap.registerPlugin(ScrollTrigger)
 
 const STEPS = [
   {
@@ -39,55 +33,26 @@ const STEPS = [
 ]
 
 export function HowItWorksSection() {
-  const sectionRef = useRef<HTMLElement>(null)
-  const reduced = useReducedMotion()
-
-  useEffect(() => {
-    if (reduced || !sectionRef.current) return
-
-    const cards = sectionRef.current.querySelectorAll('.step-card')
-    const ctx = gsap.context(() => {
-      cards.forEach((card, i) => {
-        gsap.from(card, {
-          scrollTrigger: {
-            trigger: card,
-            start: 'top 85%',
-            end: 'top 50%',
-            scrub: 1,
-          },
-          scale: 0.92 + i * 0.02,
-          opacity: 0.6,
-        })
-      })
-    }, sectionRef)
-
-    return () => ctx.revert()
-  }, [reduced])
-
   return (
     <section
       id="how-it-works"
-      ref={sectionRef}
-      className="rounded-t-[2rem] border-y border-glass/5 bg-cream px-5 py-20 sm:rounded-t-[2.75rem] sm:px-8 md:py-28 lg:rounded-t-[3.5rem] lg:px-16"
+      className="how-it-works-section rounded-t-[2rem] border-y px-5 py-20 sm:rounded-t-[2.75rem] sm:px-8 md:py-28 lg:rounded-t-[3.5rem] lg:px-16"
     >
       <FadeIn className="mb-16 text-center">
         <h2
-          className="font-black text-text-primary"
+          className="mx-auto max-w-4xl font-black text-text-primary"
           style={{ fontSize: 'clamp(2.5rem, 7vw, 4rem)' }}
         >
           Muốn share sách? Mấy bước là xong
         </h2>
       </FadeIn>
 
-      <div className="mx-auto max-w-2xl space-y-6">
+      <div className="mx-auto grid max-w-5xl gap-4 sm:grid-cols-2 sm:gap-5">
         {STEPS.map((step, i) => {
           const Icon = step.icon
           return (
             <FadeIn key={step.num} delay={i * 0.1}>
-              <article
-                className={`step-card sticky top-24 rounded-[1.5rem] border p-6 text-text-primary shadow-[0_24px_64px_rgb(0_0_0_/_0.13)] backdrop-blur-sm sm:p-8 md:top-32 ${step.tone}`}
-                style={{ top: `${96 + i * 28}px` }}
-              >
+              <article className={`step-card h-full rounded-[1.5rem] border p-5 text-text-primary shadow-[0_12px_32px_rgb(0_0_0_/_0.1)] transition-transform duration-200 hover:-translate-y-1 sm:p-7 ${step.tone}`}>
                 <div className="flex items-start gap-6">
                   <span className="text-4xl font-black tracking-[-0.08em] text-accent-yellow/50 md:text-6xl">{step.num}</span>
                   <div>
