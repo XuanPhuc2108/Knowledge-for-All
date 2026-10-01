@@ -34,6 +34,8 @@ export interface DataAdapter {
   register(input: RegisterInput): Promise<UserProfile | null>
   verifySignupOtp(email: string, token: string): Promise<UserProfile>
   resendSignupConfirmation(email: string): Promise<void>
+  sendPasswordReset(email: string): Promise<void>
+  completePasswordReset(newPassword: string): Promise<void>
   login(input: LoginInput): Promise<UserProfile>
   logout(): Promise<void>
   updateProfile(userId: string, input: UpdateProfileInput): Promise<UserProfile>
@@ -310,6 +312,20 @@ const supabaseAdapter: DataAdapter = {
       email: email.trim().toLowerCase(),
       options: { emailRedirectTo: getAuthRedirectUrl() },
     })
+    if (error) throw new Error(error.message)
+  },
+
+  async sendPasswordReset(email) {
+    const supabase = getSupabaseClient()!
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: `${getAuthRedirectUrl()}/reset-password`,
+    })
+    if (error) throw new Error(error.message)
+  },
+
+  async completePasswordReset(newPassword) {
+    const supabase = getSupabaseClient()!
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
     if (error) throw new Error(error.message)
   },
 

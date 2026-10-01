@@ -16,6 +16,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
 
   const refreshUser = useCallback(async () => {
     try {
@@ -46,9 +47,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'INITIAL_SESSION') return
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordRecovery(true)
+        return
+      }
       if (event === 'SIGNED_OUT') {
         setUser(null)
         setError(null)
+        setPasswordRecovery(false)
         return
       }
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
@@ -83,6 +89,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const resendSignupConfirmation = useCallback(async (email: string) => {
     await getAdapter().resendSignupConfirmation(email)
   }, [])
+
+  const sendPasswordReset = useCallback(async (email: string) => {
+    await getAdapter().sendPasswordReset(email)
+  }, [])
+
+  const completePasswordReset = useCallback(async (newPassword: string) => {
+    if (!passwordRecovery) {
+      throw new Error('Phiên khôi phục mật khẩu chưa được xác thực.')
+    }
+    await getAdapter().completePasswordReset(newPassword)
+    setPasswordRecovery(false)
+    await refreshUser()
+  }, [passwordRecovery, refreshUser])
 
   const verifySignupOtp = useCallback(async (email: string, token: string) => {
     setError(null)
@@ -142,8 +161,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, error, register, verifySignupOtp, resendSignupConfirmation, login, logout, deleteAccount, changePassword, updateProfile, refreshUser }),
-    [user, loading, error, register, verifySignupOtp, resendSignupConfirmation, login, logout, deleteAccount, changePassword, updateProfile, refreshUser],
+    () => ({ user, loading, error, passwordRecovery, register, verifySignupOtp, resendSignupConfirmation, sendPasswordReset, completePasswordReset, login, logout, deleteAccount, changePassword, updateProfile, refreshUser }),
+    [user, loading, error, passwordRecovery, register, verifySignupOtp, resendSignupConfirmation, sendPasswordReset, completePasswordReset, login, logout, deleteAccount, changePassword, updateProfile, refreshUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

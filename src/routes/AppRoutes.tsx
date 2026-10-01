@@ -22,6 +22,7 @@ const LandingPage = lazy(() => import('../pages/LandingPage').then((m) => ({ def
 const DashboardPage = lazy(() => import('../pages/DashboardPage').then((m) => ({ default: m.DashboardPage })))
 const LoginPage = lazy(() => import('../pages/LoginPage').then((m) => ({ default: m.LoginPage })))
 const RegisterPage = lazy(() => import('../pages/RegisterPage').then((m) => ({ default: m.RegisterPage })))
+const ResetPasswordPage = lazy(() => import('../pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })))
 const AddBookPage = lazy(() => import('../pages/AddBookPage').then((m) => ({ default: m.AddBookPage })))
 const NearbyPage = lazy(() => import('../pages/NearbyPage').then((m) => ({ default: m.NearbyPage })))
 const MyBooksPage = lazy(() => import('../pages/MyBooksPage').then((m) => ({ default: m.MyBooksPage })))
@@ -70,6 +71,14 @@ export function AppRoutes({ onInitialRouteReady }: { onInitialRouteReady: () => 
             element={
               <PageTransition>
                 <RegisterPage />
+              </PageTransition>
+            }
+          />
+          <Route
+            path="/reset-password"
+            element={
+              <PageTransition>
+                <ResetPasswordPage />
               </PageTransition>
             }
           />

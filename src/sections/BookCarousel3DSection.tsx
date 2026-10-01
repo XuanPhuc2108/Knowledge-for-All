@@ -21,7 +21,7 @@ export function BookCarousel3DSection({ books, loading, error, refetch }: BookCa
   const closePreview = useCallback(() => setPreviewBook(null), [])
 
   return (
-    <section id="community-books" className="mx-auto max-w-7xl px-5 py-16 sm:px-8 md:py-24 lg:px-16">
+    <section id="community-books" className="community-books-section mx-auto max-w-7xl px-5 py-16 sm:px-8 md:py-24 lg:px-16">
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent-yellow">MỚI LÊN KỆ NÈ</p>

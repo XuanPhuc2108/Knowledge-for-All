@@ -135,6 +135,14 @@ export const localAdapter = {
     throw new Error('Xác nhận email cần được cấu hình qua Supabase; chế độ lưu trên thiết bị không gửi email.')
   },
 
+  async sendPasswordReset(): Promise<void> {
+    throw new Error('Đặt lại mật khẩu qua email cần được cấu hình Supabase Auth.')
+  },
+
+  async completePasswordReset(): Promise<void> {
+    throw new Error('Liên kết đặt lại mật khẩu qua email cần được cấu hình Supabase Auth.')
+  },
+
   async verifySignupOtp(): Promise<UserProfile> {
     throw new Error('Chế độ lưu trên thiết bị không gửi mã OTP qua email.')
   },

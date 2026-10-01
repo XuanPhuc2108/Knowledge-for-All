@@ -1,4 +1,4 @@
-import { BookOpen, Camera, MapPin, Users } from 'lucide-react'
+import { BookOpen, ArrowUpRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatedText } from '../components/AnimatedText'
 import { FadeIn } from '../components/FadeIn'
@@ -9,14 +9,6 @@ import { Magnetic } from '../components/Magnetic'
 import { Button } from '../components/Button'
 import { useAuth } from '../hooks/useAuthState'
 import { APP_NAME, APP_TAGLINE } from '../lib/constants'
-import { ILLUSTRATIONS } from '../lib/images'
-
-const HERO_FEATURES = [
-  { icon: BookOpen, label: 'Sách hợp gu', position: 'left-2 top-[17%] sm:left-4' },
-  { icon: Camera, label: 'Đăng sách nhanh', position: 'right-2 top-[25%] sm:right-4' },
-  { icon: MapPin, label: 'Tìm quanh đây', position: 'left-2 bottom-[22%] sm:left-4' },
-  { icon: Users, label: 'Kết nối người đọc', position: 'right-2 bottom-[14%] sm:right-4' },
-]
 
 export function HeroSection() {
   const { user } = useAuth()
@@ -86,40 +78,69 @@ export function HeroSection() {
         </div>
 
         <FadeIn delay={0.4} className="relative mx-auto w-full min-w-0 max-w-lg lg:max-w-none">
-          <div className="relative h-[420px] w-full min-w-0 rounded-[2rem] border border-accent-yellow/15 bg-[radial-gradient(circle_at_50%_42%,rgb(var(--color-accent)/.12),transparent_48%),rgb(var(--color-dark-secondary)/.35)] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.06),0_24px_70px_rgb(0_0_0_/_0.18)]">
-            <div className="pointer-events-none absolute inset-6 rounded-[1.5rem] border border-white/[0.06]" aria-hidden="true" />
-            <div className="hero-artwork absolute inset-0" aria-label="Minh họa cách Booki kết nối người đọc" role="img">
+          <div className="hero-composition" role="group" aria-label="Khám phá sách, đọc và chia sẻ cùng Booki">
+            <div className="hero-composition-glow" aria-hidden="true" />
+            <div className="hero-composition-orbit hero-composition-orbit-one" aria-hidden="true" />
+            <div className="hero-composition-orbit hero-composition-orbit-two" aria-hidden="true" />
+            <div className="hero-composition-kicker">
+              <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>BOOK DISCOVERY</span>
+            </div>
+
+            <div className="hero-photo hero-photo-main">
               <ImageWithSkeleton
-                src={ILLUSTRATIONS.heroBooks}
-                alt="Thư viện sách"
-                width={800}
-                height={1024}
-                sizes="(max-width: 480px) 144px, 184px"
-                wrapperClassName="hero-book-cover absolute left-1/2 top-1/2 h-56 w-44 -translate-x-1/2 -translate-y-1/2 rounded-2xl sm:h-72 sm:w-52"
-                className="h-full w-full rounded-2xl border border-glass/20 object-cover shadow-[0_32px_80px_rgb(0_0_0_/_0.42)]"
+                src="/hero/library-main.webp"
+                alt="Lối đi ấm áp giữa những kệ sách trong thư viện"
+                width={1000}
+                height={1250}
+                sizes="(max-width: 639px) 58vw, (max-width: 1023px) 48vw, 25vw"
+                wrapperClassName="hero-photo-image"
+                className="h-full w-full object-cover"
                 loading="eager"
                 fetchPriority="high"
               />
-              {HERO_FEATURES.map(({ icon: Icon, label, position }) => (
-                <div key={label} className={`hero-feature absolute ${position}`}>
-                  <Icon className="h-4 w-4 shrink-0 text-accent-yellow" aria-hidden="true" />
-                  <span>{label}</span>
-                </div>
-              ))}
+              <div className="hero-photo-caption">
+                <span>BOOKI / 01</span>
+                <span>Tìm cuốn tiếp theo</span>
+              </div>
             </div>
-            <ImageWithSkeleton
-              src={ILLUSTRATIONS.reading}
-              alt="Đọc sách"
-              width={96}
-              height={96}
-              sizes="96px"
-              wrapperClassName="absolute -bottom-2 right-0 hidden h-24 w-24 rounded-xl sm:block"
-              className="h-full w-full rounded-xl border-2 border-accent-yellow/30 object-cover shadow-lg"
-              loading="lazy"
-            />
-            <p className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-accent-yellow/15 bg-dark/60 px-3 py-1 text-center text-[11px] font-medium text-text-muted backdrop-blur-md">
-              Kiếm sách hợp gu · kết nối quanh mình
-            </p>
+
+            <FadeIn delay={0.12} className="hero-photo-slot hero-photo-shelves-slot">
+              <div className="hero-photo hero-photo-shelves">
+                <ImageWithSkeleton
+                  src="/hero/library-aisle.webp"
+                  alt="Những hàng sách xếp kín trên kệ gỗ"
+                  width={620}
+                  height={760}
+                  sizes="(max-width: 639px) 42vw, (max-width: 1023px) 34vw, 18vw"
+                  wrapperClassName="hero-photo-image"
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+            </FadeIn>
+
+            <FadeIn delay={0.23} className="hero-photo-slot hero-photo-books-slot">
+              <div className="hero-photo hero-photo-books">
+                <ImageWithSkeleton
+                  src="/hero/book-stack.webp"
+                  alt="Những cuốn sách xếp cạnh nhau"
+                  width={440}
+                  height={520}
+                  sizes="(max-width: 639px) 30vw, (max-width: 1023px) 26vw, 15vw"
+                  wrapperClassName="hero-photo-image"
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+            </FadeIn>
+
+            <div className="hero-composition-note">
+              <span>Đọc</span>
+              <span aria-hidden="true">·</span>
+              <span>Chia sẻ</span>
+              <ArrowUpRight className="ml-1 h-3.5 w-3.5 text-accent-yellow" aria-hidden="true" />
+            </div>
           </div>
         </FadeIn>
       </div>

@@ -1,12 +1,10 @@
-import { useCallback, useRef, type MouseEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, type MouseEvent, type ReactNode } from 'react'
 import { useReducedMotion } from '../hooks/useReducedMotion'
 
 interface MagneticProps {
   children: ReactNode
   strength?: number
   padding?: number
-  activeTransition?: string
-  inactiveTransition?: string
   className?: string
 }
 
@@ -14,16 +12,49 @@ export function Magnetic({
   children,
   strength = 4,
   padding = 80,
-  activeTransition = 'transform 0.25s ease-out',
-  inactiveTransition = 'transform 0.5s ease',
   className = '',
 }: MagneticProps) {
   const ref = useRef<HTMLDivElement>(null)
   const bounds = useRef<DOMRect | null>(null)
   const pointer = useRef({ x: 0, y: 0 })
-  const frame = useRef(0)
+  const target = useRef({ x: 0, y: 0 })
+  const position = useRef({ x: 0, y: 0 })
+  const frame = useRef<number | null>(null)
   const reduced = useReducedMotion()
   const isTouch = typeof window !== 'undefined' && 'ontouchstart' in window
+
+  useEffect(() => () => {
+    if (frame.current !== null) window.cancelAnimationFrame(frame.current)
+  }, [])
+
+  const animateToTarget = useCallback(() => {
+    if (frame.current !== null || !ref.current) return
+    const step = () => {
+      const element = ref.current
+      if (!element) {
+        frame.current = null
+        return
+      }
+
+      position.current.x += (target.current.x - position.current.x) * 0.18
+      position.current.y += (target.current.y - position.current.y) * 0.18
+
+      if (
+        Math.abs(target.current.x - position.current.x) < 0.05 &&
+        Math.abs(target.current.y - position.current.y) < 0.05
+      ) {
+        position.current = { ...target.current }
+        frame.current = null
+        element.style.transform = `translate3d(${position.current.x}px, ${position.current.y}px, 0)`
+        if (position.current.x === 0 && position.current.y === 0) element.style.willChange = 'auto'
+        return
+      }
+
+      element.style.transform = `translate3d(${position.current.x}px, ${position.current.y}px, 0)`
+      frame.current = window.requestAnimationFrame(step)
+    }
+    frame.current = window.requestAnimationFrame(step)
+  }, [])
 
   const handleEnter = useCallback(() => {
     if (reduced || isTouch || !ref.current) return
@@ -35,29 +66,19 @@ export function Magnetic({
     const rect = bounds.current
     if (reduced || isTouch || !rect) return
     pointer.current = { x: event.clientX, y: event.clientY }
-    if (frame.current) return
-    frame.current = window.requestAnimationFrame(() => {
-      frame.current = 0
-      if (!ref.current) return
-      const x = pointer.current.x - (rect.left + rect.width / 2)
-      const y = pointer.current.y - (rect.top + rect.height / 2)
-      const dist = Math.sqrt(x * x + y * y)
-      const maxDist = Math.max(rect.width, rect.height) / 2 + padding
-      if (dist > maxDist) return
-      ref.current.style.transition = activeTransition
-      ref.current.style.transform = `translate3d(${x / strength}px, ${y / strength}px, 0)`
-    })
-  }, [strength, padding, activeTransition, reduced, isTouch])
+    const x = pointer.current.x - (rect.left + rect.width / 2)
+    const y = pointer.current.y - (rect.top + rect.height / 2)
+    const dist = Math.sqrt(x * x + y * y)
+    const maxDist = Math.max(rect.width, rect.height) / 2 + padding
+    target.current = dist <= maxDist ? { x: x / strength, y: y / strength } : { x: 0, y: 0 }
+    animateToTarget()
+  }, [strength, padding, reduced, isTouch, animateToTarget])
 
   const handleLeave = useCallback(() => {
-    if (frame.current) window.cancelAnimationFrame(frame.current)
-    frame.current = 0
     bounds.current = null
-    if (!ref.current) return
-    ref.current.style.transition = inactiveTransition
-    ref.current.style.transform = 'translate3d(0, 0, 0)'
-    ref.current.style.willChange = 'auto'
-  }, [inactiveTransition])
+    target.current = { x: 0, y: 0 }
+    animateToTarget()
+  }, [animateToTarget])
 
   return (
     <div

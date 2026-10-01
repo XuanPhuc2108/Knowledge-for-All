@@ -35,7 +35,7 @@ export function BookCard({
       )}
     >
       <div className={clsx(
-        'relative overflow-hidden bg-[rgb(var(--color-interactive-surface)/.8)]',
+        'book-cover-stage relative overflow-hidden bg-[rgb(var(--color-interactive-surface)/.8)]',
         compact ? 'aspect-[4/3]' : 'aspect-[3/4]',
       )}>
         <BookCardCover
@@ -161,7 +161,7 @@ function BookCardCover({
           : '(max-width: 640px) 92vw, (max-width: 1280px) 44vw, 360px'}
         wrapperClassName={compact ? 'mx-auto h-full w-full p-3' : 'h-full w-full'}
         className={clsx(
-          'h-full w-full transition-transform duration-500 group-hover:scale-[1.035] motion-reduce:transition-none motion-reduce:group-hover:scale-100',
+          'h-full w-full rounded-xl transition-transform duration-500 group-hover:scale-[1.035] motion-reduce:transition-none motion-reduce:group-hover:scale-100',
           compact ? 'object-contain' : 'object-cover',
         )}
       />

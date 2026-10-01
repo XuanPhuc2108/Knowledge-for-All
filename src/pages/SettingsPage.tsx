@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Accessibility, Bell, BookOpen, ChevronRight, CircleUserRound, Gauge, History, LockKeyhole, MapPin, Monitor, Moon, Palette, ShieldCheck, Smartphone, Sparkles, Sun, Trash2, Zap } from 'lucide-react'
+import { Accessibility, Bell, BookOpen, ChevronRight, CircleUserRound, Eye, EyeOff, Gauge, History, LockKeyhole, MapPin, Monitor, Moon, Palette, ShieldCheck, Smartphone, Sparkles, Sun, Trash2, Zap } from 'lucide-react'
 import { useAuth } from '../hooks/useAuthState'
 import { useToast } from '../hooks/useToast'
 import { useGeolocation } from '../hooks/useGeolocation'
@@ -567,23 +567,39 @@ function TextField({
   minLength?: number
   autoComplete?: string
 }) {
+  const [visible, setVisible] = useState(false)
+  const inputType = type === 'password' && visible ? 'text' : type
+
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 block text-sm font-medium">{label}</label>
-      <input
-        id={id}
-        name={id}
-        type={type}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        required={required}
-        maxLength={maxLength}
-        minLength={minLength}
-        autoComplete={autoComplete}
-        spellCheck={type === 'email' ? false : undefined}
-        className={fieldClass}
-      />
+      <div className="relative">
+        <input
+          id={id}
+          name={id}
+          type={inputType}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          required={required}
+          maxLength={maxLength}
+          minLength={minLength}
+          autoComplete={autoComplete}
+          spellCheck={type === 'email' ? false : undefined}
+          className={`${fieldClass} ${type === 'password' ? 'pr-12' : ''}`}
+        />
+        {type === 'password' && (
+          <button
+            type="button"
+            aria-label={visible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+            aria-pressed={visible}
+            onClick={() => setVisible((current) => !current)}
+            className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-text-muted hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow"
+          >
+            {visible ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
