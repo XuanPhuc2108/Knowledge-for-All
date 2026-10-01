@@ -84,6 +84,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await getAdapter().resendSignupConfirmation(email)
   }, [])
 
+  const verifySignupOtp = useCallback(async (email: string, token: string) => {
+    setError(null)
+    try {
+      const profile = await getAdapter().verifySignupOtp(email, token)
+      setUser(profile)
+      return profile
+    } catch (e) {
+      console.error('Unable to verify the signup email OTP', e)
+      const msg = userFacingError(e, 'Mã OTP chưa đúng hoặc đã hết hạn. Thử lại nghen.')
+      setError(msg)
+      throw e
+    }
+  }, [])
+
   const login = useCallback(async (email: string, password: string) => {
     setError(null)
     try {
@@ -128,8 +142,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, error, register, resendSignupConfirmation, login, logout, deleteAccount, changePassword, updateProfile, refreshUser }),
-    [user, loading, error, register, resendSignupConfirmation, login, logout, deleteAccount, changePassword, updateProfile, refreshUser],
+    () => ({ user, loading, error, register, verifySignupOtp, resendSignupConfirmation, login, logout, deleteAccount, changePassword, updateProfile, refreshUser }),
+    [user, loading, error, register, verifySignupOtp, resendSignupConfirmation, login, logout, deleteAccount, changePassword, updateProfile, refreshUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

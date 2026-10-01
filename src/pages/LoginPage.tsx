@@ -8,7 +8,7 @@ import { validateLogin } from '../lib/validation'
 import { userFacingError } from '../lib/userFacingError'
 
 export function LoginPage() {
-  const { login, resendSignupConfirmation, user } = useAuth()
+  const { login, verifySignupOtp, resendSignupConfirmation, user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/app'
@@ -18,6 +18,8 @@ export function LoginPage() {
   const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null)
   const [resendingConfirmation, setResendingConfirmation] = useState(false)
   const [confirmationNotice, setConfirmationNotice] = useState<string | null>(null)
+  const [otp, setOtp] = useState('')
+  const [verifying, setVerifying] = useState(false)
 
   useEffect(() => {
     if (user) navigate(from, { replace: true })
@@ -57,7 +59,7 @@ export function LoginPage() {
     try {
       await resendSignupConfirmation(confirmationEmail)
       setErrors({})
-      setConfirmationNotice('Đã gửi lại email xác nhận. Hãy kiểm tra thư đến và thư rác.')
+      setConfirmationNotice('Đã gửi lại mã OTP rồi. Nhớ kiểm tra thư đến với thư rác nghen.')
     } catch (cause) {
       console.error('Unable to resend the account confirmation email', cause)
       setErrors({ form: userFacingError(cause, 'Chưa thể gửi email xác nhận. Hãy thử lại nha.') })
@@ -66,24 +68,71 @@ export function LoginPage() {
     }
   }
 
+  const handleVerifyOtp = async () => {
+    if (!confirmationEmail) return
+    if (!/^\d{6}$/.test(otp.trim())) {
+      setErrors({ otp: 'Mã OTP gồm 6 chữ số nha.' })
+      return
+    }
+    setVerifying(true)
+    setErrors({})
+    try {
+      await verifySignupOtp(confirmationEmail, otp.trim())
+      navigate(from, { replace: true })
+    } catch (cause) {
+      console.error('Unable to verify the email code during sign-in', cause)
+      setErrors({ otp: userFacingError(cause, 'Mã OTP chưa đúng hoặc đã hết hạn. Thử lại nghen.') })
+    } finally {
+      setVerifying(false)
+    }
+  }
+
   return (
     <AuthCard
       title="Đăng nhập"
-      subtitle="Chào mừng trở lại Booki"
+      subtitle="Vô lại Booki, kiếm cuốn hợp gu nghen."
       footerText="Chưa có tài khoản?"
       footerLink="/register"
       footerLinkLabel="Đăng ký ngay"
     >
-      <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+      <form onSubmit={(event) => {
+        if (confirmationEmail) {
+          event.preventDefault()
+          void handleVerifyOtp()
+        } else {
+          void handleSubmit(event)
+        }
+      }} className="space-y-4">
         {confirmationNotice && <p className="text-sm text-accent-teal" role="status">{confirmationNotice}</p>}
         {errors.form && (
-          <div className="space-y-2 text-sm" role="alert">
-            <p className="text-accent-rose">{errors.form}</p>
-            {confirmationEmail && (
-              <button type="button" className="font-semibold text-accent-yellow underline underline-offset-2 disabled:opacity-60" disabled={resendingConfirmation} onClick={() => void handleResendConfirmation()}>
-                {resendingConfirmation ? 'Đang gửi...' : 'Gửi lại email xác nhận'}
-              </button>
-            )}
+          <p className="text-sm text-accent-rose" role="alert">{errors.form}</p>
+        )}
+        {confirmationEmail && (
+          <div className="space-y-3 rounded-2xl border border-accent-yellow/20 bg-accent-yellow/[0.06] p-4">
+            <p className="text-xs leading-relaxed text-text-muted">
+              Nhập mã 6 số gửi tới <span className="font-semibold text-text-primary">{confirmationEmail}</span>.
+            </p>
+            <button type="button" className="text-sm font-semibold text-accent-yellow underline underline-offset-2 disabled:opacity-60" disabled={resendingConfirmation} onClick={() => void handleResendConfirmation()}>
+              {resendingConfirmation ? 'Đang gửi...' : 'Gửi lại mã OTP'}
+            </button>
+            <div>
+              <label htmlFor="login-otp" className="mb-1.5 block text-xs font-medium text-text-primary">Mã OTP trong email</label>
+              <input
+                id="login-otp"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                value={otp}
+                onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="field-control w-full px-4 py-3 text-center text-lg font-bold tracking-[0.4em]"
+              />
+              {errors.otp && <p className="mt-1 text-xs text-accent-rose" role="alert">{errors.otp}</p>}
+            </div>
+            <GradientButton type="button" disabled={verifying || otp.length !== 6} className="w-full" onClick={() => void handleVerifyOtp()}>
+              {verifying ? 'Đang xác nhận...' : 'Xác nhận email'}
+            </GradientButton>
           </div>
         )}
         <div>
@@ -92,7 +141,7 @@ export function LoginPage() {
             id="email"
             name="email"
             type="email"
-            required
+            required={!confirmationEmail}
             className="field-control px-4 py-3 text-sm"
           />
           {errors.email && <p className="mt-1 text-xs text-accent-rose">{errors.email}</p>}
@@ -103,7 +152,7 @@ export function LoginPage() {
             id="password"
             name="password"
             type="password"
-            required
+            required={!confirmationEmail}
             className="field-control px-4 py-3 text-sm"
           />
           {errors.password && <p className="mt-1 text-xs text-accent-rose">{errors.password}</p>}

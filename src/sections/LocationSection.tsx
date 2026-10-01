@@ -3,15 +3,14 @@ import { useState } from 'react'
 import { Button } from '../components/Button'
 import { FadeIn } from '../components/FadeIn'
 import { NearbyRadar } from '../components/NearbyRadar'
+import type { Book } from '../types/book'
 import { useToast } from '../hooks/useToast'
 import { useAuth } from '../hooks/useAuthState'
-import { useBooks } from '../hooks/useBooks'
 import { useGeolocation } from '../hooks/useGeolocation'
 import { userFacingError } from '../lib/userFacingError'
 
-export function LocationSection() {
+export function LocationSection({ books }: { books: Book[] }) {
   const { user, updateProfile } = useAuth()
-  const { books } = useBooks(24)
   const { requestLocation, latitude, longitude, loading } = useGeolocation()
   const { showToast } = useToast()
   const [enabled, setEnabled] = useState(user?.locationEnabled ?? false)
@@ -51,14 +50,14 @@ export function LocationSection() {
             Tìm sách ở gần bạn hơn
           </h2>
           <p className="mb-8 text-lg text-text-muted">
-            Khi bạn cho phép định vị, website chỉ dùng vị trí để tính khoảng cách tương đối giữa bạn và sách/người chia sẻ. Người dùng có thể tắt định vị bất cứ lúc nào.
+            Muốn kiếm sách quanh mình thì bật định vị nha. Booki chỉ tính khoảng cách gần đúng; không tiện thì cứ lướt sách bình thường nghen.
           </p>
           <Button onClick={() => void handleEnable()} disabled={loading}>
             <LocateFixed className="h-4 w-4" />
             {loading ? 'Đang xác định...' : enabled ? 'Đã bật định vị' : 'Bật định vị'}
           </Button>
           <p className="mt-6 text-xs text-text-muted">
-            Không chia sẻ vị trí chính xác của bạn cho người khác.
+            Vị trí chính xác của bạn không hiện cho người khác đâu.
           </p>
         </FadeIn>
 

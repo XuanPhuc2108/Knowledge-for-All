@@ -82,7 +82,7 @@ export function HeroSection() {
 
           <FadeIn delay={0.35} y={20}>
             <AnimatedText
-              text="Có sách hay share liền tay. Booki là nền tảng kết nối và chia sẻ sách quanh bạn."
+              text="Có sách hay thì share liền tay. Booki giúp mình kiếm, cho mượn với đổi sách dễ dàng hơn nghen."
               scrollReveal={false}
               className="mb-8 max-w-lg text-lg leading-relaxed text-text-muted"
             />
@@ -101,7 +101,7 @@ export function HeroSection() {
 
           <FadeIn delay={0.55} y={10}>
             <p className="mt-8 text-xs text-text-muted">
-              Dữ liệu hiển thị dựa trên sách thật do người dùng đăng.
+              Thấy cuốn hợp gu thì mình coi tình trạng với cách liên hệ liền nha.
             </p>
           </FadeIn>
         </div>
@@ -157,7 +157,7 @@ export function HeroSection() {
               loading="lazy"
             />
             <p className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-accent-yellow/15 bg-dark/60 px-3 py-1 text-center text-[11px] font-medium text-text-muted backdrop-blur-md">
-              Tìm sách hợp gu · kết nối quanh bạn
+              Kiếm sách hợp gu · kết nối quanh mình
             </p>
           </div>
         </FadeIn>

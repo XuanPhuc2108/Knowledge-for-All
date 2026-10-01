@@ -7,10 +7,10 @@ import { Magnetic } from '../components/Magnetic'
 import { useAuth } from '../hooks/useAuthState'
 
 const BULLETS = [
-  'Chụp bằng camera hoặc tải ảnh.',
-  'Thêm tên sách, tác giả, tình trạng.',
-  'Chọn chia sẻ, trao đổi hoặc cho mượn.',
-  'Quản lý sách đã đăng trong trang cá nhân.',
+  'Chụp hình bìa hoặc tải ảnh có sẵn.',
+  'Ghi tên sách, tác giả với tình trạng thiệt nha.',
+  'Chọn tặng, cho mượn hay đổi sách.',
+  'Muốn sửa hay gỡ bài thì quản lý trong Sách của tôi.',
 ]
 
 export function UploadPreviewSection() {
@@ -38,11 +38,11 @@ export function UploadPreviewSection() {
             className="mb-6 font-black uppercase tracking-tighter text-text-primary"
             style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)' }}
           >
-            Chụp ảnh sách,{' '}
-            <span className="text-gold-gradient">đăng ngay</span>
+            Chụp bìa một cái,{' '}
+            <span className="text-gold-gradient">share liền tay</span>
           </h2>
           <AnimatedText
-            text="Vài thao tác đơn giản — chụp bìa, điền thông tin, chia sẻ với cộng đồng đọc sách quanh bạn."
+            text="Chụp bìa, ghi vài dòng cho rõ rồi chọn cách chia sẻ. Có sách hay thì chuyền tay nhau đọc nghen."
             scrollReveal
             className="mb-8 text-base leading-relaxed text-text-muted"
           />

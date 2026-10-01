@@ -3,10 +3,10 @@ import { ShieldCheck } from 'lucide-react'
 import { FadeIn } from '../components/FadeIn'
 
 const SAFETY_CARDS = [
-  'Tự quyết định thông tin chia sẻ',
-  'Không công khai vị trí chính xác',
-  'Kiểm tra tình trạng sách trước khi nhận',
-  'Hẹn gặp ở nơi phù hợp',
+  'Mình tự chọn thông tin liên hệ nào được hiện',
+  'Không công khai vị trí chính xác của thành viên',
+  'Hỏi kỹ tình trạng sách trước khi nhận nghen',
+  'Hẹn trao sách ở chỗ an toàn, thuận tiện cho đôi bên',
 ]
 
 export function SafetySection() {
@@ -17,7 +17,7 @@ export function SafetySection() {
           className="font-black text-text-primary"
           style={{ fontSize: 'clamp(2.5rem, 7vw, 4rem)' }}
         >
-          Chia sẻ văn minh và an toàn
+          Chia sẻ vui, nhớ an toàn nghen
         </h2>
       </FadeIn>
 

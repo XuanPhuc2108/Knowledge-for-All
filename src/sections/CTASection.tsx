@@ -16,16 +16,16 @@ export function CTASection() {
       />
 
       <FadeIn className="glass-card relative z-10 mx-auto max-w-4xl rounded-[2rem] px-5 py-12 text-center sm:px-10 sm:py-16">
-        <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-accent-yellow">GÓP MỘT CUỐN, THÊM NHIỀU NIỀM VUI</p>
+        <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-accent-yellow">SÁCH HAY THÌ CHUYỀN TAY NHA</p>
         <h2
           className="mx-auto mb-8 max-w-3xl font-black tracking-tight text-text-primary"
           style={{ fontSize: 'clamp(2.5rem, 7vw, 4rem)' }}
         >
-          Có cuốn nào đang muốn share không?
+          Kệ sách có cuốn nào muốn share hông?
         </h2>
         <div className="flex flex-wrap justify-center gap-4">
           <GradientButton onClick={() => navigate(user ? '/app/add-book' : '/register')}>
-            {user ? 'Share sách' : 'Tham gia Booki'}
+            {user ? 'Đăng sách liền' : 'Vô hội Booki'}
           </GradientButton>
           {!user && (
             <Button variant="outline" size="lg" onClick={() => navigate('/login')}>

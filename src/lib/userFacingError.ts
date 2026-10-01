@@ -18,8 +18,9 @@ const TECHNICAL_ERROR_PATTERNS = [
 ]
 
 const SAFE_VIETNAMESE_MESSAGES = [
-  'Xác nhận email trước khi sử dụng tài khoản.',
-  'Xác nhận email trước khi đăng nhập.',
+  'Xác nhận email bằng mã OTP trước khi sử dụng tài khoản.',
+  'Xác nhận email bằng mã OTP trước khi đăng nhập.',
+  'Mã OTP chưa xác nhận được email.',
   'Email hoặc mật khẩu không đúng',
   'Email hoặc mật khẩu không đúng.',
   'Mật khẩu hiện tại không đúng',
@@ -58,6 +59,8 @@ const KNOWN_DOMAIN_ERRORS: Record<string, string> = {
   'Request not found': 'Không tìm thấy lời đề nghị này.',
   'Invalid login credentials': 'Email hoặc mật khẩu không đúng.',
   'Email not confirmed': 'Hãy xác nhận email trước khi đăng nhập.',
+  'Token has expired or is invalid': 'Mã OTP hết hạn hoặc chưa đúng. Gửi mã mới rồi thử lại nghen.',
+  'Token is invalid or has expired': 'Mã OTP hết hạn hoặc chưa đúng. Gửi mã mới rồi thử lại nghen.',
   'Message must contain 10 to 1000 characters': 'Lời nhắn cần dài từ 10 đến 1000 ký tự.',
   'Auth session missing!': 'Phiên đăng nhập không còn hiệu lực. Đăng nhập lại để tiếp tục nha.',
 }

@@ -20,7 +20,6 @@
     --color-accent-contrast: 35 29 16;
     --color-accent-secondary: 249 115 22;
   }
-
   :root[data-theme='light'] {
     color-scheme: light;
     --color-dark: 243 242 237;
@@ -443,6 +442,27 @@
       0 0 28px rgb(var(--color-accent) / 0.08),
       inset 0 1px 0 rgb(var(--color-accent) / 0.16);
   }
+  .team-member-lead::after {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 38%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgb(var(--color-accent) / 0.85), transparent);
+    content: '';
+    opacity: 0;
+    pointer-events: none;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .team-member-lead::after {
+      animation: team-lead-glint 7s ease-in-out infinite;
+    }
+    @keyframes team-lead-glint {
+      0%, 20% { opacity: 0; transform: translateX(-110%); }
+      35%, 70% { opacity: 0.9; }
+      90%, 100% { opacity: 0; transform: translateX(360%); }
+    }
+  }
   .team-member-badge {
     display: inline-flex;
     margin-bottom: 0.6rem;
@@ -588,8 +608,8 @@
   }
 
   .site-header:not(.bg-transparent) {
-    background-color: rgb(var(--color-dark) / 0.82);
-    backdrop-filter: blur(16px) saturate(145%);
+    background-color: rgb(var(--color-dark) / 0.94);
+    backdrop-filter: blur(22px) saturate(155%);
   }
 
   .landing-nav-link {
@@ -614,6 +634,35 @@
   .landing-nav-link:hover::after,
   .landing-nav-link:focus-visible::after {
     transform: scaleX(1);
+  }
+
+  .landing-explore-link {
+    display: inline-flex;
+    min-height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgb(var(--color-accent) / 0.42);
+    border-radius: 0.85rem;
+    background: linear-gradient(135deg, rgb(var(--color-accent) / 0.18), rgb(var(--color-accent) / 0.08));
+    padding: 0.55rem 0.9rem;
+    color: rgb(var(--color-accent));
+    font-size: 0.8rem;
+    font-weight: 750;
+    white-space: nowrap;
+    box-shadow: 0 6px 20px rgb(var(--color-accent) / 0.08), inset 0 1px 0 rgb(255 255 255 / 0.08);
+    transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+  }
+
+  .landing-explore-link:hover {
+    transform: translateY(-1px);
+    background-color: rgb(var(--color-accent) / 0.16);
+    box-shadow: 0 9px 24px rgb(var(--color-accent) / 0.14);
+  }
+
+  .site-share-card {
+    background:
+      radial-gradient(ellipse at 80% 15%, rgb(var(--color-accent) / 0.12), transparent 43%),
+      rgb(var(--color-interactive-surface) / 0.76);
   }
 
   .app-shell {
@@ -778,6 +827,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .landing-nav-link::after,
+    .landing-explore-link,
     .app-sidebar-link::before,
     .app-mobile-nav-link,
     .app-button,

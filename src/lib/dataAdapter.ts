@@ -32,6 +32,7 @@ let publicOwnerProjectionAvailable = true
 export interface DataAdapter {
   getCurrentUser(): Promise<UserProfile | null>
   register(input: RegisterInput): Promise<UserProfile | null>
+  verifySignupOtp(email: string, token: string): Promise<UserProfile>
   resendSignupConfirmation(email: string): Promise<void>
   login(input: LoginInput): Promise<UserProfile>
   logout(): Promise<void>
@@ -246,7 +247,7 @@ const supabaseAdapter: DataAdapter = {
     if (user.app_metadata.provider === 'email' && !user.email_confirmed_at) {
       const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' })
       if (signOutError) throw new Error(signOutError.message)
-      throw new Error('Xác nhận email trước khi sử dụng tài khoản. Hãy mở liên kết trong email xác nhận.')
+      throw new Error('Xác nhận email bằng mã OTP trước khi sử dụng tài khoản.')
     }
     const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
     if (data) return mapProfile(data)
@@ -312,6 +313,22 @@ const supabaseAdapter: DataAdapter = {
     if (error) throw new Error(error.message)
   },
 
+  async verifySignupOtp(email, token) {
+    const supabase = getSupabaseClient()!
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: email.trim().toLowerCase(),
+      token: token.trim(),
+      type: 'signup',
+    })
+    if (error) throw new Error(error.message)
+    if (!data.user?.email_confirmed_at) {
+      throw new Error('Mã OTP chưa xác nhận được email. Kiểm tra lại mã rồi thử lại nghen.')
+    }
+    const profile = await this.getCurrentUser()
+    if (!profile) throw new Error('Email đã xác nhận nhưng chưa tải được hồ sơ. Vui lòng đăng nhập lại.')
+    return profile
+  },
+
   async login(input) {
     const supabase = getSupabaseClient()!
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -320,7 +337,7 @@ const supabaseAdapter: DataAdapter = {
     })
     if (error) {
       if (/email not confirmed/i.test(error.message)) {
-        throw new Error('Xác nhận email trước khi đăng nhập. Hãy mở liên kết trong email xác nhận.')
+        throw new Error('Xác nhận email bằng mã OTP trước khi đăng nhập.')
       }
       throw new Error(error.message)
     }
@@ -329,7 +346,7 @@ const supabaseAdapter: DataAdapter = {
       !data.user.email_confirmed_at
     ) {
       await supabase.auth.signOut({ scope: 'local' })
-      throw new Error('Xác nhận email trước khi đăng nhập. Hãy mở liên kết trong email xác nhận.')
+      throw new Error('Xác nhận email bằng mã OTP trước khi đăng nhập.')
     }
     const user = await supabaseAdapter.getCurrentUser()
     if (!user) throw new Error('Không tìm thấy hồ sơ người dùng')

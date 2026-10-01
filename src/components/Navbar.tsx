@@ -8,10 +8,7 @@ import { Button } from './Button'
 import { GradientButton } from './GradientButton'
 import { MobileMenu } from './MobileMenu'
 
-const NAV_LINKS = [
-  { href: '/explore', label: 'Khám phá sách', route: true },
-  { href: '#upload', label: 'Đăng sách', action: 'upload' as const },
-]
+const NAV_LINKS = [{ href: '#upload', label: 'Đăng sách', action: 'upload' as const }]
 
 export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' }) {
   const [scrolled, setScrolled] = useState(false)
@@ -46,7 +43,7 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
         className={clsx(
           'site-header fixed left-0 right-0 top-0 z-50 transition-[background-color,border-color] duration-200',
           scrolled || variant === 'app'
-            ?             'border-b border-glass/10 bg-dark/85 shadow-[0_8px_28px_rgb(0_0_0_/_0.12)] backdrop-blur-xl'
+            ? 'border-b border-glass/15 bg-dark/92 shadow-[0_8px_28px_rgb(0_0_0_/_0.16)] backdrop-blur-2xl'
             : 'bg-transparent',
         )}
       >
@@ -61,10 +58,18 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
           </Link>
 
           {variant === 'landing' && (
-            <ul className="hidden items-center gap-8 md:flex">
-              {NAV_LINKS.map((link) => (
-                <li key={link.href}>
-                  {link.action === 'upload' ? (
+            <>
+              <Link to="/explore" className="landing-explore-link md:hidden">
+                Khám phá
+              </Link>
+              <ul className="hidden items-center gap-5 md:flex">
+                <li>
+                  <Link to="/explore" className="landing-explore-link">
+                    Khám phá sách
+                  </Link>
+                </li>
+                {NAV_LINKS.map((link) => (
+                  <li key={link.href}>
                     <button
                       type="button"
                       onClick={() => navigate(user ? '/app/add-book' : '/register')}
@@ -72,17 +77,10 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
                     >
                       {link.label}
                     </button>
-                  ) : (
-                    <Link
-                      to={link.href}
-                      className="landing-nav-link text-sm text-text-muted transition-colors duration-150 hover:text-text-primary"
-                    >
-                      {link.label}
-                    </Link>
-                  )}
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
 
           <div className="hidden items-center gap-3 md:flex">

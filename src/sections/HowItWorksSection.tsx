@@ -11,28 +11,28 @@ const STEPS = [
   {
     num: '01',
     title: 'Tạo tài khoản',
-    desc: 'Đăng ký nhanh để quản lý sách và yêu cầu trao đổi.',
+    desc: 'Đăng ký bằng email rồi nhập mã OTP gửi tới hộp thư, hoặc vào nhanh bằng Google/Facebook nghen.',
     icon: UserPlus,
     tone: 'bg-accent-yellow/[0.13] border-accent-yellow/20',
   },
   {
     num: '02',
     title: 'Bật định vị',
-    desc: 'Cho phép website xác định vị trí tương đối để gợi ý sách ở gần bạn.',
+    desc: 'Muốn kiếm sách quanh mình thì bật; không tiện chia sẻ vị trí cứ lướt toàn bộ bình thường nha.',
     icon: MapPin,
     tone: 'bg-[rgb(var(--color-interactive-surface)/.82)] border-glass/10',
   },
   {
     num: '03',
     title: 'Chụp ảnh & đăng sách',
-    desc: 'Chụp ảnh bìa sách, nhập mô tả và chọn hình thức chia sẻ.',
+    desc: 'Chụp bìa, ghi vài dòng thiệt tình rồi chọn cho mượn, trao đổi hay tặng.',
     icon: Camera,
     tone: 'bg-[rgb(var(--color-interactive-surface)/.82)] border-glass/10',
   },
   {
     num: '04',
     title: 'Kết nối & trao đổi',
-    desc: 'Liên hệ qua số điện thoại hoặc email trên bài đăng và trao sách an toàn.',
+    desc: 'Xem cách liên hệ người đăng, gửi lời đề nghị rồi hẹn nhau trao sách cho đàng hoàng.',
     icon: HeartHandshake,
     tone: 'bg-accent-yellow/[0.13] border-accent-yellow/20',
   },
@@ -75,7 +75,7 @@ export function HowItWorksSection() {
           className="font-black text-text-primary"
           style={{ fontSize: 'clamp(2.5rem, 7vw, 4rem)' }}
         >
-          Chia sẻ sách chỉ trong vài bước
+          Muốn share sách? Mấy bước là xong
         </h2>
       </FadeIn>
 

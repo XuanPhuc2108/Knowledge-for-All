@@ -135,6 +135,10 @@ export const localAdapter = {
     throw new Error('Xác nhận email cần được cấu hình qua Supabase; chế độ lưu trên thiết bị không gửi email.')
   },
 
+  async verifySignupOtp(): Promise<UserProfile> {
+    throw new Error('Chế độ lưu trên thiết bị không gửi mã OTP qua email.')
+  },
+
   async login(input: LoginInput): Promise<UserProfile> {
     const user = readUsers().find(
       (u) =>

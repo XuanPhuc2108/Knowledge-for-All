@@ -8,6 +8,7 @@ export interface AuthState {
 
 export interface AuthContextValue extends AuthState {
   register: (fullName: string, email: string, password: string) => Promise<UserProfile | null>
+  verifySignupOtp: (email: string, token: string) => Promise<UserProfile>
   resendSignupConfirmation: (email: string) => Promise<void>
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>

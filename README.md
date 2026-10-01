@@ -77,15 +77,15 @@ $$;
 Để chỉ cho phép tài khoản email/mật khẩu sau khi chủ hộp thư xác nhận:
 
 1. Trong **Authentication → Sign In / Providers → Email**, bật **Confirm email**.
-2. Trong **Authentication → URL Configuration**, thêm origin của ứng dụng vào **Redirect URLs**; liên kết xác nhận sẽ quay về origin này.
+2. Trong **Authentication → Email Templates → Confirm signup**, chỉnh nội dung email để hiển thị mã một lần `{{ .Token }}` (ví dụ: `<p>Mã xác nhận Booki của bạn: <strong>{{ .Token }}</strong></p>`). Màn hình đăng ký nhận mã 6 số và xác minh bằng Supabase Auth `verifyOtp`; không có mã giả ở frontend.
 3. Với production, cấu hình SMTP riêng trong **Project Settings → Auth → SMTP Settings** và xác minh sender/domain. Email SMTP mặc định của Supabase có giới hạn gửi và không phù hợp làm dịch vụ gửi thư production.
 
-Ứng dụng hỗ trợ gửi lại email xác nhận từ màn hình đăng ký và không tạo hồ sơ ứng dụng trước khi Supabase cấp phiên đã xác nhận. Supabase quản lý trạng thái này; bật **Confirm email** trên Dashboard là bắt buộc vì client không thể thay cấu hình hoặc tự gửi thư. Google/Facebook OAuth vẫn dùng luồng nhà cung cấp hiện có.
+Ứng dụng hỗ trợ gửi lại mã từ màn hình đăng ký/đăng nhập và không tạo hồ sơ ứng dụng trước khi Supabase xác minh OTP thành công. Supabase mới gửi email thật; bật **Confirm email**, đổi template sang `{{ .Token }}` và cấu hình SMTP production trên Dashboard. Google/Facebook OAuth vẫn dùng luồng nhà cung cấp hiện có.
 
 ## Tính năng
 
 - Đăng ký / đăng nhập với validation
-- Landing page Booki gọn với xem trước sách thật và đường dẫn khám phá công khai
+- Landing page Booki có sách đang chia sẻ, hướng dẫn từng bước, định vị gần bạn, cách đăng sách, lưu ý an toàn và QR/link chia sẻ trang chủ
 - Trang `/explore` công khai có tìm kiếm, bộ lọc, trạng thái và bài đăng thật
 - Đăng sách: chụp camera hoặc tải ảnh, nén WebP/JPEG
 - Định vị: tính khoảng cách Haversine, radar trực quan

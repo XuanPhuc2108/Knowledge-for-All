@@ -52,7 +52,7 @@ export function Footer() {
           </Magnetic>
 
           <AnimatedText
-            text="Có sách hay muốn share? Tìm sách để mượn hay đổi? Booki giúp bạn kết nối với mọi người quanh mình."
+            text="Có sách hay thì share, đang kiếm sách thì ghé Booki nghen. Mình kết nối với nhau để sách được đọc thêm nhiều lần."
             scrollReveal
             className="max-w-xl text-sm leading-relaxed text-text-muted md:text-base"
           />

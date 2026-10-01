@@ -8,14 +8,16 @@ import { validateRegister } from '../lib/validation'
 import { userFacingError } from '../lib/userFacingError'
 
 export function RegisterPage() {
-  const { register, resendSignupConfirmation, user } = useAuth()
+  const { register, verifySignupOtp, resendSignupConfirmation, user } = useAuth()
   const navigate = useNavigate()
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [oauthBusy, setOauthBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
+  const [otp, setOtp] = useState('')
   const [resending, setResending] = useState(false)
+  const [verifying, setVerifying] = useState(false)
 
   useEffect(() => {
     if (user) navigate('/app/add-book', { replace: true })
@@ -37,11 +39,12 @@ export function RegisterPage() {
     setErrors({})
     setNotice(null)
     setPendingEmail(null)
+    setOtp('')
     setLoading(true)
     try {
       const profile = await register(fullName, email, password)
       if (!profile) {
-        setNotice('Tài khoản đã được tạo. Vui lòng kiểm tra email để xác nhận trước khi đăng nhập.')
+        setNotice('Booki gửi mã OTP tới email của bạn rồi nè. Nhập mã bên dưới để xác nhận tài khoản nghen.')
         setPendingEmail(email.trim().toLowerCase())
         return
       }
@@ -54,13 +57,32 @@ export function RegisterPage() {
     }
   }
 
+  const handleVerifyOtp = async () => {
+    if (!pendingEmail) return
+    if (!/^\d{6}$/.test(otp.trim())) {
+      setErrors({ otp: 'Mã OTP gồm 6 chữ số nha.' })
+      return
+    }
+    setVerifying(true)
+    setErrors({})
+    try {
+      await verifySignupOtp(pendingEmail, otp.trim())
+      navigate('/app/add-book')
+    } catch (cause) {
+      console.error('Unable to verify the signup code', cause)
+      setErrors({ otp: userFacingError(cause, 'Mã OTP chưa đúng hoặc đã hết hạn. Thử lại nghen.') })
+    } finally {
+      setVerifying(false)
+    }
+  }
+
   const handleResendConfirmation = async () => {
     if (!pendingEmail) return
     setResending(true)
     setErrors({})
     try {
       await resendSignupConfirmation(pendingEmail)
-      setNotice('Đã gửi lại email xác nhận. Hãy kiểm tra thư đến và thư rác.')
+      setNotice('Đã gửi lại mã OTP rồi. Nhớ kiểm tra thư đến với thư rác nghen.')
     } catch (cause) {
       console.error('Unable to resend the account confirmation email', cause)
       setErrors({ form: userFacingError(cause, 'Chưa thể gửi email xác nhận. Hãy thử lại nha.') })
@@ -72,26 +94,29 @@ export function RegisterPage() {
   return (
     <AuthCard
       title="Đăng ký"
-      subtitle="Tạo tài khoản để bắt đầu chia sẻ sách"
+      subtitle="Tạo tài khoản rồi vô hội mê sách với tụi mình nghen."
       footerText="Đã có tài khoản?"
       footerLink="/login"
       footerLinkLabel="Đăng nhập"
     >
-      <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
-        {notice && (
-          <div className="space-y-2 text-sm text-accent-teal" role="status">
-            <p>{notice}</p>
-            {pendingEmail && (
-              <button type="button" className="font-semibold underline underline-offset-2 disabled:opacity-60" disabled={resending} onClick={() => void handleResendConfirmation()}>
-                {resending ? 'Đang gửi...' : 'Gửi lại email xác nhận'}
-              </button>
-            )}
-          </div>
+      <form onSubmit={(event) => {
+        if (pendingEmail) {
+          event.preventDefault()
+          void handleVerifyOtp()
+        } else {
+          void handleSubmit(event)
+        }
+      }} className="space-y-4">
+        {notice && <p className="text-sm text-accent-teal" role="status">{notice}</p>}
+        {pendingEmail && (
+          <button type="button" className="text-sm font-semibold text-accent-yellow underline underline-offset-2 disabled:opacity-60" disabled={resending} onClick={() => void handleResendConfirmation()}>
+            {resending ? 'Đang gửi...' : 'Gửi lại mã OTP'}
+          </button>
         )}
         {errors.form && (
           <p className="text-sm text-accent-rose" role="alert">{errors.form}</p>
         )}
-        {(['fullName', 'email', 'password', 'confirmPassword'] as const).map((field) => (
+        {!pendingEmail && (['fullName', 'email', 'password', 'confirmPassword'] as const).map((field) => (
           <div key={field}>
             <label htmlFor={field} className="mb-1.5 block text-sm font-medium">
               {field === 'fullName' && 'Họ tên'}
@@ -109,18 +134,50 @@ export function RegisterPage() {
             {errors[field] && <p className="mt-1 text-xs text-accent-rose">{errors[field]}</p>}
           </div>
         ))}
-        <GradientButton type="submit" disabled={loading || oauthBusy} className="w-full">
-          {loading ? 'Đang đăng ký...' : 'Đăng ký'}
-        </GradientButton>
-        <OAuthButtons
-          disabled={loading}
-          googleLabel="Đăng ký bằng Google"
-          facebookLabel="Đăng ký bằng Facebook"
-          googleBusyLabel="Đang chuyển đến Google..."
-          facebookBusyLabel="Đang chuyển đến Facebook..."
-          onError={(message) => setErrors({ form: message })}
-          onBusyChange={setOauthBusy}
-        />
+        {!pendingEmail && (
+          <>
+            <GradientButton type="submit" disabled={loading || oauthBusy} className="w-full">
+              {loading ? 'Đang tạo tài khoản...' : 'Tạo tài khoản'}
+            </GradientButton>
+            <OAuthButtons
+              disabled={loading}
+              googleLabel="Đăng ký bằng Google"
+              facebookLabel="Đăng ký bằng Facebook"
+              googleBusyLabel="Đang chuyển đến Google..."
+              facebookBusyLabel="Đang chuyển đến Facebook..."
+              onError={(message) => setErrors({ form: message })}
+              onBusyChange={setOauthBusy}
+            />
+          </>
+        )}
+        {pendingEmail && (
+          <div className="space-y-3">
+            <p className="text-xs leading-relaxed text-text-muted">
+              Mã được gửi tới <span className="font-semibold text-text-primary">{pendingEmail}</span>. Nhớ nghía cả mục thư rác nghen.
+            </p>
+            <div>
+              <label htmlFor="signup-otp" className="mb-1.5 block text-sm font-medium">Mã OTP 6 số</label>
+              <input
+                id="signup-otp"
+                name="otp"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                required
+                value={otp}
+                onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="field-control px-4 py-3 text-center text-lg font-bold tracking-[0.4em]"
+                aria-describedby={errors.otp ? 'signup-otp-error' : undefined}
+              />
+              {errors.otp && <p id="signup-otp-error" className="mt-1 text-xs text-accent-rose" role="alert">{errors.otp}</p>}
+            </div>
+            <GradientButton type="button" disabled={verifying || otp.length !== 6} className="w-full" onClick={() => void handleVerifyOtp()}>
+              {verifying ? 'Đang xác nhận...' : 'Xác nhận email'}
+            </GradientButton>
+          </div>
+        )}
         <Link to="/" className="block text-center text-sm text-text-muted hover:text-accent-yellow">
           ← Về trang chủ
         </Link>
