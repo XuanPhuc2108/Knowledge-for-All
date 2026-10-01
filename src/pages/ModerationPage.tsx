@@ -7,7 +7,7 @@ import { useToast } from '../hooks/useToast'
 import { getAdapter } from '../lib/dataAdapter'
 import { userFacingError } from '../lib/userFacingError'
 import type { AppLayoutContext } from '../components/AppLayout'
-import type { AppAuditEntry, BookModerationReport, BookReportStatus, StaffAppUser, StaffPlatformSummary } from '../types/book'
+import type { AppAuditEntry, BookGuardQueueItem, BookReportReason, BookReportStatus, StaffAppUser, StaffPlatformSummary } from '../types/book'
 import type { AppRole } from '../lib/dataAdapter'
 
 const STATUS_TEXT: Record<BookReportStatus, string> = {
@@ -16,7 +16,7 @@ const STATUS_TEXT: Record<BookReportStatus, string> = {
   resolved: 'Đã giải quyết',
 }
 
-const REASON_TEXT: Record<BookModerationReport['reason'], string> = {
+const REASON_TEXT: Record<BookReportReason, string> = {
   incorrect: 'Thông tin không chính xác',
   unavailable: 'Sách không còn khả dụng',
   inappropriate: 'Nội dung không phù hợp',
@@ -33,18 +33,24 @@ const ROLE_LABELS: Record<AppRole, string> = {
 const AUDIT_LABELS: Record<string, string> = {
   'role.changed': 'Cập nhật vai trò thành viên',
   'book.moderation_deleted': 'Gỡ bài đăng theo báo cáo',
+  'book.guard_marked_safe': 'Đánh dấu bài đăng an toàn',
+  'book.guard_kept': 'Giữ lại bài đăng sau khi xem xét',
   'report.status_changed': 'Cập nhật trạng thái báo cáo',
 }
+
+type QueueFilter = 'needs_review' | 'all' | 'MEDIUM' | 'HIGH' | 'reported' | 'resolved'
 
 export function ModerationPage() {
   const { role, roleError } = useOutletContext<AppLayoutContext>()
   const { showToast } = useToast()
-  const [reports, setReports] = useState<BookModerationReport[]>([])
+  const [items, setItems] = useState<BookGuardQueueItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reload, setReload] = useState(0)
   const [busyId, setBusyId] = useState<string | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<BookModerationReport | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<BookGuardQueueItem | null>(null)
+  const [filter, setFilter] = useState<QueueFilter>('needs_review')
+  const [expandedBookId, setExpandedBookId] = useState<string | null>(null)
   const [summary, setSummary] = useState<StaffPlatformSummary | null>(null)
   const [summaryError, setSummaryError] = useState<string | null>(null)
   const [staffUsers, setStaffUsers] = useState<StaffAppUser[]>([])
@@ -57,15 +63,15 @@ export function ModerationPage() {
   useEffect(() => {
     if (!role || role === 'user') return
     let cancelled = false
-    void getAdapter().getModerationReports()
+    void getAdapter().getBookGuardQueue()
       .then((result) => {
         if (cancelled) return
-        setReports(result)
+        setItems(result)
         setError(null)
       })
       .catch((cause: unknown) => {
-        console.error('Unable to load moderation reports', cause)
-        if (!cancelled) setError('Chưa thể tải báo cáo. Hãy thử lại nha.')
+        console.error('Unable to load Booki Guard queue', cause)
+        if (!cancelled) setError('Chưa thể tải hàng chờ kiểm duyệt. Hãy thử lại nha.')
       })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
@@ -107,11 +113,13 @@ export function ModerationPage() {
     return () => { cancelled = true }
   }, [role, usersReload])
 
-  const updateStatus = async (reportId: string, status: BookReportStatus) => {
-    setBusyId(reportId)
+  const updateStatus = async (item: BookGuardQueueItem, status: BookReportStatus) => {
+    if (!item.report) return
+    setBusyId(item.bookId)
     try {
-      await getAdapter().updateModerationReport(reportId, status)
+      await getAdapter().updateModerationReport(item.report.id, status)
       showToast('Đã cập nhật trạng thái báo cáo.', 'success')
+      setLoading(true)
       setReload((current) => current + 1)
     } catch (cause) {
       console.error('Unable to update moderation report', cause)
@@ -121,13 +129,29 @@ export function ModerationPage() {
     }
   }
 
+  const reviewBook = async (item: BookGuardQueueItem, decision: 'kept' | 'marked_safe') => {
+    setBusyId(item.bookId)
+    try {
+      await getAdapter().reviewBookGuard(item.bookId, decision)
+      showToast(decision === 'marked_safe' ? 'Đã đánh dấu bài đăng an toàn.' : 'Đã lưu quyết định giữ lại bài đăng.', 'success')
+      setLoading(true)
+      setReload((current) => current + 1)
+    } catch (cause) {
+      console.error('Unable to save Booki Guard review', cause)
+      showToast(userFacingError(cause, 'Không thể lưu quyết định kiểm duyệt. Hãy thử lại nha.'), 'error')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   const deleteReportedBook = async () => {
-    if (!deleteTarget?.book) return
-    setBusyId(deleteTarget.id)
+    if (!deleteTarget) return
+    setBusyId(deleteTarget.bookId)
     try {
       await getAdapter().moderateDeleteBook(deleteTarget.bookId)
       setDeleteTarget(null)
       showToast('Đã gỡ bài đăng vi phạm.', 'success')
+      setLoading(true)
       setReload((current) => current + 1)
     } catch (cause) {
       console.error('Unable to remove reported book', cause)
@@ -150,6 +174,25 @@ export function ModerationPage() {
       setRoleBusyId(null)
     }
   }
+
+  const needsReviewCount = items.filter((item) => (
+    item.moderationStatus === 'needs_review' || item.report?.status === 'pending'
+  )).length
+  const mediumRiskCount = items.filter((item) => item.riskLevel === 'MEDIUM').length
+  const highRiskCount = items.filter((item) => item.riskLevel === 'HIGH').length
+  const reportedCount = items.filter((item) => item.report).length
+  const resolvedCount = items.filter((item) => (
+    item.report?.status === 'resolved' || item.decision !== null
+  )).length
+  const visibleItems = items.filter((item) => {
+    if (filter === 'all') return true
+    if (filter === 'needs_review') {
+      return item.moderationStatus === 'needs_review' || item.report?.status === 'pending'
+    }
+    if (filter === 'reported') return Boolean(item.report)
+    if (filter === 'resolved') return item.report?.status === 'resolved' || item.decision !== null
+    return item.riskLevel === filter
+  })
 
   if (roleError) {
     return <EmptyState title="Chưa thể xác định quyền truy cập" description="Khu vực này cần cấu hình vai trò trong Supabase trước khi sử dụng." />
@@ -175,10 +218,19 @@ export function ModerationPage() {
         </span>
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.15em] text-accent-yellow">QUẢN TRỊ CỘNG ĐỒNG</p>
-          <h1 className="mt-1 text-3xl font-black tracking-tight text-text-primary">Kiểm duyệt bài đăng</h1>
-          <p className="mt-2 text-sm text-text-muted">Vai trò hiện tại: {ROLE_LABELS[role]}. Nội dung hiển thị dựa trên báo cáo thật.</p>
+          <h1 className="mt-1 text-3xl font-black tracking-tight text-text-primary">Booki Guard</h1>
+          <p className="mt-2 text-sm text-text-muted">
+            Vai trò hiện tại: {ROLE_LABELS[role]}. Quy tắc chỉ gợi ý nội dung cần xem; quyết định luôn thuộc về đội ngũ.
+          </p>
         </div>
       </header>
+
+      <section aria-label="Thống kê Booki Guard" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <SummaryCard label="Cần xem xét" value={needsReviewCount} />
+        <SummaryCard label="Mức trung bình" value={mediumRiskCount} />
+        <SummaryCard label="Mức cao" value={highRiskCount} />
+        <SummaryCard label="Có báo cáo" value={reportedCount} />
+      </section>
 
       {(role === 'admin' || role === 'owner') && summary ? (
         <section aria-label="Thống kê nền tảng" className="grid grid-cols-2 gap-3 md:grid-cols-5">
@@ -194,67 +246,163 @@ export function ModerationPage() {
         <div className="glass-card h-24 animate-pulse rounded-2xl" role="status" aria-label="Đang tải thống kê" />
       ) : null}
 
-      <section>
+      <section aria-labelledby="booki-guard-queue-title">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold text-text-primary">Báo cáo từ cộng đồng</h2>
-            <p className="mt-1 text-sm text-text-muted">Xem lý do, người báo cáo và tình trạng bài đăng trước khi xử lý.</p>
+            <h2 id="booki-guard-queue-title" className="text-xl font-bold text-text-primary">Hàng chờ xem xét</h2>
+            <p className="mt-1 text-sm text-text-muted">Tín hiệu minh bạch, không tự động gỡ bài hay xử phạt thành viên.</p>
           </div>
           <Button size="sm" variant="outline" disabled={loading} onClick={() => { setLoading(true); setReload((current) => current + 1) }}>
             Tải lại
           </Button>
         </div>
 
+        <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Lọc hàng chờ kiểm duyệt">
+          {([
+            ['needs_review', 'Cần xem xét', needsReviewCount],
+            ['all', 'Tất cả', items.length],
+            ['MEDIUM', 'Mức trung bình', mediumRiskCount],
+            ['HIGH', 'Mức cao', highRiskCount],
+            ['reported', 'Có báo cáo', reportedCount],
+            ['resolved', 'Đã xử lý', resolvedCount],
+          ] as const).map(([value, label, count]) => (
+            <Button
+              key={value}
+              size="sm"
+              variant={filter === value ? 'secondary' : 'outline'}
+              aria-pressed={filter === value}
+              onClick={() => setFilter(value)}
+            >
+              {label} <span className="tabular-nums opacity-75">{count}</span>
+            </Button>
+          ))}
+        </div>
+
         {loading ? (
-          <div className="space-y-3" role="status" aria-label="Đang tải báo cáo">
+          <div className="space-y-3" role="status" aria-label="Đang tải hàng chờ">
             {[0, 1, 2].map((item) => <div key={item} className="glass-card h-36 animate-pulse rounded-2xl" />)}
           </div>
         ) : error ? (
-          <EmptyState title="Không thể tải báo cáo" description={error} actionLabel="Thử lại" onAction={() => { setLoading(true); setReload((current) => current + 1) }} />
-        ) : reports.length === 0 ? (
-          <EmptyState title="Chưa có báo cáo nào" description="Khi cộng đồng gửi báo cáo bài đăng, nội dung sẽ xuất hiện tại đây." />
+          <EmptyState title="Không thể tải Booki Guard" description={error} actionLabel="Thử lại" onAction={() => { setLoading(true); setReload((current) => current + 1) }} />
+        ) : items.length === 0 ? (
+          <EmptyState title="Hàng chờ đang trống" description="Chưa có bài đăng cần xem xét hoặc báo cáo từ cộng đồng." />
+        ) : visibleItems.length === 0 ? (
+          <EmptyState title="Không có kết quả phù hợp" description="Thử chọn bộ lọc khác để xem các bài đăng trong hàng chờ." />
         ) : (
           <div className="space-y-3">
-            {reports.map((report) => (
-              <article key={report.id} className="glass-card rounded-2xl p-4 sm:p-5">
+            {visibleItems.map((item) => {
+              const expanded = expandedBookId === item.bookId
+              const busy = busyId === item.bookId
+              return (
+              <article key={item.bookId} className="glass-card rounded-2xl p-4 sm:p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-bold text-text-primary">{report.book?.title ?? 'Bài đăng không còn tồn tại'}</h3>
-                      <span className="rounded-full border border-accent-yellow/20 bg-accent-yellow/[0.08] px-2.5 py-1 text-xs text-accent-yellow">
-                        {STATUS_TEXT[report.status]}
+                      <h3 className="font-bold text-text-primary">{item.title}</h3>
+                      <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                        item.riskLevel === 'HIGH'
+                          ? 'border-accent-rose/25 bg-accent-rose/[0.08] text-accent-rose'
+                          : item.riskLevel === 'MEDIUM'
+                            ? 'border-accent-yellow/20 bg-accent-yellow/[0.08] text-accent-yellow'
+                            : 'border-glass/15 bg-[rgb(var(--color-interactive-surface)/.65)] text-text-muted'
+                      }`}>
+                        Rủi ro {item.riskLevel === 'HIGH' ? 'cao' : item.riskLevel === 'MEDIUM' ? 'trung bình' : 'thấp'}
                       </span>
+                      <span className="rounded-full border border-glass/10 px-2.5 py-1 text-xs text-text-muted">
+                        {item.moderationStatus === 'needs_review' ? 'Cần xem xét' : 'Đã duyệt'}
+                      </span>
+                      {item.report && (
+                        <span className="rounded-full border border-accent-yellow/20 bg-accent-yellow/[0.08] px-2.5 py-1 text-xs text-accent-yellow">
+                          {STATUS_TEXT[item.report.status]}
+                        </span>
+                      )}
                     </div>
                     <p className="mt-2 text-sm text-text-muted">
-                      {REASON_TEXT[report.reason]} · Người báo cáo: {report.reporterName ?? 'Thành viên'} · Người đăng: {report.book?.ownerName ?? 'Không xác định'}
+                      Người đăng: {item.ownerName} · {item.category} · Tình trạng sách: {item.bookStatus}
                     </p>
-                    {report.book && <p className="mt-1 text-xs text-text-muted">Tình trạng hiện tại: {report.book.status}</p>}
-                    {report.details && <p className="mt-2 whitespace-pre-wrap text-sm text-text-primary">{report.details}</p>}
+                    {item.report && (
+                      <p className="mt-1 text-sm text-text-muted">
+                        {REASON_TEXT[item.report.reason]} · Người báo cáo: {item.report.reporterName ?? 'Thành viên'}
+                      </p>
+                    )}
                     <p className="mt-2 text-xs text-text-muted">
-                      Báo cáo {new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(report.createdAt))}
+                      Đăng {new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.createdAt))}
+                      {item.report ? ` · Báo cáo ${new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.report.createdAt))}` : ''}
                     </p>
                   </div>
-                  {report.book && (
-                    <Link to={`/books/${report.book.id}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-accent-yellow hover:underline">
-                      Mở bài đăng <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
-                    </Link>
-                  )}
+                  <Link to={`/books/${item.bookId}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-accent-yellow hover:underline">
+                    Mở bài đăng <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
+                  </Link>
                 </div>
-                <div className="mt-4 flex flex-wrap gap-2 border-t border-glass/10 pt-3">
-                  <Button size="sm" variant="outline" disabled={busyId === report.id || report.status === 'reviewed'} onClick={() => void updateStatus(report.id, 'reviewed')}>
-                    Đánh dấu đã xem
-                  </Button>
-                  <Button size="sm" variant="outline" disabled={busyId === report.id || report.status === 'resolved'} onClick={() => void updateStatus(report.id, 'resolved')}>
-                    Đánh dấu đã giải quyết
-                  </Button>
-                  {report.book && (
-                    <Button size="sm" variant="danger" disabled={busyId === report.id} onClick={() => setDeleteTarget(report)}>
-                      <AlertTriangle aria-hidden="true" className="h-4 w-4" /> Gỡ bài đăng
-                    </Button>
-                  )}
-                </div>
+
+                <button
+                  type="button"
+                  className="mt-4 w-full rounded-xl border border-glass/10 px-3 py-2 text-left text-sm font-semibold text-text-primary transition-colors hover:bg-[rgb(var(--color-interactive-surface)/.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow"
+                  aria-expanded={expanded}
+                  aria-controls={`book-guard-detail-${item.bookId}`}
+                  onClick={() => setExpandedBookId(expanded ? null : item.bookId)}
+                >
+                  {expanded ? 'Ẩn chi tiết kiểm duyệt' : 'Xem chi tiết và tín hiệu'}
+                </button>
+
+                {expanded && (
+                  <div id={`book-guard-detail-${item.bookId}`} className="mt-3 rounded-xl border border-glass/10 bg-[rgb(var(--color-interactive-surface)/.5)] p-4">
+                    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(15rem,.8fr)]">
+                      <div>
+                        <h4 className="text-sm font-bold text-text-primary">Booki Guard · Nguồn: {item.moderationSource}</h4>
+                        <p className="mt-1 text-xs text-text-muted">
+                          Mức {item.riskLevel.toLowerCase()} là tín hiệu tham khảo, không phải kết luận về người đăng.
+                        </p>
+                        <ul className="mt-3 space-y-2 text-sm text-text-primary">
+                          {item.riskReasons.map((reason) => <li key={reason} className="flex gap-2"><span aria-hidden="true">•</span><span>{reason}</span></li>)}
+                        </ul>
+                        {item.decision && (
+                          <p className="mt-3 text-xs font-medium text-text-muted">
+                            Quyết định đã lưu: {item.decision === 'marked_safe' ? 'Đánh dấu an toàn' : 'Giữ bài đăng'}
+                            {item.reviewedAt ? ` · ${new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.reviewedAt))}` : ''}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-text-primary">Thông tin để đối chiếu</h4>
+                        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-text-muted">{item.description}</p>
+                        {item.report?.details && (
+                          <p className="mt-3 whitespace-pre-wrap border-l-2 border-accent-yellow/40 pl-3 text-sm text-text-primary">
+                            Báo cáo: {item.report.details}
+                          </p>
+                        )}
+                        <p className="mt-3 rounded-lg border border-glass/10 px-3 py-2 text-xs text-text-muted">
+                          {item.imageReviewStatus === 'manual_review'
+                            ? 'Ảnh chưa được phân loại tự động; cần xem trực tiếp khi duyệt.'
+                            : 'Bài đăng không có ảnh cần kiểm tra.'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2 border-t border-glass/10 pt-3">
+                      <Button size="sm" variant="secondary" disabled={busy} onClick={() => void reviewBook(item, 'kept')}>
+                        Giữ bài đăng
+                      </Button>
+                      <Button size="sm" variant="outline" disabled={busy} onClick={() => void reviewBook(item, 'marked_safe')}>
+                        Đánh dấu an toàn
+                      </Button>
+                      {item.report && (
+                        <>
+                          <Button size="sm" variant="outline" disabled={busy || item.report.status === 'reviewed'} onClick={() => void updateStatus(item, 'reviewed')}>
+                            Đánh dấu đã xem
+                          </Button>
+                          <Button size="sm" variant="outline" disabled={busy || item.report.status === 'resolved'} onClick={() => void updateStatus(item, 'resolved')}>
+                            Giải quyết báo cáo
+                          </Button>
+                        </>
+                      )}
+                      <Button size="sm" variant="danger" disabled={busy} onClick={() => setDeleteTarget(item)}>
+                        <AlertTriangle aria-hidden="true" className="h-4 w-4" /> Gỡ bài đăng
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </article>
-            ))}
+            )})}
           </div>
         )}
       </section>
@@ -266,7 +414,7 @@ export function ModerationPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-yellow">QUẢN LÝ THÀNH VIÊN</p>
               <h2 className="mt-1 text-xl font-bold text-text-primary">Vai trò trong Booki</h2>
               <p className="mt-1 text-sm text-text-muted">
-                Email và tọa độ riêng tư không hiển thị. Chỉ Owner được cấp vai trò; Moderator chỉ kiểm duyệt báo cáo và gỡ nội dung.
+                Email và tọa độ riêng tư không hiển thị. Chỉ Owner được cấp vai trò; Moderator có thể xem xét tín hiệu, xử lý báo cáo và gỡ nội dung.
               </p>
             </div>
             {usersError ? (
@@ -337,18 +485,18 @@ export function ModerationPage() {
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-dark/80 p-4"
           role="presentation"
-          onMouseDown={(event) => { if (event.target === event.currentTarget && busyId !== deleteTarget.id) setDeleteTarget(null) }}
-          onKeyDown={(event) => { if (event.key === 'Escape' && busyId !== deleteTarget.id) setDeleteTarget(null) }}
+          onMouseDown={(event) => { if (event.target === event.currentTarget && busyId !== deleteTarget.bookId) setDeleteTarget(null) }}
+          onKeyDown={(event) => { if (event.key === 'Escape' && busyId !== deleteTarget.bookId) setDeleteTarget(null) }}
         >
           <section role="alertdialog" aria-modal="true" aria-labelledby="moderation-delete-title" className="glass-card w-full max-w-md rounded-2xl p-5">
             <h2 id="moderation-delete-title" className="text-lg font-bold text-text-primary">Gỡ bài đăng này?</h2>
             <p className="mt-2 text-sm text-text-muted">
-              “{deleteTarget.book?.title}” và các báo cáo liên quan sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.
+              “{deleteTarget.title}” và các báo cáo liên quan sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.
             </p>
             <div className="mt-5 flex justify-end gap-2">
-              <Button variant="outline" disabled={busyId === deleteTarget.id} onClick={() => setDeleteTarget(null)}>Hủy</Button>
-              <Button variant="danger" disabled={busyId === deleteTarget.id} onClick={() => void deleteReportedBook()}>
-                {busyId === deleteTarget.id ? 'Đang gỡ...' : 'Xác nhận gỡ'}
+              <Button variant="outline" disabled={busyId === deleteTarget.bookId} onClick={() => setDeleteTarget(null)}>Hủy</Button>
+              <Button variant="danger" disabled={busyId === deleteTarget.bookId} onClick={() => void deleteReportedBook()}>
+                {busyId === deleteTarget.bookId ? 'Đang gỡ...' : 'Xác nhận gỡ'}
               </Button>
             </div>
           </section>

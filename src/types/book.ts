@@ -22,6 +22,7 @@ export interface Book {
   contactZaloUrl?: string
   contactMessengerUrl?: string
   status: BookStatus
+  moderationStatus?: BookGuardStatus
   createdAt: string
   updatedAt: string
 }
@@ -85,6 +86,10 @@ export interface CreateExchangeInput {
 
 export type BookReportReason = 'incorrect' | 'unavailable' | 'inappropriate' | 'other'
 export type BookReportStatus = 'pending' | 'reviewed' | 'resolved'
+export type BookGuardRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH'
+export type BookGuardStatus = 'needs_review' | 'cleared'
+export type BookGuardDecision = 'kept' | 'marked_safe' | null
+export type BookGuardSource = 'RULES' | 'LOCAL_MODEL' | 'FUTURE_PROVIDER'
 
 export interface BookModerationReport {
   id: string
@@ -96,6 +101,35 @@ export interface BookModerationReport {
   status: BookReportStatus
   createdAt: string
   book?: Pick<Book, 'id' | 'title' | 'ownerId' | 'ownerName' | 'status'>
+}
+
+export interface BookGuardQueueItem {
+  bookId: string
+  ownerId: string
+  ownerName: string
+  title: string
+  author?: string
+  category: string
+  description: string
+  bookStatus: BookStatus
+  createdAt: string
+  moderationStatus: BookGuardStatus
+  riskLevel: BookGuardRiskLevel
+  riskReasons: string[]
+  moderationSource: BookGuardSource
+  decision: BookGuardDecision
+  reviewedAt?: string
+  reviewedBy?: string
+  imageReviewStatus: 'manual_review' | 'not_applicable'
+  report?: {
+    id: string
+    reporterId: string
+    reporterName?: string
+    reason: BookReportReason
+    details?: string
+    status: BookReportStatus
+    createdAt: string
+  }
 }
 
 export interface CreateBookReportInput {

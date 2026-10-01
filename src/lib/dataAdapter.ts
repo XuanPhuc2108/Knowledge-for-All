@@ -4,6 +4,7 @@ import type {
   ChatMessage,
   CommunityReview,
   AppAuditEntry,
+  BookGuardQueueItem,
   BookModerationReport,
   BookReportReason,
   BookReportStatus,
@@ -24,7 +25,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 
 const PUBLIC_BOOK_LEGACY_COLUMNS = 'id, owner_id, owner_name, title, author, category, condition, exchange_type, description, image_urls, latitude, longitude, contact_phone, contact_email, contact_zalo_url, contact_messenger_url, status, created_at, updated_at'
 const PUBLIC_BOOK_COLUMNS = `${PUBLIC_BOOK_LEGACY_COLUMNS}, public_owner_name, public_owner_avatar_url, public_owner_area_label, public_owner_contact_phone, public_owner_contact_email`
-const OWN_BOOK_COLUMNS = 'id, owner_id, owner_name, title, author, category, condition, exchange_type, description, image_urls, contact_phone, contact_email, contact_zalo_url, contact_messenger_url, status, created_at, updated_at'
+const OWN_BOOK_COLUMNS = 'id, owner_id, owner_name, title, author, category, condition, exchange_type, description, image_urls, contact_phone, contact_email, contact_zalo_url, contact_messenger_url, status, moderation_status, created_at, updated_at'
 const inFlightPublicBookLists = new Map<string, Promise<Book[]>>()
 const inFlightPublicBookDetails = new Map<string, Promise<Book | null>>()
 let publicOwnerProjectionAvailable = true
@@ -76,6 +77,8 @@ export interface DataAdapter {
   getStaffSummary(): Promise<StaffPlatformSummary>
   getAuditLog(): Promise<AppAuditEntry[]>
   getModerationReports(): Promise<BookModerationReport[]>
+  getBookGuardQueue(): Promise<BookGuardQueueItem[]>
+  reviewBookGuard(bookId: string, decision: 'kept' | 'marked_safe'): Promise<void>
   updateModerationReport(reportId: string, status: BookReportStatus): Promise<void>
   moderateDeleteBook(bookId: string): Promise<void>
 }
@@ -181,6 +184,9 @@ function mapBook(row: Record<string, unknown>): Book {
     contactZaloUrl: safeContactUrl(row.contact_zalo_url, isValidZaloUrl),
     contactMessengerUrl: safeContactUrl(row.contact_messenger_url, isValidMessengerUrl),
     status: rawStatus === 'reserved' ? 'loaned' : rawStatus === 'shared' ? 'exchanged' : rawStatus as Book['status'],
+    moderationStatus: row.moderation_status === 'needs_review' || row.moderation_status === 'cleared'
+      ? row.moderation_status
+      : undefined,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   }
@@ -760,6 +766,58 @@ const supabaseAdapter: DataAdapter = {
         } : undefined,
       } satisfies BookModerationReport
     })
+  },
+
+  async getBookGuardQueue() {
+    const supabase = getSupabaseClient()!
+    const { data, error } = await supabase.rpc('get_book_guard_queue')
+    if (error) throw new Error(error.message)
+    return (data ?? []).map((row: Record<string, unknown>) => {
+      const reportId = optionalText(row.report_id)
+      const reportReason = optionalText(row.report_reason)
+      const reportStatus = optionalText(row.report_status)
+      return {
+        bookId: row.book_id as string,
+        ownerId: row.owner_id as string,
+        ownerName: optionalText(row.owner_name) ?? 'Người dùng',
+        title: row.title as string,
+        author: optionalText(row.author),
+        category: row.category as string,
+        description: row.description as string,
+        bookStatus: row.book_status as Book['status'],
+        createdAt: row.created_at as string,
+        moderationStatus: row.moderation_status as BookGuardQueueItem['moderationStatus'],
+        riskLevel: row.risk_level as BookGuardQueueItem['riskLevel'],
+        riskReasons: Array.isArray(row.risk_reasons)
+          ? row.risk_reasons.filter((reason): reason is string => typeof reason === 'string')
+          : [],
+        moderationSource: row.moderation_source as BookGuardQueueItem['moderationSource'],
+        decision: row.moderation_decision as BookGuardQueueItem['decision'],
+        reviewedAt: optionalText(row.moderation_reviewed_at),
+        reviewedBy: optionalText(row.moderation_reviewed_by),
+        imageReviewStatus: row.image_review_status as BookGuardQueueItem['imageReviewStatus'],
+        ...(reportId && reportReason && reportStatus ? {
+          report: {
+            id: reportId,
+            reporterId: row.reporter_id as string,
+            reporterName: optionalText(row.reporter_name),
+            reason: reportReason as BookReportReason,
+            details: optionalText(row.report_details),
+            status: reportStatus as BookReportStatus,
+            createdAt: row.report_created_at as string,
+          },
+        } : {}),
+      } satisfies BookGuardQueueItem
+    })
+  },
+
+  async reviewBookGuard(bookId, decision) {
+    const supabase = getSupabaseClient()!
+    const { error } = await supabase.rpc('review_book_guard', {
+      p_book_id: bookId,
+      p_decision: decision,
+    })
+    if (error) throw new Error(error.message)
   },
 
   async updateModerationReport(reportId, status) {

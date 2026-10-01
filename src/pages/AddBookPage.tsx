@@ -28,14 +28,19 @@ export function AddBookPage() {
 
     setSaving(true)
     try {
-      await createBook(user.fullName, {
+      const book = await createBook(user.fullName, {
         ...data,
         imageUrls,
         ...(useLocation && user.locationEnabled && user.latitude && user.longitude
           ? { latitude: user.latitude, longitude: user.longitude }
           : {}),
       })
-      showToast('Đã đăng sách thành công.', 'success')
+      showToast(
+        book.moderationStatus === 'needs_review'
+          ? 'Booki đang xem lại bài đăng xíu nha. Sách chưa hiển thị công khai trong lúc này.'
+          : 'Đã đăng sách thành công.',
+        book.moderationStatus === 'needs_review' ? 'info' : 'success',
+      )
       navigate('/app/my-books')
     } catch (e) {
       console.error('Unable to create a book listing', e)

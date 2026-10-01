@@ -1,5 +1,6 @@
 import type {
   Book,
+  BookGuardQueueItem,
   BookModerationReport,
   BookReportReason,
   CreateBookInput,
@@ -407,6 +408,10 @@ export const localAdapter = {
     return []
   },
 
+  async getBookGuardQueue(): Promise<BookGuardQueueItem[]> {
+    return []
+  },
+
   async getStaffUsers(): Promise<[]> {
     return []
   },
@@ -427,6 +432,10 @@ export const localAdapter = {
 
   async getAuditLog(): Promise<[]> {
     return []
+  },
+
+  async reviewBookGuard(): Promise<void> {
+    throw new Error('Công cụ kiểm duyệt chỉ khả dụng khi đã kết nối Supabase.')
   },
 
   async updateModerationReport(): Promise<void> {

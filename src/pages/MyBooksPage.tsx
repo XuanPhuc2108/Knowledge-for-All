@@ -151,6 +151,11 @@ export function MyBooksPage() {
                 actionLabel="Xem bài đăng"
                 onAction={() => navigate(`/app/books/${book.id}`, { state: { book } })}
               />
+              {book.moderationStatus === 'needs_review' && (
+                <p className="rounded-xl border border-accent-yellow/20 bg-accent-yellow/[0.06] px-3 py-2 text-xs text-accent-yellow">
+                  Bài đăng đang được xem lại trước khi hiển thị công khai.
+                </p>
+              )}
               <div className="settings-panel !p-3">
                 <label className="mb-1.5 block text-xs font-medium text-text-muted" htmlFor={`status-${book.id}`}>Tình trạng bài đăng</label>
                 <select
