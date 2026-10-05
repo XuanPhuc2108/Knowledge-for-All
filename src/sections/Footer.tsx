@@ -81,7 +81,7 @@ export function Footer() {
         </div>
 
         <p className="text-center text-xs text-text-muted md:text-left">
-          © {new Date().getFullYear()} {APP_NAME}. Tất cả quyền được bảo lưu.
+          © {new Date().getFullYear()} {APP_NAME}. Tất cả quyền được bảo lưu - Nguyễn Xuân Phúc.
         </p>
       </div>
     </footer>

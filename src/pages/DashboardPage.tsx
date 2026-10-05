@@ -240,7 +240,7 @@ export function DashboardPage({ publicMode = false }: { publicMode?: boolean }) 
           {!publicMode && <p className="mb-2 text-xs font-medium text-text-muted">{timeGreeting(new Date().getHours())}{user?.fullName ? `, ${user.fullName}` : ''} 👋</p>}
           <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-accent-yellow">{publicMode ? 'THƯ VIỆN BOOKI' : 'THƯ VIỆN CỘNG ĐỒNG'}</p>
           <h1 className="text-3xl font-black tracking-tight text-text-primary sm:text-4xl">Bạn cần tìm sách gì?</h1>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-muted">Lướt sách đang được chia sẻ, xem tình trạng rồi kết nối với người đăng.</p>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-muted">Sách đang được chia sẻ</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {!loading && !error && books.length > 0 && (

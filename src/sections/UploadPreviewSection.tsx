@@ -42,7 +42,7 @@ export function UploadPreviewSection() {
             <span className="text-gold-gradient">share liền tay</span>
           </h2>
           <AnimatedText
-            text="Chụp bìa, ghi vài dòng cho rõ rồi chọn cách chia sẻ. Sách hay đọc một mình vui, chuyền tay nhau còn vui hơn."
+            text="Sách hay đọc một mình vui, chuyền tay nhau còn vui hơn."
             scrollReveal
             className="mb-8 text-base leading-relaxed text-text-muted"
           />

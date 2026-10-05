@@ -82,7 +82,7 @@ export function SiteShareSection() {
             Quét mã, kiếm sách hay
           </h2>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-text-muted">
-            Mã này chỉ dẫn tới trang chủ Booki, không chứa tài khoản hay thông tin riêng tư. Chia sẻ với bạn bè để cùng ghé xem sách.
+            Mã QR của web
           </p>
           <a href={SITE_URL} className="mt-4 inline-block break-all text-sm font-medium text-accent-yellow hover:underline">
             {SITE_URL}

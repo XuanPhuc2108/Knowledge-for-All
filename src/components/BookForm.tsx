@@ -189,9 +189,8 @@ export function BookForm({
 
       <div className="space-y-3 rounded-2xl border border-glass/10 bg-[rgb(var(--color-interactive-surface)/.65)] p-4 sm:p-5">
         <div>
-          <p className="text-sm font-semibold text-text-primary">Thông tin liên hệ trên bài đăng (không bắt buộc)</p>
+          <p className="text-sm font-semibold text-text-primary">Thông tin liên hệ trên bài đăng</p>
           <p className="mt-1 text-xs text-text-muted">
-            Chỉ thông tin bạn nhập mới hiển thị trên sách đã đăng. Để trống nếu không muốn chia sẻ.
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">

@@ -64,7 +64,7 @@ export function HeroSection() {
 
           <FadeIn delay={0.55} y={10}>
             <p className="mt-8 text-xs text-text-muted">
-              Thấy cuốn hợp gu? Xem tình trạng và cách liên hệ ngay.
+              Thấy cuốn hợp gu? Xem tình trạng và liên hệ ngay.
             </p>
           </FadeIn>
         </div>

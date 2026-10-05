@@ -27,7 +27,7 @@ export function BookCarousel3DSection({ books, loading, error, refetch }: BookCa
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent-yellow">MỚI LÊN KỆ NÈ</p>
           <h2 className="mt-2 text-3xl font-black tracking-tight text-text-primary sm:text-4xl">Có gì hay để đọc?</h2>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-muted">
-            Lướt qua những cuốn đang có, thấy hợp gu thì mở xem chi tiết.
+            Có cuốn nào hợp gu bạn không?
           </p>
         </div>
         <Link to="/explore" className="inline-flex min-h-10 items-center rounded-xl border border-accent-yellow/25 bg-accent-yellow/[0.07] px-4 py-2 text-sm font-semibold text-accent-yellow transition-colors hover:bg-accent-yellow/[0.13]">

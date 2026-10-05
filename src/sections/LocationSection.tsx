@@ -57,7 +57,7 @@ export function LocationSection({ books }: { books: Book[] }) {
             {loading ? 'Đang xác định...' : enabled ? 'Đã bật định vị' : 'Bật định vị'}
           </Button>
           <p className="mt-6 text-xs text-text-muted">
-            Vị trí chính xác của bạn không hiện cho người khác đâu.
+            Vị trí của bạn được bảo mật.
           </p>
         </FadeIn>
 
