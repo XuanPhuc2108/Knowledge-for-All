@@ -75,8 +75,8 @@ export function validateBookForm(data: {
   if (!data.category) errors.category = 'Vui lòng chọn thể loại'
   if (!data.condition) errors.condition = 'Vui lòng chọn tình trạng'
   if (!data.exchangeType) errors.exchangeType = 'Vui lòng chọn hình thức'
-  if (!data.description.trim() || data.description.trim().length < 20) {
-    errors.description = 'Mô tả phải có ít nhất 20 ký tự'
+  if (!data.description.trim()) {
+    errors.description = 'Mô tả không được để trống.'
   }
   if (data.contactPhone?.trim() && !isValidPhone(data.contactPhone)) {
     errors.contactPhone = 'Số điện thoại không hợp lệ'
