@@ -86,7 +86,14 @@ export function EditBookPage() {
           onSubmit={save}
           submitLabel={saving ? 'Đang lưu...' : 'Lưu thay đổi'}
           isSubmitting={saving}
-          cameraSlot={<CameraCapture onImageCapture={(url) => setImageUrls([url])} />}
+          cameraSlot={(
+            <CameraCapture
+              onImageCapture={(url) => setImageUrls([url])}
+              onImageRemove={() => setImageUrls([])}
+              disabled={saving}
+              logContext="Edit Book"
+            />
+          )}
         />
       </div>
     </div>

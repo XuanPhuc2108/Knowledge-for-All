@@ -51,12 +51,12 @@ export function ImageWithSkeleton({
           onLoad?.(event)
         }}
         onError={(event) => {
+          onError?.(event)
           if (fallbackSrc && currentSrc === src) {
             setFailedSource(src)
             return
           }
           setFailedSource(currentSrc)
-          onError?.(event)
         }}
         className={clsx(
           className,

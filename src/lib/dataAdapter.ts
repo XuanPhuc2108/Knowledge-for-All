@@ -29,7 +29,7 @@ const BOOK_COVER_BUCKET = 'book-covers'
 const PROFILE_AVATAR_BUCKET = 'profile-avatars'
 const PUBLIC_BOOK_LEGACY_COLUMNS = 'id, owner_id, owner_name, title, author, category, condition, exchange_type, description, image_urls, latitude, longitude, contact_phone, contact_email, contact_zalo_url, contact_messenger_url, status, created_at, updated_at'
 const PUBLIC_BOOK_COLUMNS = `${PUBLIC_BOOK_LEGACY_COLUMNS}, public_owner_name, public_owner_avatar_url, public_owner_area_label, public_owner_contact_phone, public_owner_contact_email`
-const PUBLIC_BOOK_LIST_LEGACY_COLUMNS = PUBLIC_BOOK_LEGACY_COLUMNS.replace(', image_urls', '')
+const PUBLIC_BOOK_LIST_LEGACY_COLUMNS = PUBLIC_BOOK_LEGACY_COLUMNS
 const PUBLIC_BOOK_LIST_COLUMNS = `${PUBLIC_BOOK_LIST_LEGACY_COLUMNS}, public_owner_name, public_owner_avatar_url, public_owner_area_label, public_owner_contact_phone, public_owner_contact_email`
 const OWN_BOOK_COLUMNS = 'id, owner_id, owner_name, title, author, category, condition, exchange_type, description, image_urls, contact_phone, contact_email, contact_zalo_url, contact_messenger_url, status, moderation_status, created_at, updated_at'
 const inFlightPublicBookLists = new Map<string, Promise<Book[]>>()
@@ -38,6 +38,8 @@ const inFlightBookImages = new Map<string, Promise<string[]>>()
 const cachedBookImages = new Map<string, { imageUrls: string[]; cachedAt: number }>()
 const BOOK_IMAGE_CACHE_MAX_ENTRIES = 24
 let publicOwnerProjectionAvailable = true
+
+export type BookCreateProgress = 'uploading-cover' | 'saving-record'
 
 export interface DataAdapter {
   getCurrentUser(): Promise<UserProfile | null>
@@ -55,7 +57,12 @@ export interface DataAdapter {
   getBookById(id: string): Promise<Book | null>
   getRelatedBooks(category: string, excludeId: string, limit?: number): Promise<Book[]>
   getBookImages(id: string): Promise<string[]>
-  createBook(ownerId: string, ownerName: string, input: CreateBookInput): Promise<Book>
+  createBook(
+    ownerId: string,
+    ownerName: string,
+    input: CreateBookInput,
+    onProgress?: (stage: BookCreateProgress) => void,
+  ): Promise<Book>
   updateBook(id: string, ownerId: string, input: UpdateBookInput): Promise<Book>
   deleteBook(id: string, ownerId: string): Promise<void>
   getMyBooks(ownerId: string, limit?: number, offset?: number): Promise<Book[]>
@@ -130,6 +137,21 @@ function recordRows(value: unknown): Record<string, unknown>[] {
   return Array.isArray(value) ? value.filter(isRecord) : []
 }
 
+function bookImageUrls(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((url): url is string => typeof url === 'string' && Boolean(url.trim()))
+    .map((url) => url.trim())
+}
+
+function logBookCreate(stage: string, details?: unknown) {
+  if (!import.meta.env.DEV) return
+  if (stage.endsWith('failed')) {
+    console.error(`[Booki] Add Book: ${stage}`, details)
+  } else {
+    console.info(`[Booki] Add Book: ${stage}`)
+  }
+}
+
 function safeContactUrl(value: unknown, validate: (url: string) => boolean): string | undefined {
   const text = optionalText(value)
   return text && validate(text) ? text : undefined
@@ -162,13 +184,28 @@ async function prepareBookImages(
   bucket: string,
   ownerId: string,
   imageUrls: string[],
+  onUploadError?: (details: { message: string; statusCode?: string }) => void,
 ): Promise<{ imageUrls: string[]; uploadedPaths: string[] }> {
-  const nextImageUrls = [...imageUrls]
+  const nextImageUrls = imageUrls.map((url) => url.trim()).filter(Boolean)
   const uploadedPaths: string[] = []
   try {
-    for (let index = 0; index < imageUrls.length; index += 1) {
-      const imageUrl = imageUrls[index]
-      if (!imageUrl.startsWith('data:')) continue
+    for (let index = 0; index < nextImageUrls.length; index += 1) {
+      const imageUrl = nextImageUrls[index]
+      if (/^blob:/i.test(imageUrl)) {
+        throw new Error('Ảnh tạm thời không thể lưu. Hãy chọn lại ảnh từ máy nha.')
+      }
+      if (!imageUrl.startsWith('data:')) {
+        let parsedUrl: URL
+        try {
+          parsedUrl = new URL(imageUrl)
+        } catch {
+          throw new Error('Đường dẫn ảnh không hợp lệ. Hãy chọn lại ảnh nha.')
+        }
+        if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
+          throw new Error('Đường dẫn ảnh không hợp lệ. Hãy chọn lại ảnh nha.')
+        }
+        continue
+      }
       const blob = dataUrlToBlob(imageUrl)
       const extensions: Record<string, string> = {
         'image/webp': 'webp',
@@ -177,6 +214,9 @@ async function prepareBookImages(
       }
       const extension = extensions[blob.type]
       if (!extension) throw new Error('Định dạng ảnh bìa không được hỗ trợ.')
+      if (blob.size > 5 * 1024 * 1024) {
+        throw new Error('Ảnh sau khi tối ưu vẫn vượt quá giới hạn 5 MB. Hãy chọn ảnh khác nha.')
+      }
 
       const path = `${ownerId}/${crypto.randomUUID()}.${extension}`
       const { error } = await supabase.storage
@@ -187,12 +227,29 @@ async function prepareBookImages(
           upsert: false,
         })
       if (error) {
-        const classified = classifyUserFacingErrorMessage(error.message)
-        const friendlyMessage = classified ?? `Không thể tải ảnh lên kho lưu trữ: ${error.message}`
+        onUploadError?.({ message: error.message, statusCode: error.statusCode })
+        const friendlyMessage = classifyUserFacingErrorMessage(error.message, {
+          context: 'storage',
+          bucket,
+          statusCode: error.statusCode,
+        }) ?? 'Không thể tải ảnh lên kho lưu trữ. Kiểm tra cấu hình Storage rồi thử lại nha.'
         throw new Error(friendlyMessage)
       }
       uploadedPaths.push(path)
-      nextImageUrls[index] = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl
+      const publicUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl
+      let parsedPublicUrl: URL
+      try {
+        parsedPublicUrl = new URL(publicUrl)
+      } catch {
+        throw new Error('Ảnh đã tải lên nhưng chưa tạo được liên kết công khai. Vui lòng thử lại nha.')
+      }
+      if (
+        (parsedPublicUrl.protocol !== 'https:' && parsedPublicUrl.protocol !== 'http:') ||
+        !parsedPublicUrl.pathname.includes(`/storage/v1/object/public/${bucket}/`)
+      ) {
+        throw new Error('Ảnh đã tải lên nhưng liên kết công khai không hợp lệ. Vui lòng thử lại nha.')
+      }
+      nextImageUrls[index] = publicUrl
     }
     return { imageUrls: nextImageUrls, uploadedPaths }
   } catch (cause) {
@@ -271,7 +328,7 @@ function mapBook(row: Record<string, unknown>): Book {
     condition: row.condition as Book['condition'],
     exchangeType: row.exchange_type as Book['exchangeType'],
     description: row.description as string,
-    imageUrls: (row.image_urls as string[]) ?? [],
+    imageUrls: bookImageUrls(row.image_urls),
     latitude: row.latitude as number | undefined,
     longitude: row.longitude as number | undefined,
     contactPhone: optionalText(row.contact_phone) ?? optionalText(row.public_owner_contact_phone) ?? optionalText(publicProfile?.contact_phone),
@@ -644,22 +701,53 @@ const supabaseAdapter: DataAdapter = {
     return shareInFlightRequest(inFlightBookImages, id, async () => {
       const supabase = getSupabaseClient()!
       const { data, error } = await supabase
-        .from('books')
-        .select('cover_url:image_urls->>0')
+        .from('public_books')
+        .select('image_urls')
         .eq('id', id)
         .maybeSingle()
       if (error) throw new Error(error.message)
-      const imageUrl = typeof data?.cover_url === 'string' ? data.cover_url : ''
-      const imageUrls = imageUrl ? [imageUrl] : []
+      const imageUrls = bookImageUrls(data?.image_urls)
       cacheBookImages(id, imageUrls)
       return imageUrls
     })
   },
 
-  async createBook(ownerId, ownerName, input) {
+  async createBook(ownerId, ownerName, input, onProgress) {
     const supabase = getSupabaseClient()!
     const timestamp = new Date().toISOString()
-    const images = await prepareBookImages(supabase, BOOK_COVER_BUCKET, ownerId, input.imageUrls)
+    const hasNewCover = input.imageUrls.some((imageUrl) => imageUrl.startsWith('data:'))
+    let storageFailureLogged = false
+    let images: { imageUrls: string[]; uploadedPaths: string[] }
+    if (hasNewCover) {
+      logBookCreate('uploading cover')
+      onProgress?.('uploading-cover')
+    }
+    try {
+      images = await prepareBookImages(
+        supabase,
+        BOOK_COVER_BUCKET,
+        ownerId,
+        input.imageUrls,
+        (details) => {
+          storageFailureLogged = true
+          logBookCreate('cover upload failed', {
+            bucket: BOOK_COVER_BUCKET,
+            statusCode: details.statusCode,
+            error: details.message,
+          })
+        },
+      )
+    } catch (cause) {
+      if (hasNewCover && !storageFailureLogged) {
+        logBookCreate('cover upload failed', {
+          error: cause instanceof Error ? cause.message : 'Unexpected image processing error',
+        })
+      }
+      throw cause
+    }
+    if (hasNewCover) logBookCreate('cover uploaded')
+    logBookCreate('saving database record')
+    onProgress?.('saving-record')
     const payload = {
       owner_id: ownerId,
       owner_name: ownerName,
@@ -682,7 +770,16 @@ const supabaseAdapter: DataAdapter = {
     }
     try {
       const { data, error } = await supabase.from('books').insert(payload).select(OWN_BOOK_COLUMNS).single()
-      if (error) throw new Error(error.message)
+      if (error) {
+        logBookCreate('database insert failed', {
+          code: error.code,
+          error: error.message,
+        })
+        const message = classifyUserFacingErrorMessage(error.message, { context: 'database' })
+          ?? 'Chưa thể lưu bài đăng. Dữ liệu hoặc cấu hình máy chủ đang có vấn đề.'
+        throw new Error(message)
+      }
+      logBookCreate('completed')
       return { ...mapBook(data), ownerName }
     } catch (cause) {
       await removeBookCoverObjects(supabase, images.uploadedPaths)

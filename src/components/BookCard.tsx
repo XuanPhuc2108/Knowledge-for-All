@@ -1,8 +1,6 @@
 import clsx from 'clsx'
 import { Eye, Heart, Mail, MapPin, MessageCircle, Phone } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
 import { CONDITION_LABELS, EXCHANGE_LABELS, STATUS_LABELS } from '../lib/constants'
-import { getAdapter } from '../lib/dataAdapter'
 import { formatDistance } from '../lib/geo'
 import { ILLUSTRATIONS } from '../lib/images'
 import type { BookWithDistance } from '../types/book'
@@ -154,39 +152,10 @@ function BookCardCover({
   compact?: boolean
   priority: boolean
 }) {
-  const stageRef = useRef<HTMLDivElement>(null)
-  const [loadedImageUrls, setLoadedImageUrls] = useState<string[] | null>(null)
-  const hasImageUrls = imageUrls.length > 0
-  const displayImageUrls = hasImageUrls ? imageUrls : loadedImageUrls ?? []
-  const imageUrl = displayImageUrls[0]?.trim() || ILLUSTRATIONS.defaultCover
-
-  useEffect(() => {
-    if (hasImageUrls) return
-    const loadImages = () => {
-      void getAdapter().getBookImages(bookId)
-        .then(setLoadedImageUrls)
-        .catch((cause: unknown) => {
-          console.warn('Unable to load a book cover image', cause)
-          setLoadedImageUrls([])
-        })
-    }
-    if (typeof IntersectionObserver === 'undefined') {
-      loadImages()
-      return
-    }
-    const node = stageRef.current
-    if (!node) return
-    const observer = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting) return
-      observer.disconnect()
-      loadImages()
-    }, { rootMargin: '320px 0px' })
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [bookId, hasImageUrls])
+  const imageUrl = imageUrls[0]?.trim() || ILLUSTRATIONS.defaultCover
 
   return (
-    <div ref={stageRef} id={`book-cover-${bookId}`} className="h-full w-full">
+    <div id={`book-cover-${bookId}`} className="h-full w-full">
       <ImageWithSkeleton
         src={imageUrl}
         fallbackSrc={ILLUSTRATIONS.defaultCover}
@@ -195,6 +164,16 @@ function BookCardCover({
         height={800}
         loading={priority ? 'eager' : 'lazy'}
         fetchPriority={priority ? 'high' : 'auto'}
+        onError={(event) => {
+          const defaultCoverUrl = new URL(ILLUSTRATIONS.defaultCover, document.baseURI).href
+          if (
+            import.meta.env.DEV &&
+            imageUrl !== ILLUSTRATIONS.defaultCover &&
+            event.currentTarget.currentSrc !== defaultCoverUrl
+          ) {
+            console.warn('[Booki] Book cover URL failed to load; showing the fallback cover.', { bookId })
+          }
+        }}
         sizes={compact
           ? '(max-width: 420px) 92vw, (max-width: 1024px) 46vw, 360px'
           : '(max-width: 640px) 92vw, (max-width: 1280px) 44vw, 360px'}

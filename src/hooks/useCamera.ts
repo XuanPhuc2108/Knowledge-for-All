@@ -4,9 +4,18 @@ import { compressImage, dataUrlToBlob } from '../lib/imageCompression'
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 const ACCEPTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif'])
 
-export function useCamera() {
+function logImageStage(context: string, stage: string, details?: { mimeType?: string; size?: number }) {
+  if (!import.meta.env.DEV) return
+  const message = `[Booki] ${context}: ${stage}`
+  if (details) console.info(message, details)
+  else console.info(message)
+}
+
+export function useCamera(context = 'Add Book') {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const previousPreviewRef = useRef<string | null>(null)
+  const previousCompressionInfoRef = useRef<{ originalBytes: number; optimizedBytes: number } | null>(null)
   const [active, setActive] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)
   const [compressionInfo, setCompressionInfo] = useState<{ originalBytes: number; optimizedBytes: number } | null>(null)
@@ -37,11 +46,17 @@ export function useCamera() {
       }
       setActive(true)
     } catch (cause) {
-      console.error('Unable to access the camera', cause)
+      if (import.meta.env.DEV) console.error(`[Booki] ${context}: camera access failed`, cause)
       setError('Bạn đã từ chối quyền camera. Bạn vẫn có thể tải ảnh từ máy.')
       stopCamera()
+      if (previousPreviewRef.current) {
+        setPreview(previousPreviewRef.current)
+        setCompressionInfo(previousCompressionInfoRef.current)
+        previousPreviewRef.current = null
+        previousCompressionInfoRef.current = null
+      }
     }
-  }, [stopCamera])
+  }, [context, stopCamera])
 
   const capturePhoto = useCallback(async () => {
     const video = videoRef.current
@@ -64,18 +79,22 @@ export function useCamera() {
       )
       if (!blob) throw new Error('Camera image capture failed')
       const compressed = await compressImage(blob)
+      const optimizedBlob = dataUrlToBlob(compressed)
+      previousPreviewRef.current = null
+      previousCompressionInfoRef.current = null
       setPreview(compressed)
-      setCompressionInfo({ originalBytes: blob.size, optimizedBytes: dataUrlToBlob(compressed).size })
+      setCompressionInfo({ originalBytes: blob.size, optimizedBytes: optimizedBlob.size })
+      logImageStage(context, 'image compressed', { mimeType: optimizedBlob.type, size: optimizedBlob.size })
       stopCamera()
       return compressed
     } catch (cause) {
-      console.error('Unable to optimize the captured image', cause)
+      if (import.meta.env.DEV) console.error(`[Booki] ${context}: captured image compression failed`, cause)
       setError('Không thể xử lý ảnh vừa chụp. Hãy thử lại hoặc tải ảnh khác.')
       return null
     } finally {
       setProcessing(false)
     }
-  }, [stopCamera])
+  }, [context, stopCamera])
 
   const handleFileUpload = useCallback(async (file: File) => {
     setError(null)
@@ -93,31 +112,46 @@ export function useCamera() {
       return null
     }
 
+    logImageStage(context, 'image selected', { mimeType: file.type, size: file.size })
     setProcessing(true)
     try {
       const compressed = await compressImage(file)
+      const optimizedBlob = dataUrlToBlob(compressed)
       setPreview(compressed)
-      setCompressionInfo({ originalBytes: file.size, optimizedBytes: dataUrlToBlob(compressed).size })
+      setCompressionInfo({ originalBytes: file.size, optimizedBytes: optimizedBlob.size })
+      logImageStage(context, 'image compressed', { mimeType: optimizedBlob.type, size: optimizedBlob.size })
       return compressed
     } catch (cause) {
-      console.error('Unable to optimize the selected image', cause)
+      if (import.meta.env.DEV) console.error(`[Booki] ${context}: selected image compression failed`, cause)
       setError('Không thể xử lý ảnh này. Hãy chọn ảnh khác thử nhé.')
       return null
     } finally {
       setProcessing(false)
     }
-  }, [])
+  }, [context])
 
   const retake = useCallback(() => {
+    previousPreviewRef.current = preview
+    previousCompressionInfoRef.current = compressionInfo
     setPreview(null)
     setCompressionInfo(null)
     void startCamera()
-  }, [startCamera])
+  }, [compressionInfo, preview, startCamera])
 
   const clearPreview = useCallback(() => {
+    previousPreviewRef.current = null
+    previousCompressionInfoRef.current = null
     setPreview(null)
     setCompressionInfo(null)
   }, [])
+
+  const cancelRetake = useCallback(() => {
+    stopCamera()
+    setPreview(previousPreviewRef.current)
+    setCompressionInfo(previousCompressionInfoRef.current)
+    previousPreviewRef.current = null
+    previousCompressionInfoRef.current = null
+  }, [stopCamera])
 
   return {
     videoRef,
@@ -133,5 +167,6 @@ export function useCamera() {
     handleFileUpload,
     retake,
     clearPreview,
+    cancelRetake,
   }
 }
