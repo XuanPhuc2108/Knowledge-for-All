@@ -22,6 +22,7 @@ import { getAuthRedirectUrl, getSupabaseClient, isSupabaseConfigured } from './s
 import { localAdapter } from './localAdapter'
 import { dataUrlToBlob } from './imageCompression'
 import { isValidMessengerUrl, isValidZaloUrl } from './validation'
+import { classifyUserFacingErrorMessage } from './userFacingError'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 const BOOK_COVER_BUCKET = 'book-covers'
@@ -185,7 +186,11 @@ async function prepareBookImages(
           contentType: blob.type,
           upsert: false,
         })
-      if (error) throw new Error(`Không thể tải ảnh bìa lên kho lưu trữ: ${error.message}`)
+      if (error) {
+        const classified = classifyUserFacingErrorMessage(error.message)
+        const friendlyMessage = classified ?? `Không thể tải ảnh lên kho lưu trữ: ${error.message}`
+        throw new Error(friendlyMessage)
+      }
       uploadedPaths.push(path)
       nextImageUrls[index] = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl
     }

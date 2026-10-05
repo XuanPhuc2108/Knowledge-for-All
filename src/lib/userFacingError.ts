@@ -65,15 +65,41 @@ const KNOWN_DOMAIN_ERRORS: Record<string, string> = {
   'Auth session missing!': 'Phiên đăng nhập không còn hiệu lực. Đăng nhập lại để tiếp tục nha.',
 }
 
+const STORAGE_ERROR_MESSAGES: Array<{ pattern: RegExp; message: string }> = [
+  {
+    pattern: /bucket(?:\s+(?:not found|does not exist)|\s+.*(?:missing|not found))|storage bucket.*(?:missing|not found)|missing.*bucket/i,
+    message: 'Kho lưu trữ ảnh chưa được cấu hình. Kiểm tra bucket book-covers trong Supabase nha.',
+  },
+  {
+    pattern: /permission denied|not allowed to upload|row-level security|rls policy|storage policy|policy.*storage/i,
+    message: 'Chưa có quyền tải ảnh lên kho lưu trữ. Kiểm tra Storage Policy trong Supabase nha.',
+  },
+  {
+    pattern: /invalid.*(payload|image|file)|unsupported.*(image|file)|format.*(image|file) not supported/i,
+    message: 'Ảnh tải lên không hợp lệ. Hãy dùng tệp ảnh PNG, JPG hoặc WebP nha.',
+  },
+]
+
+export function classifyUserFacingErrorMessage(message: string): string | undefined {
+  const normalized = message.trim()
+  if (!normalized) return undefined
+  for (const entry of STORAGE_ERROR_MESSAGES) {
+    if (entry.pattern.test(normalized)) return entry.message
+  }
+  if (/failed to fetch|networkerror|load.*failed|network.*failed/i.test(normalized)) {
+    return 'Kết nối đang không ổn định. Kiểm tra mạng rồi thử lại nha.'
+  }
+  return undefined
+}
+
 export function userFacingError(error: unknown, fallback: string): string {
   if (!(error instanceof Error) || !error.message.trim()) return fallback
   const message = error.message.trim()
   if (KNOWN_DOMAIN_ERRORS[message]) return KNOWN_DOMAIN_ERRORS[message]
   if (SAFE_VIETNAMESE_MESSAGES.some((safe) => message.startsWith(safe))) return message
+  const classified = classifyUserFacingErrorMessage(message)
+  if (classified) return classified
   if (TECHNICAL_ERROR_PATTERNS.some((pattern) => pattern.test(message))) {
-    if (/failed to fetch|networkerror/i.test(message)) {
-      return 'Kết nối đang không ổn định. Kiểm tra mạng rồi thử lại nha.'
-    }
     return fallback
   }
   return message
