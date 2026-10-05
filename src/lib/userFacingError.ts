@@ -65,29 +65,52 @@ const KNOWN_DOMAIN_ERRORS: Record<string, string> = {
   'Auth session missing!': 'Phiên đăng nhập không còn hiệu lực. Đăng nhập lại để tiếp tục nha.',
 }
 
-const STORAGE_ERROR_MESSAGES: Array<{ pattern: RegExp; message: string }> = [
-  {
-    pattern: /bucket(?:\s+(?:not found|does not exist)|\s+.*(?:missing|not found))|storage bucket.*(?:missing|not found)|missing.*bucket/i,
-    message: 'Kho lưu trữ ảnh chưa được cấu hình. Kiểm tra bucket book-covers trong Supabase nha.',
-  },
-  {
-    pattern: /permission denied|not allowed to upload|row-level security|rls policy|storage policy|policy.*storage/i,
-    message: 'Chưa có quyền tải ảnh lên kho lưu trữ. Kiểm tra Storage Policy trong Supabase nha.',
-  },
-  {
-    pattern: /invalid.*(payload|image|file)|unsupported.*(image|file)|format.*(image|file) not supported/i,
-    message: 'Ảnh tải lên không hợp lệ. Hãy dùng tệp ảnh PNG, JPG hoặc WebP nha.',
-  },
-]
+type ErrorContext = 'storage' | 'database'
 
-export function classifyUserFacingErrorMessage(message: string): string | undefined {
+export function classifyUserFacingErrorMessage(
+  message: string,
+  options: { context?: ErrorContext; bucket?: string; statusCode?: string } = {},
+): string | undefined {
   const normalized = message.trim()
   if (!normalized) return undefined
-  for (const entry of STORAGE_ERROR_MESSAGES) {
-    if (entry.pattern.test(normalized)) return entry.message
-  }
-  if (/failed to fetch|networkerror|load.*failed|network.*failed/i.test(normalized)) {
+  const { context, bucket = 'book-covers', statusCode } = options
+
+  if (/failed to fetch|fetch failed|networkerror|network request failed|request timed out|timed out|timeout|temporary connection failure|connection (?:reset|refused|closed)/i.test(normalized)) {
     return 'Kết nối đang không ổn định. Kiểm tra mạng rồi thử lại nha.'
+  }
+  if (
+    statusCode === '401' ||
+    /(?:jwt|token).{0,25}(?:expired|invalid)|auth(?:entication)? session (?:missing|expired)|not authenticated|unauthorized/i.test(normalized)
+  ) {
+    return 'Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Đăng nhập lại rồi thử nha.'
+  }
+  if (
+    /bucket(?:\s+(?:not found|does not exist)|\s+.*(?:missing|not found))|storage bucket.*(?:missing|not found)|missing.*bucket/i.test(normalized)
+  ) {
+    return `Kho lưu trữ ảnh chưa được cấu hình. Kiểm tra bucket ${bucket} trong Supabase nha.`
+  }
+  if (context === 'storage' && (statusCode === '413' || /(?:maximum|exceed|too large).{0,40}(?:size|limit)|(?:size|limit).{0,40}(?:maximum|exceed|too large)/i.test(normalized))) {
+    return 'Ảnh sau khi tối ưu vẫn vượt quá giới hạn 5 MB. Hãy chọn ảnh khác nha.'
+  }
+  if (
+    /invalid.*(?:mime|content.?type|payload|image|file)|unsupported.*(?:mime|image|file)|(?:mime|content.?type).{0,40}(?:invalid|unsupported|not allowed|not supported)|format.*(?:image|file) not supported/i.test(normalized)
+  ) {
+    return 'Ảnh tải lên không hợp lệ. Hãy dùng tệp ảnh PNG, JPG hoặc WebP nha.'
+  }
+  if (
+    context === 'storage' &&
+    (statusCode === '403' || /permission denied|not allowed to upload|row-level security|rls policy|storage policy|policy.*storage/i.test(normalized))
+  ) {
+    return 'Chưa có quyền tải ảnh lên kho lưu trữ. Kiểm tra Storage Policy trong Supabase nha.'
+  }
+  if (context === 'storage') {
+    return 'Không thể tải ảnh lên kho lưu trữ. Kiểm tra cấu hình Storage rồi thử lại nha.'
+  }
+  if (
+    context === 'database' ||
+    /schema cache|could not find (?:the )?(?:table|relationship|column)|relation .+ does not exist|column .+ does not exist|violates .+ constraint|duplicate key|invalid input syntax|^(?:pgrst|postgrest|22p02|235\d{2})\b/i.test(normalized)
+  ) {
+    return 'Chưa thể lưu bài đăng. Dữ liệu hoặc cấu hình máy chủ đang có vấn đề.'
   }
   return undefined
 }

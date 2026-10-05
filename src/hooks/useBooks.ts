@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from './useAuthState'
-import { getAdapter } from '../lib/dataAdapter'
+import { getAdapter, type BookCreateProgress } from '../lib/dataAdapter'
 import { haversineDistance } from '../lib/geo'
 import type { Book, BookWithDistance, CreateBookInput, UpdateBookInput } from '../types/book'
 
@@ -275,9 +275,13 @@ export function useMyBooks(userId: string | undefined) {
     }
   }, [books.length, hasMore, pageSize, userId])
 
-  const createBook = async (ownerName: string, input: CreateBookInput) => {
+  const createBook = async (
+    ownerName: string,
+    input: CreateBookInput,
+    onProgress?: (stage: BookCreateProgress) => void,
+  ) => {
     if (!userId) throw new Error('Chưa đăng nhập')
-    const book = await getAdapter().createBook(userId, ownerName, input)
+    const book = await getAdapter().createBook(userId, ownerName, input, onProgress)
     invalidateBookListings(userId)
     setBooks((prev) => [book, ...prev])
     return book

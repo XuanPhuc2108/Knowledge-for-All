@@ -44,9 +44,16 @@ export async function compressImage(
 }
 
 export function dataUrlToBlob(dataUrl: string): Blob {
-  const [header, base64] = dataUrl.split(',')
-  const mime = header.match(/:(.*?);/)?.[1] ?? 'image/jpeg'
-  const binary = atob(base64)
+  const match = /^data:(image\/(?:webp|jpeg|png));base64,([\s\S]+)$/i.exec(dataUrl)
+  if (!match) throw new Error('Ảnh đã chọn không hợp lệ. Hãy chọn lại ảnh nha.')
+  const mime = match[1].toLowerCase()
+  let binary: string
+  try {
+    binary = atob(match[2].replace(/\s/g, ''))
+  } catch {
+    throw new Error('Ảnh đã chọn không hợp lệ. Hãy chọn lại ảnh nha.')
+  }
+  if (!binary.length) throw new Error('Ảnh đã chọn không hợp lệ. Hãy chọn lại ảnh nha.')
   const array = new Uint8Array(binary.length)
   for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i)
   return new Blob([array], { type: mime })

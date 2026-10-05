@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BookForm } from '../components/BookForm'
 import { CameraCapture } from '../components/CameraCapture'
@@ -15,17 +15,25 @@ export function AddBookPage() {
   const navigate = useNavigate()
   const [imageUrls, setImageUrls] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
+  const [submissionStage, setSubmissionStage] = useState<'uploading-cover' | 'saving-record'>('saving-record')
+  const submissionLock = useRef(false)
 
   const handleImageCapture = (url: string) => {
     setImageUrls([url])
   }
 
+  const handleImageRemove = () => {
+    setImageUrls([])
+  }
+
   const handleSubmit = async (data: CreateBookInput) => {
-    if (!user) return
+    if (!user || submissionLock.current) return
 
     const form = document.querySelector('form')
     const useLocation = (form?.querySelector('[name="useLocation"]') as HTMLInputElement)?.checked
 
+    submissionLock.current = true
+    setSubmissionStage(imageUrls.some((url) => url.startsWith('data:')) ? 'uploading-cover' : 'saving-record')
     setSaving(true)
     try {
       const book = await createBook(user.fullName, {
@@ -34,7 +42,7 @@ export function AddBookPage() {
         ...(useLocation && user.locationEnabled && user.latitude && user.longitude
           ? { latitude: user.latitude, longitude: user.longitude }
           : {}),
-      })
+      }, setSubmissionStage)
       showToast(
         book.moderationStatus === 'needs_review'
           ? 'Booki đang xem lại bài đăng xíu nha. Sách chưa hiển thị công khai trong lúc này.'
@@ -43,9 +51,10 @@ export function AddBookPage() {
       )
       navigate('/app/my-books')
     } catch (e) {
-      console.error('Unable to create a book listing', e)
+      if (import.meta.env.DEV) console.error('[Booki] Add Book: submission failed', e)
       showToast(userFacingError(e, 'Chưa thể đăng sách. Hãy thử lại nha.'), 'error')
     } finally {
+      submissionLock.current = false
       setSaving(false)
     }
   }
@@ -64,8 +73,16 @@ export function AddBookPage() {
           locationEnabled={user?.locationEnabled}
           onSubmit={handleSubmit}
           isSubmitting={saving}
-          submitLabel={saving ? 'Đang đăng...' : 'Đăng sách'}
-          cameraSlot={<CameraCapture onImageCapture={handleImageCapture} />}
+          submitLabel={saving
+            ? submissionStage === 'uploading-cover' ? 'Đang tải ảnh lên...' : 'Đang lưu bài đăng...'
+            : 'Đăng sách'}
+          cameraSlot={(
+            <CameraCapture
+              onImageCapture={handleImageCapture}
+              onImageRemove={handleImageRemove}
+              disabled={saving}
+            />
+          )}
         />
       </div>
     </div>
