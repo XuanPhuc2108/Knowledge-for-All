@@ -45,7 +45,7 @@ export function HeroSection() {
 
           <FadeIn delay={0.35} y={20}>
             <AnimatedText
-              text="Có sách hay thì share liền tay. Booki giúp bạn tìm, cho mượn và đổi sách dễ dàng hơn."
+              text="Đổi và Mượn sách dễ dàng hơn"
               scrollReveal={false}
               className="mb-8 max-w-lg break-words text-lg leading-relaxed text-text-muted"
             />
