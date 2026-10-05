@@ -180,9 +180,7 @@ export function BookForm({
           name="description"
           rows={4}
           defaultValue={initial?.description}
-          placeholder="Mô tả ngắn về sách (ít nhất 20 ký tự)"
           required
-          minLength={20}
           className={clsx(liquidControlClass, 'resize-none')}
         />
       </div>
