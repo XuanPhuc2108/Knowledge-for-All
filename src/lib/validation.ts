@@ -62,7 +62,7 @@ export function validateBookForm(data: {
   category: string
   condition: string
   exchangeType: string
-  description: string
+  description?: string
   contactPhone?: string
   contactEmail?: string
   contactZaloUrl?: string
@@ -75,9 +75,6 @@ export function validateBookForm(data: {
   if (!data.category) errors.category = 'Vui lòng chọn thể loại'
   if (!data.condition) errors.condition = 'Vui lòng chọn tình trạng'
   if (!data.exchangeType) errors.exchangeType = 'Vui lòng chọn hình thức'
-  if (!data.description.trim()) {
-    errors.description = 'Mô tả không được để trống.'
-  }
   if (data.contactPhone?.trim() && !isValidPhone(data.contactPhone)) {
     errors.contactPhone = 'Số điện thoại không hợp lệ'
   }

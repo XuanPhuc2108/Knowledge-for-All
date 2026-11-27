@@ -9,6 +9,7 @@ import type {
   UpdateBookInput,
 } from '../types/book'
 import type { UpdateProfileInput, UserProfile } from '../types/user'
+import { bookDescriptionUpdate } from './bookDescription.ts'
 
 const USERS_KEY = 'sgn_users'
 const BOOKS_KEY = 'sgn_books'
@@ -237,6 +238,7 @@ export const localAdapter = {
       ownerId,
       ownerName,
       ...input,
+      description: input.description?.trim() ? input.description : '',
       status: 'available',
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -253,7 +255,12 @@ export const localAdapter = {
     if (index === -1) throw new Error('Không tìm thấy sách')
     if (books[index].ownerId !== ownerId) throw new Error('Không có quyền chỉnh sửa')
 
-    books[index] = { ...books[index], ...input, updatedAt: now() }
+    books[index] = {
+      ...books[index],
+      ...input,
+      ...bookDescriptionUpdate(input.description),
+      updatedAt: now(),
+    }
     writeBooks(books)
     return books[index]
   },

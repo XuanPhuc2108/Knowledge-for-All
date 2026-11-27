@@ -12,11 +12,13 @@ import {
   redoImageEdit,
   renderBookImage,
   undoImageEdit,
+  validateEditedImageBlob,
   type BrushPoint,
   type CropRect,
   type ImageEditHistory,
   type ImageEditState,
 } from '../lib/bookImageEditor'
+import { dataUrlToBlob } from '../lib/imageCompression'
 import { Button } from './Button'
 import { GradientButton } from './GradientButton'
 
@@ -291,7 +293,9 @@ export function BookImageEditor({ source, onApply, onClose }: BookImageEditorPro
     setSaving(true)
     setSaveError(null)
     try {
-      const blob = await renderBookImage(image, image.naturalWidth, image.naturalHeight, state)
+      const blob = validateEditedImageBlob(
+        await renderBookImage(image, image.naturalWidth, image.naturalHeight, state),
+      )
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
         reader.onload = () => typeof reader.result === 'string'
@@ -300,10 +304,13 @@ export function BookImageEditor({ source, onApply, onClose }: BookImageEditorPro
         reader.onerror = () => reject(reader.error ?? new Error('Không thể đọc ảnh đã xử lý.'))
         reader.readAsDataURL(blob)
       })
+      if (dataUrlToBlob(dataUrl).size !== blob.size) {
+        throw new Error('Edited image output did not match the exported image')
+      }
       onApply(dataUrl)
     } catch (cause) {
       console.error('Unable to export edited book image', cause)
-      setSaveError(cause instanceof Error ? cause.message : 'Không thể lưu ảnh chỉnh sửa.')
+      setSaveError('Chưa thể áp dụng ảnh này. Ảnh gốc vẫn được giữ nguyên; hãy thử lại hoặc hủy để dùng ảnh gốc.')
     } finally {
       setSaving(false)
     }
@@ -312,15 +319,15 @@ export function BookImageEditor({ source, onApply, onClose }: BookImageEditorPro
   const resetToOriginalCrop = () => changeState({ ...state, crop: createInitialImageEditState().crop })
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-dark/85 p-2 sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-dark/85 p-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4">
       <section
         id="book-image-editor"
         role="dialog"
         aria-modal="true"
         aria-labelledby="book-image-editor-title"
-        className="book-image-editor max-h-[100vh] max-h-[100dvh] w-full max-w-3xl overflow-y-auto overscroll-contain rounded-t-2xl border border-glass/12 bg-dark-secondary p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:p-6"
+        className="book-image-editor flex max-h-full min-h-0 w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-glass/12 bg-dark-secondary p-4 shadow-2xl sm:rounded-2xl sm:p-6"
       >
-        <header className="mb-4 flex items-center justify-between gap-3">
+        <header className="mb-3 flex shrink-0 items-center justify-between gap-3">
           <div>
             <h2 id="book-image-editor-title" className="text-lg font-bold text-text-primary">Chỉnh ảnh bìa sách</h2>
             <p className="mt-1 text-xs text-text-muted">Ảnh được xử lý ngay trên thiết bị của bạn.</p>
@@ -330,122 +337,128 @@ export function BookImageEditor({ source, onApply, onClose }: BookImageEditorPro
           </button>
         </header>
 
-        {imageError ? (
-          <div>
-            <p role="alert" className="rounded-xl border border-accent-rose/25 bg-accent-rose/10 p-4 text-sm text-accent-rose">{imageError}</p>
-            <p className="mt-2 text-sm text-text-muted">Ảnh gốc vẫn được giữ trong biểu mẫu.</p>
-          </div>
-        ) : !image ? (
-          <p role="status" className="py-16 text-center text-sm text-text-muted">Đang mở ảnh...</p>
-        ) : (
-          <>
-            <div className="mb-4 rounded-xl border border-glass/10 bg-black/20 p-2">
-              <div className="relative mx-auto w-fit max-w-full touch-none">
-                <canvas ref={canvasRef} aria-label="Ảnh xem trước sau chỉnh sửa" className="block max-h-[40dvh] max-w-full rounded-lg object-contain" />
-                <canvas
-                  ref={overlayRef}
-                  aria-hidden="true"
-                  className={`absolute inset-0 h-full w-full rounded-lg ${tool === 'view' ? 'pointer-events-none' : 'cursor-crosshair touch-none'}`}
-                  onPointerDown={onPointerDown}
-                  onPointerMove={onPointerMove}
-                  onPointerUp={onPointerUp}
-                  onPointerCancel={onPointerCancel}
-                />
-              </div>
+        <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
+          {imageError ? (
+            <div>
+              <p role="alert" className="rounded-xl border border-accent-rose/25 bg-accent-rose/10 p-4 text-sm text-accent-rose">{imageError}</p>
+              <p className="mt-2 text-sm text-text-muted">Ảnh gốc vẫn được giữ trong biểu mẫu.</p>
             </div>
-
-            <div className="mb-4 flex flex-wrap gap-2" aria-label="Công cụ chỉnh ảnh">
-              <Button type="button" size="sm" variant={tool === 'crop' ? 'primary' : 'secondary'} onClick={() => setTool(tool === 'crop' ? 'view' : 'crop')} aria-pressed={tool === 'crop'}>
-                Cắt ảnh
-              </Button>
-              <Button type="button" size="sm" variant={tool === 'blur' ? 'primary' : 'secondary'} onClick={() => setTool(tool === 'blur' ? 'view' : 'blur')} aria-pressed={tool === 'blur'}>
-                Cọ làm mờ
-              </Button>
-              <Button type="button" size="sm" variant="secondary" onClick={undo} disabled={!history.past.length} aria-label="Hoàn tác">
-                <Undo2 className="h-4 w-4" aria-hidden="true" /> Hoàn tác
-              </Button>
-              <Button type="button" size="sm" variant="secondary" onClick={redo} disabled={!history.future.length} aria-label="Làm lại">
-                <Redo2 className="h-4 w-4" aria-hidden="true" /> Làm lại
-              </Button>
-              <Button type="button" size="sm" variant="secondary" onClick={reset} disabled={saving}>
-                <RotateCcw className="h-4 w-4" aria-hidden="true" /> Khôi phục ảnh gốc
-              </Button>
-            </div>
-
-            {tool === 'crop' && (
-              <fieldset className="mb-4 space-y-3 rounded-xl border border-glass/10 p-3">
-                <legend className="px-1 text-sm font-semibold text-text-primary">Cắt ảnh</legend>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { label: 'Tự do', ratio: null },
-                    { label: 'Vuông 1:1', ratio: 1 },
-                    { label: 'Sách 4:3', ratio: 4 / 3 },
-                  ].map((option) => (
-                    <Button
-                      key={option.label}
-                      type="button"
-                      size="sm"
-                      variant={aspectRatio === option.ratio ? 'primary' : 'secondary'}
-                      aria-pressed={aspectRatio === option.ratio}
-                      onClick={() => setAspectRatio(option.ratio)}
-                    >
-                      {option.label}
-                    </Button>
-                  ))}
-                  <Button type="button" size="sm" variant="secondary" onClick={resetToOriginalCrop}>Khôi phục vùng cắt</Button>
+          ) : !image ? (
+            <p role="status" className="py-16 text-center text-sm text-text-muted">Đang mở ảnh...</p>
+          ) : (
+            <>
+              <div className="mb-4 rounded-xl border border-glass/10 bg-black/20 p-2">
+                <div className="relative mx-auto w-fit max-w-full touch-none">
+                  <canvas ref={canvasRef} aria-label="Ảnh xem trước sau chỉnh sửa" className="block max-h-[34dvh] max-w-full rounded-lg object-contain sm:max-h-[45dvh]" />
+                  <canvas
+                    ref={overlayRef}
+                    aria-hidden="true"
+                    className={`absolute inset-0 h-full w-full rounded-lg ${tool === 'view' ? 'pointer-events-none' : 'cursor-crosshair touch-none'}`}
+                    onPointerDown={onPointerDown}
+                    onPointerMove={onPointerMove}
+                    onPointerUp={onPointerUp}
+                    onPointerCancel={onPointerCancel}
+                  />
                 </div>
-                <p className="text-xs text-text-muted">Kéo trên ảnh để chọn vùng cắt.</p>
-              </fieldset>
-            )}
-
-            <div className="mb-4 grid gap-3 sm:grid-cols-2">
-              <SliderControl
-                label="Độ sáng"
-                value={state.brightness}
-                min={50}
-                max={150}
-                onChange={(value) => changeState({ ...state, brightness: value })}
-                onReset={() => changeState({ ...state, brightness: 100 })}
-              />
-              <SliderControl
-                label="Tương phản"
-                value={state.contrast}
-                min={50}
-                max={150}
-                onChange={(value) => changeState({ ...state, contrast: value })}
-                onReset={() => changeState({ ...state, contrast: 100 })}
-              />
-            </div>
-
-            {tool === 'blur' && (
-              <div className="mb-4 grid gap-3 rounded-xl border border-glass/10 p-3 sm:grid-cols-2">
-                <SliderControl
-                  label="Kích thước cọ"
-                  value={state.brushSize}
-                  min={16}
-                  max={112}
-                  suffix=" px"
-                  onChange={(value) => setState((current) => ({ ...current, brushSize: value }))}
-                />
-                <SliderControl
-                  label="Độ mờ"
-                  value={state.blurStrength}
-                  min={2}
-                  max={24}
-                  onChange={(value) => changeState({ ...state, blurStrength: value })}
-                />
-                <p className="text-xs text-text-muted sm:col-span-2">Tô lên vùng ảnh cần làm mờ. Nét cọ được hoàn tác cùng lịch sử chỉnh sửa.</p>
               </div>
-            )}
-          </>
-        )}
 
-        {saveError && <p role="alert" className="mb-3 text-sm text-accent-rose">{saveError}</p>}
-        <footer className="flex flex-col-reverse gap-2 border-t border-glass/10 pt-4 sm:flex-row sm:justify-end">
-          <Button type="button" variant="secondary" disabled={saving} onClick={onClose}>Dùng ảnh gốc</Button>
-          <GradientButton type="button" disabled={!image || Boolean(imageError) || saving} onClick={() => void apply()}>
-            {saving ? 'Đang áp dụng...' : 'Áp dụng'}
-          </GradientButton>
+              <div className="mb-4 flex flex-wrap gap-2" aria-label="Công cụ chỉnh ảnh">
+                <Button type="button" size="sm" variant={tool === 'crop' ? 'primary' : 'secondary'} onClick={() => setTool(tool === 'crop' ? 'view' : 'crop')} aria-pressed={tool === 'crop'}>
+                  Cắt ảnh
+                </Button>
+                <Button type="button" size="sm" variant={tool === 'blur' ? 'primary' : 'secondary'} onClick={() => setTool(tool === 'blur' ? 'view' : 'blur')} aria-pressed={tool === 'blur'}>
+                  Cọ làm mờ
+                </Button>
+              </div>
+
+              {tool === 'crop' && (
+                <fieldset className="mb-4 space-y-3 rounded-xl border border-glass/10 p-3">
+                  <legend className="px-1 text-sm font-semibold text-text-primary">Cắt ảnh</legend>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { label: 'Tự do', ratio: null },
+                      { label: 'Vuông 1:1', ratio: 1 },
+                      { label: 'Sách 4:3', ratio: 4 / 3 },
+                    ].map((option) => (
+                      <Button
+                        key={option.label}
+                        type="button"
+                        size="sm"
+                        variant={aspectRatio === option.ratio ? 'primary' : 'secondary'}
+                        aria-pressed={aspectRatio === option.ratio}
+                        onClick={() => setAspectRatio(option.ratio)}
+                      >
+                        {option.label}
+                      </Button>
+                    ))}
+                    <Button type="button" size="sm" variant="secondary" onClick={resetToOriginalCrop}>Khôi phục vùng cắt</Button>
+                  </div>
+                  <p className="text-xs text-text-muted">Kéo trên ảnh để chọn vùng cắt.</p>
+                </fieldset>
+              )}
+
+              <div className="mb-4 grid gap-3 sm:grid-cols-2">
+                <SliderControl
+                  label="Độ sáng"
+                  value={state.brightness}
+                  min={50}
+                  max={150}
+                  onChange={(value) => changeState({ ...state, brightness: value })}
+                  onReset={() => changeState({ ...state, brightness: 100 })}
+                />
+                <SliderControl
+                  label="Tương phản"
+                  value={state.contrast}
+                  min={50}
+                  max={150}
+                  onChange={(value) => changeState({ ...state, contrast: value })}
+                  onReset={() => changeState({ ...state, contrast: 100 })}
+                />
+              </div>
+
+              {tool === 'blur' && (
+                <div className="mb-4 grid gap-3 rounded-xl border border-glass/10 p-3 sm:grid-cols-2">
+                  <SliderControl
+                    label="Kích thước cọ"
+                    value={state.brushSize}
+                    min={16}
+                    max={112}
+                    suffix=" px"
+                    onChange={(value) => setState((current) => ({ ...current, brushSize: value }))}
+                  />
+                  <SliderControl
+                    label="Độ mờ"
+                    value={state.blurStrength}
+                    min={2}
+                    max={24}
+                    onChange={(value) => changeState({ ...state, blurStrength: value })}
+                  />
+                  <p className="text-xs text-text-muted sm:col-span-2">Tô lên vùng ảnh cần làm mờ. Nét cọ được hoàn tác cùng lịch sử chỉnh sửa.</p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <footer className="mt-3 flex shrink-0 flex-col gap-2 border-t border-glass/10 bg-dark-secondary pt-3 pb-1">
+          {saveError && <p role="alert" className="text-sm text-accent-rose">{saveError}</p>}
+          <div className="grid grid-cols-3 gap-2">
+            <Button type="button" size="sm" variant="secondary" onClick={undo} disabled={!history.past.length || saving} aria-label="Hoàn tác" className="min-w-0 px-1 text-[11px]">
+              <Undo2 className="h-4 w-4 shrink-0" aria-hidden="true" /> Hoàn tác
+            </Button>
+            <Button type="button" size="sm" variant="secondary" onClick={redo} disabled={!history.future.length || saving} aria-label="Làm lại" className="min-w-0 px-1 text-[11px]">
+              <Redo2 className="h-4 w-4 shrink-0" aria-hidden="true" /> Làm lại
+            </Button>
+            <Button type="button" size="sm" variant="secondary" onClick={reset} disabled={saving} className="min-w-0 px-1 text-[11px]">
+              <RotateCcw className="h-4 w-4 shrink-0" aria-hidden="true" /> <span className="whitespace-normal">Khôi phục ảnh gốc</span>
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button type="button" variant="secondary" disabled={saving} onClick={onClose}>Hủy</Button>
+            <GradientButton type="button" disabled={!image || Boolean(imageError) || saving} onClick={() => void apply()} className="w-full">
+              {saving ? 'Đang áp dụng...' : 'Áp dụng ảnh'}
+            </GradientButton>
+          </div>
         </footer>
       </section>
     </div>

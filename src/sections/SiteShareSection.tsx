@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { Button } from '../components/Button'
 import { useToast } from '../hooks/useToast'
+import { trackBookiEvent } from '../lib/bookiAnalytics'
+import { createBookiShareUrl } from '../lib/bookSharing'
 
-const SITE_URL = 'https://booki-vn.vercel.app/'
+const SITE_URL = createBookiShareUrl()
 
 export function SiteShareSection() {
   const { showToast } = useToast()
@@ -43,6 +45,7 @@ export function SiteShareSection() {
         field.remove()
         if (!copied) throw new Error('Browser clipboard fallback failed')
       }
+      trackBookiEvent('booki_share', { method: 'copy-link' })
       showToast('Chép link Booki xong rồi, gửi hội bạn thôi!', 'success')
     } catch (cause) {
       console.error('Unable to copy the Booki website URL', cause)
@@ -54,6 +57,7 @@ export function SiteShareSection() {
     if (navigator.share) {
       try {
         await navigator.share({ title: 'Booki — Sách hay, share liền tay', url: SITE_URL })
+        trackBookiEvent('booki_share', { method: 'native' })
         return
       } catch (cause) {
         if (cause instanceof DOMException && cause.name === 'AbortError') return
@@ -71,6 +75,7 @@ export function SiteShareSection() {
     document.body.append(anchor)
     anchor.click()
     anchor.remove()
+    trackBookiEvent('booki_share', { method: 'qr-download' })
   }
 
   return (

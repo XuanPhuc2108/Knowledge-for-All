@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { dataUrlToBlob } from '../src/lib/imageCompression.ts'
 import { classifyUserFacingErrorMessage, userFacingError } from '../src/lib/userFacingError.ts'
+import { bookDescriptionUpdate, normalizeBookDescription } from '../src/lib/bookDescription.ts'
 import { validateBookForm } from '../src/lib/validation.ts'
 
 const validBook = {
@@ -15,14 +16,42 @@ const validBook = {
   contactMessengerUrl: '',
 }
 
-test('short non-empty descriptions remain valid while blank descriptions are rejected', () => {
+test('book descriptions are optional and non-empty descriptions remain valid', () => {
   for (const description of ['Sách còn mới.', 'Đọc rất ổn.', 'Test app']) {
     assert.equal(validateBookForm({ ...validBook, description }).description, undefined)
   }
-  assert.equal(
-    validateBookForm({ ...validBook, description: '  \n ' }).description,
-    'Mô tả không được để trống.',
-  )
+  assert.equal(validateBookForm(validBook).description, undefined)
+  assert.equal(validateBookForm({ ...validBook, description: '' }).description, undefined)
+  assert.equal(validateBookForm({ ...validBook, description: '  \n ' }).description, undefined)
+})
+
+test('clearing an optional description stores a compatible empty string', () => {
+  assert.equal(normalizeBookDescription(undefined), '')
+  assert.equal(normalizeBookDescription(null), '')
+  assert.equal(normalizeBookDescription(' \n '), '')
+  assert.equal(normalizeBookDescription('  Sách còn mới.  '), '  Sách còn mới.  ')
+})
+
+test('book edits omit an untouched description but persist an explicit clear', () => {
+  assert.deepEqual(bookDescriptionUpdate(undefined), {})
+  assert.deepEqual(bookDescriptionUpdate(''), { description: '' })
+  assert.deepEqual(bookDescriptionUpdate('  \n '), { description: '' })
+})
+
+test('other required book fields still fail validation when description is omitted', () => {
+  const errors = validateBookForm({
+    ...validBook,
+    title: ' ',
+    category: '',
+    condition: '',
+    exchangeType: '',
+  })
+
+  assert.ok(errors.title)
+  assert.ok(errors.category)
+  assert.ok(errors.condition)
+  assert.ok(errors.exchangeType)
+  assert.equal(errors.description, undefined)
 })
 
 test('compressed data URLs are decoded with their actual supported MIME type', () => {

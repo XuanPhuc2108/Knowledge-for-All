@@ -10,6 +10,16 @@ test('a complete ordinary book listing receives a low-risk advisory', async () =
     description: 'Sách còn tốt, phù hợp để đọc trong những ngày nghỉ cuối tuần.',
   })
 
+  test('an omitted description does not make an ordinary listing suspicious', async () => {
+    const result = await localModerationProvider.moderateText({
+      title: 'Sách tham khảo',
+      category: 'Giáo dục',
+    })
+
+    assert.equal(result.riskLevel, 'LOW')
+    assert.match(result.reasons[0], /Chưa phát hiện/)
+  })
+
   assert.equal(result.riskLevel, 'LOW')
   assert.equal(result.source, 'RULES')
   assert.match(result.reasons[0], /Chưa phát hiện/)

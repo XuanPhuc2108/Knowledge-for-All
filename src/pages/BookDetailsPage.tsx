@@ -123,6 +123,7 @@ export function BookDetailsPage({ publicMode = false }: { publicMode?: boolean }
     if (!displayedBook || !publicMode) return
     const previousTitle = document.title
     const description = displayedBook.description.trim().slice(0, 160)
+      || `${displayedBook.title} | Booki`
     const canonicalUrl = new URL(`/books/${encodeURIComponent(displayedBook.id)}`, window.location.origin).toString()
     const tags = [
       { key: 'name', name: 'description', content: description },
@@ -281,7 +282,9 @@ export function BookDetailsPage({ publicMode = false }: { publicMode?: boolean }
           <h1 className="text-3xl font-black tracking-tight text-text-primary sm:text-4xl">{displayedBook.title}</h1>
           {displayedBook.author && <p className="mt-2 text-text-muted">{displayedBook.author}</p>}
           <p className="mt-3 text-sm text-text-muted">Tình trạng sách: {CONDITION_LABELS[displayedBook.condition]}</p>
-          <p className="mt-5 whitespace-pre-wrap text-sm leading-relaxed text-text-primary">{displayedBook.description}</p>
+          {displayedBook.description.trim() && (
+            <p className="mt-5 whitespace-pre-wrap text-sm leading-relaxed text-text-primary">{displayedBook.description}</p>
+          )}
           <div className="mt-5 border-t border-glass/10 pt-4">
             <div className="flex items-center gap-3">
               {displayedBook.ownerAvatarUrl ? (

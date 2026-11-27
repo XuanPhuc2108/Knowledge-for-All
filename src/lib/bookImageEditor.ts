@@ -33,6 +33,14 @@ export const MAX_IMAGE_EDIT_HISTORY = 15
 export const MAX_IMAGE_EDIT_POINTS_PER_STROKE = 240
 export const MAX_IMAGE_EDIT_STROKES = 80
 export const MAX_IMAGE_EDIT_DIMENSION = 1440
+const EXPORTED_IMAGE_TYPES = new Set(['image/webp', 'image/jpeg', 'image/png'])
+
+export function validateEditedImageBlob(blob: Blob): Blob {
+  if (!blob.size || !EXPORTED_IMAGE_TYPES.has(blob.type)) {
+    throw new Error('Không thể xuất ảnh đã chỉnh sửa. Hãy thử lại hoặc chọn ảnh khác.')
+  }
+  return blob
+}
 
 export const ORIGINAL_CROP: CropRect = { x: 0, y: 0, width: 1, height: 1 }
 
@@ -290,8 +298,5 @@ export async function renderBookImage(
     canvas.width = 0
     canvas.height = 0
   }
-  if (!blob?.size || !['image/webp', 'image/jpeg', 'image/png'].includes(blob.type)) {
-    throw new Error('Không thể xuất ảnh đã chỉnh sửa. Hãy thử lại hoặc chọn ảnh khác.')
-  }
-  return blob
+  return validateEditedImageBlob(blob)
 }

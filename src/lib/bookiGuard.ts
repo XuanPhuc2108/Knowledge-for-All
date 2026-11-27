@@ -3,7 +3,7 @@ export type BookGuardSource = 'RULES' | 'LOCAL_MODEL' | 'FUTURE_PROVIDER'
 
 export interface BookGuardTextInput {
   title: string
-  description: string
+  description?: string
   author?: string
   category?: string
   reportReason?: string
@@ -55,7 +55,7 @@ function normalizeTitle(title: string): string {
 
 function assessText(input: BookGuardTextInput): BookGuardAssessment {
   const title = input.title.trim()
-  const description = input.description.trim()
+  const description = input.description?.trim() ?? ''
   const content = [title, input.author, input.category, description].filter(Boolean).join(' ')
   const reasons: string[] = []
   let weight = 0
@@ -93,10 +93,10 @@ function assessText(input: BookGuardTextInput): BookGuardAssessment {
     weight += 1
   }
 
-  if (title.length < 2 || MEANINGLESS_TEXT.test(description)) {
+  if (title.length < 2 || (description.length > 0 && MEANINGLESS_TEXT.test(description))) {
     reasons.push('Thông tin sách hoặc mô tả có thể chưa đủ ý nghĩa.')
     weight += 1
-  } else if (description.length < 12) {
+  } else if (description.length > 0 && description.length < 12) {
     reasons.push('Mô tả khá ngắn, nên xem lại thông tin trước khi duyệt.')
     weight += 1
   }
