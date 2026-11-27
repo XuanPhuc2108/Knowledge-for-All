@@ -42,10 +42,7 @@ export function CameraCapture({
 
   const onCapture = async () => {
     const data = await capturePhoto()
-    if (data) {
-      onImageCapture(data)
-      setEditingSource(data)
-    }
+    if (data) onImageCapture(data)
   }
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,10 +50,7 @@ export function CameraCapture({
     e.currentTarget.value = ''
     if (!file) return
     const data = await handleFileUpload(file)
-    if (data) {
-      onImageCapture(data)
-      setEditingSource(data)
-    }
+    if (data) onImageCapture(data)
   }
 
   return (

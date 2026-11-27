@@ -87,11 +87,19 @@ export function BookForm({
     }
     if (errorEl) errorEl.classList.add('hidden')
 
-    await onSubmit({
-      ...data,
-      imageUrls,
-      ...(useLoc && locationEnabled ? {} : {}),
-    })
+    try {
+      await onSubmit({
+        ...data,
+        imageUrls,
+        ...(useLoc && locationEnabled ? {} : {}),
+      })
+    } catch (cause) {
+      console.error('Book form submission failed', cause)
+      if (errorEl) {
+        errorEl.textContent = 'Chưa đăng sách được. Thông tin bạn nhập vẫn được giữ lại.'
+        errorEl.classList.remove('hidden')
+      }
+    }
   }
 
   return (

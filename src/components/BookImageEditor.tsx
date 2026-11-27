@@ -62,9 +62,9 @@ export function BookImageEditor({ source, onApply, onClose }: BookImageEditorPro
       setImage(imageElement)
       setImageError(null)
     }
-    imageElement.onerror = () => {
-      setImageError('Không hỗ trợ định dạng ảnh này (ví dụ HEIC). Hãy chọn ảnh JPEG, PNG hoặc WebP.')
-    }
+    imageElement.onerror = () => setImageError(
+      'Chưa thể xử lý ảnh này. Bạn có thể dùng ảnh gốc hoặc chọn ảnh khác.',
+    )
     imageElement.src = source
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -118,7 +118,7 @@ export function BookImageEditor({ source, onApply, onClose }: BookImageEditorPro
         rendered.height = 0
       } catch (cause) {
         console.error('Unable to preview book image edits', cause)
-        setImageError('Không thể xem trước thay đổi này. Hãy thử chọn ảnh khác.')
+        setImageError('Chưa thể xử lý ảnh này. Bạn có thể dùng ảnh gốc hoặc chọn ảnh khác.')
       }
       animationFrameRef.current = null
     })
@@ -331,7 +331,10 @@ export function BookImageEditor({ source, onApply, onClose }: BookImageEditorPro
         </header>
 
         {imageError ? (
-          <p role="alert" className="rounded-xl border border-accent-rose/25 bg-accent-rose/10 p-4 text-sm text-accent-rose">{imageError}</p>
+          <div>
+            <p role="alert" className="rounded-xl border border-accent-rose/25 bg-accent-rose/10 p-4 text-sm text-accent-rose">{imageError}</p>
+            <p className="mt-2 text-sm text-text-muted">Ảnh gốc vẫn được giữ trong biểu mẫu.</p>
+          </div>
         ) : !image ? (
           <p role="status" className="py-16 text-center text-sm text-text-muted">Đang mở ảnh...</p>
         ) : (
@@ -439,7 +442,7 @@ export function BookImageEditor({ source, onApply, onClose }: BookImageEditorPro
 
         {saveError && <p role="alert" className="mb-3 text-sm text-accent-rose">{saveError}</p>}
         <footer className="flex flex-col-reverse gap-2 border-t border-glass/10 pt-4 sm:flex-row sm:justify-end">
-          <Button type="button" variant="secondary" disabled={saving} onClick={onClose}>Hủy</Button>
+          <Button type="button" variant="secondary" disabled={saving} onClick={onClose}>Dùng ảnh gốc</Button>
           <GradientButton type="button" disabled={!image || Boolean(imageError) || saving} onClick={() => void apply()}>
             {saving ? 'Đang áp dụng...' : 'Áp dụng'}
           </GradientButton>

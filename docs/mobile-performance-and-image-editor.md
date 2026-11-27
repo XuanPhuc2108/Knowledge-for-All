@@ -20,6 +20,16 @@ WebViews; it has been replaced with a translucent flat backdrop. The existing
 navigation scroll listener already uses a passive listener and coalesces updates
 with `requestAnimationFrame`, so it was left unchanged.
 
+The book-photo editor is opt-in. Selecting or capturing an image leaves the
+existing preview and listing workflow ready to submit; users open the editor
+only with the explicit "Chỉnh ảnh" action. If preview/export fails, the user
+can close the editor and keep the original selected image.
+
+Book creation does not wait for best-effort cover cleanup after a failed
+database insert. The insert error is returned immediately so the submit handler's
+`finally` can release the loading state; rollback cleanup still runs and logs
+failures without masking the original database error.
+
 No Firefox-specific performance bottleneck has been measured in this environment.
 Firefox is not installed or available through the browser preview, and no
 Firefox profiler trace, physical-device trace, or controlled Chromium comparison
@@ -33,9 +43,9 @@ were changed.
 
 ## Image editor
 
-The create/edit book image flow opens an in-place, browser-local editor after a
-photo is selected, captured, or reopened from the current book. It supports free,
-square (1:1), and book-photo (4:3) cropping; brightness and contrast sliders;
+The create/edit book image flow keeps the original listing workflow on image
+selection and opens its in-place, browser-local editor only when the user chooses
+"Chỉnh ảnh". It supports free, square (1:1), and book-photo (4:3) cropping; brightness and contrast sliders;
 localized blur strokes; bounded undo/redo; reset; preview; cancel; and apply.
 Pointer events cover mouse and touch input. The editor previews at up to 1440
 pixels on the longest side and keeps at most 15 history snapshots, 80 strokes,
@@ -59,7 +69,7 @@ error; this change does not alter storage permissions.
 
 | Verification | Result |
 | --- | --- |
-| Automated tests | `npm test` — 40 passed, 0 failed |
+| Automated tests | `npm test` — 48 passed, 0 failed |
 | Lint | `npm run lint` — passed |
 | Production build | `npm run build` — passed |
 | Patch whitespace | `git diff --check` — passed |

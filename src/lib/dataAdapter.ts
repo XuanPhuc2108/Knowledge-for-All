@@ -26,6 +26,7 @@ import {
 } from './supabase'
 import { localAdapter } from './localAdapter'
 import { dataUrlToBlob } from './imageCompression'
+import { completeBookCreation, scheduleBookImageCleanup } from './bookCreatePipeline'
 import { isValidMessengerUrl, isValidZaloUrl } from './validation'
 import { classifyUserFacingErrorMessage } from './userFacingError'
 import type { RealtimeChannel } from '@supabase/supabase-js'
@@ -195,6 +196,15 @@ async function removeBookCoverObjects(
   if (error) console.error('Unable to clean up replaced book-cover images', error)
 }
 
+function scheduleBookCoverCleanup(
+  supabase: SupabaseClient,
+  paths: string[],
+  bucket = BOOK_COVER_BUCKET,
+) {
+  if (paths.length === 0) return
+  scheduleBookImageCleanup(() => removeBookCoverObjects(supabase, paths, bucket))
+}
+
 async function prepareBookImages(
   supabase: SupabaseClient,
   bucket: string,
@@ -269,7 +279,7 @@ async function prepareBookImages(
     }
     return { imageUrls: nextImageUrls, uploadedPaths }
   } catch (cause) {
-    await removeBookCoverObjects(supabase, uploadedPaths, bucket)
+    scheduleBookCoverCleanup(supabase, uploadedPaths, bucket)
     throw cause
   }
 }
@@ -703,38 +713,38 @@ const supabaseAdapter: DataAdapter = {
     const timestamp = new Date().toISOString()
     const hasNewCover = input.imageUrls.some((imageUrl) => imageUrl.startsWith('data:'))
     let storageFailureLogged = false
-    let images: { imageUrls: string[]; uploadedPaths: string[] }
     if (hasNewCover) {
       logBookCreate('uploading cover')
       onProgress?.('uploading-cover')
     }
-    try {
-      images = await prepareBookImages(
-        supabase,
-        BOOK_COVER_BUCKET,
-        ownerId,
-        input.imageUrls,
-        (details) => {
-          storageFailureLogged = true
+    const prepareImages = async () => {
+      try {
+        const images = await prepareBookImages(
+          supabase,
+          BOOK_COVER_BUCKET,
+          ownerId,
+          input.imageUrls,
+          (details) => {
+            storageFailureLogged = true
+            logBookCreate('cover upload failed', {
+              bucket: BOOK_COVER_BUCKET,
+              statusCode: details.statusCode,
+              error: details.message,
+            })
+          },
+        )
+        if (hasNewCover) logBookCreate('cover uploaded')
+        return images
+      } catch (cause) {
+        if (hasNewCover && !storageFailureLogged) {
           logBookCreate('cover upload failed', {
-            bucket: BOOK_COVER_BUCKET,
-            statusCode: details.statusCode,
-            error: details.message,
+            error: cause instanceof Error ? cause.message : 'Unexpected image processing error',
           })
-        },
-      )
-    } catch (cause) {
-      if (hasNewCover && !storageFailureLogged) {
-        logBookCreate('cover upload failed', {
-          error: cause instanceof Error ? cause.message : 'Unexpected image processing error',
-        })
+        }
+        throw cause
       }
-      throw cause
     }
-    if (hasNewCover) logBookCreate('cover uploaded')
-    logBookCreate('saving database record')
-    onProgress?.('saving-record')
-    const payload = {
+    const createPayload = (imageUrls: string[]) => ({
       owner_id: ownerId,
       owner_name: ownerName,
       title: input.title,
@@ -743,7 +753,7 @@ const supabaseAdapter: DataAdapter = {
       condition: input.condition,
       exchange_type: input.exchangeType,
       description: input.description,
-      image_urls: images.imageUrls,
+      image_urls: imageUrls,
       latitude: input.latitude,
       longitude: input.longitude,
       contact_phone: input.contactPhone,
@@ -753,24 +763,29 @@ const supabaseAdapter: DataAdapter = {
       status: 'available',
       created_at: timestamp,
       updated_at: timestamp,
-    }
-    try {
-      const { data, error } = await supabase.from('books').insert(payload).select(OWN_BOOK_COLUMNS).single()
-      if (error) {
-        logBookCreate('database insert failed', {
-          code: error.code,
-          error: error.message,
-        })
-        const message = classifyUserFacingErrorMessage(error.message, { context: 'database' })
-          ?? 'Chưa thể lưu bài đăng. Dữ liệu hoặc cấu hình máy chủ đang có vấn đề.'
-        throw new Error(message)
-      }
-      logBookCreate('completed')
-      return { ...mapBook(data), ownerName }
-    } catch (cause) {
-      await removeBookCoverObjects(supabase, images.uploadedPaths)
-      throw cause
-    }
+    })
+    return completeBookCreation(
+      prepareImages,
+      async (imageUrls) => {
+        const { data, error } = await supabase.from('books').insert(createPayload(imageUrls)).select(OWN_BOOK_COLUMNS).single()
+        if (error) {
+          logBookCreate('database insert failed', {
+            code: error.code,
+            error: error.message,
+          })
+          const message = classifyUserFacingErrorMessage(error.message, { context: 'database' })
+            ?? 'Chưa thể lưu bài đăng. Dữ liệu hoặc cấu hình máy chủ đang có vấn đề.'
+          throw new Error(message)
+        }
+        logBookCreate('completed')
+        return { ...mapBook(data), ownerName }
+      },
+      (paths) => removeBookCoverObjects(supabase, paths),
+      () => {
+        logBookCreate('saving database record')
+        onProgress?.('saving-record')
+      },
+    )
   },
 
   async updateBook(id, ownerId, input) {

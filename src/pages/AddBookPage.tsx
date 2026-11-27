@@ -5,6 +5,7 @@ import { CameraCapture } from '../components/CameraCapture'
 import { useToast } from '../hooks/useToast'
 import { useAuth } from '../hooks/useAuthState'
 import { useMyBooks } from '../hooks/useBooks'
+import { runBookSubmission } from '../lib/bookCreatePipeline'
 import { userFacingError } from '../lib/userFacingError'
 import type { CreateBookInput } from '../types/book'
 
@@ -27,22 +28,21 @@ export function AddBookPage() {
   }
 
   const handleSubmit = async (data: CreateBookInput) => {
-    if (!user || submissionLock.current) return
+    if (!user) return
 
     const form = document.querySelector('form')
     const useLocation = (form?.querySelector('[name="useLocation"]') as HTMLInputElement)?.checked
 
-    submissionLock.current = true
     setSubmissionStage(imageUrls.some((url) => url.startsWith('data:')) ? 'uploading-cover' : 'saving-record')
-    setSaving(true)
     try {
-      const book = await createBook(user.fullName, {
+      const book = await runBookSubmission(submissionLock, setSaving, () => createBook(user.fullName, {
         ...data,
         imageUrls,
         ...(useLocation && user.locationEnabled && user.latitude && user.longitude
           ? { latitude: user.latitude, longitude: user.longitude }
           : {}),
-      }, setSubmissionStage)
+      }, setSubmissionStage))
+      if (!book) return
       showToast(
         book.moderationStatus === 'needs_review'
           ? 'Booki đang xem lại bài đăng xíu nha. Sách chưa hiển thị công khai trong lúc này.'
@@ -52,10 +52,10 @@ export function AddBookPage() {
       navigate('/app/my-books')
     } catch (e) {
       if (import.meta.env.DEV) console.error('[Booki] Add Book: submission failed', e)
-      showToast(userFacingError(e, 'Chưa thể đăng sách. Hãy thử lại nha.'), 'error')
-    } finally {
-      submissionLock.current = false
-      setSaving(false)
+      showToast(
+        userFacingError(e, 'Chưa đăng sách được. Thông tin bạn nhập vẫn được giữ lại.'),
+        'error',
+      )
     }
   }
 

@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { BookForm } from '../components/BookForm'
 import { CameraCapture } from '../components/CameraCapture'
 import { EmptyState } from '../components/EmptyState'
 import { useAuth } from '../hooks/useAuthState'
 import { useToast } from '../hooks/useToast'
+import { runBookSubmission } from '../lib/bookCreatePipeline'
 import { getAdapter } from '../lib/dataAdapter'
 import { userFacingError } from '../lib/userFacingError'
 import type { Book, CreateBookInput } from '../types/book'
@@ -19,6 +20,7 @@ export function EditBookPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const submissionLock = useRef(false)
 
   useEffect(() => {
     let cancelled = false
@@ -48,22 +50,20 @@ export function EditBookPage() {
   }, [id, user?.id])
 
   const save = async (data: CreateBookInput) => {
-    if (!user || !book) return
-    setSaving(true)
+    if (!user || !book || submissionLock.current) return
     try {
-      await getAdapter().updateBook(book.id, user.id, {
+      const updated = await runBookSubmission(submissionLock, setSaving, () => getAdapter().updateBook(book.id, user.id, {
         ...data,
         author: data.author ?? '',
         contactPhone: data.contactPhone ?? '',
         contactEmail: data.contactEmail ?? '',
-      })
+      }))
+      if (!updated) return
       showToast('Đã cập nhật bài đăng.', 'success')
       navigate(`/app/books/${book.id}`, { replace: true })
     } catch (cause) {
       console.error('Unable to save an edited book listing', cause)
       showToast(userFacingError(cause, 'Chưa thể cập nhật bài đăng. Vui lòng thử lại.'), 'error')
-    } finally {
-      setSaving(false)
     }
   }
 
