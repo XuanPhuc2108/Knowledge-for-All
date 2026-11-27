@@ -5,7 +5,7 @@ const STEPS = [
   {
     num: '01',
     title: 'Tạo tài khoản',
-    desc: 'Đăng ký bằng email và xác nhận mã OTP, hoặc đăng nhập nhanh bằng Google/Facebook.',
+    desc: 'Đăng ký bằng email và xác nhận mã OTP, hoặc đăng nhập nhanh bằng Google.',
     icon: UserPlus,
     tone: 'bg-accent-yellow/[0.13] border-accent-yellow/20',
   },

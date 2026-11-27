@@ -8,7 +8,7 @@ import type {
   ExchangeRequest,
   UpdateBookInput,
 } from '../types/book'
-import type { LoginInput, UpdateProfileInput, UserProfile } from '../types/user'
+import type { UpdateProfileInput, UserProfile } from '../types/user'
 
 const USERS_KEY = 'sgn_users'
 const BOOKS_KEY = 'sgn_books'
@@ -17,9 +17,8 @@ const SESSION_KEY = 'sgn_session'
 const FAVORITES_KEY = 'sgn_book_favorites'
 const REPORTS_KEY = 'sgn_book_reports'
 
-interface StoredUser extends UserProfile {
-  passwordHash: string
-}
+type StoredUser = UserProfile
+type LegacyStoredUser = UserProfile & { passwordHash?: unknown }
 
 function generateId(): string {
   return crypto.randomUUID()
@@ -29,19 +28,21 @@ function now(): string {
   return new Date().toISOString()
 }
 
-function simpleHash(str: string): string {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i)
-    hash |= 0
-  }
-  return `h${Math.abs(hash)}`
-}
-
 function readUsers(): StoredUser[] {
   try {
     const raw = localStorage.getItem(USERS_KEY)
-    return raw ? (JSON.parse(raw) as StoredUser[]) : []
+    if (!raw) return []
+    const storedUsers = JSON.parse(raw) as LegacyStoredUser[]
+    const hadPasswordHashes = storedUsers.some((user) =>
+      Object.prototype.hasOwnProperty.call(user, 'passwordHash'),
+    )
+    const users = storedUsers.map((user) => {
+      const safeUser = { ...user }
+      delete safeUser.passwordHash
+      return safeUser
+    })
+    if (hadPasswordHashes) writeUsers(users)
+    return users
   } catch {
     return []
   }
@@ -108,10 +109,6 @@ function toProfile(user: StoredUser): UserProfile {
   }
 }
 
-function setSession(userId: string): void {
-  localStorage.setItem(SESSION_KEY, userId)
-}
-
 function clearSession(): void {
   localStorage.removeItem(SESSION_KEY)
 }
@@ -128,14 +125,6 @@ export const localAdapter = {
     return user ? toProfile(user) : null
   },
 
-  async register(): Promise<UserProfile> {
-    throw new Error('Đăng ký mới cần Supabase Auth để xác nhận email thật. Hãy cấu hình Supabase rồi thử lại.')
-  },
-
-  async resendSignupConfirmation(): Promise<void> {
-    throw new Error('Xác nhận email cần được cấu hình qua Supabase; chế độ lưu trên thiết bị không gửi email.')
-  },
-
   async sendPasswordReset(): Promise<void> {
     throw new Error('Đặt lại mật khẩu qua email cần được cấu hình Supabase Auth.')
   },
@@ -144,19 +133,24 @@ export const localAdapter = {
     throw new Error('Liên kết đặt lại mật khẩu qua email cần được cấu hình Supabase Auth.')
   },
 
-  async verifySignupOtp(): Promise<UserProfile> {
-    throw new Error('Chế độ lưu trên thiết bị không gửi mã OTP qua email.')
+  async sendEmailOtp(): Promise<void> {
+    throw new Error('Email OTP cần kết nối Supabase Auth; chế độ lưu trên thiết bị không gửi mã.')
   },
 
-  async login(input: LoginInput): Promise<UserProfile> {
-    const user = readUsers().find(
-      (u) =>
-        u.email.toLowerCase() === input.email.toLowerCase() &&
-        u.passwordHash === simpleHash(input.password),
-    )
-    if (!user) throw new Error('Email hoặc mật khẩu không đúng')
-    setSession(user.id)
-    return toProfile(user)
+  async resendEmailOtp(): Promise<void> {
+    throw new Error('Email OTP cần kết nối Supabase Auth; chế độ lưu trên thiết bị không gửi mã.')
+  },
+
+  async verifyEmailOtp(): Promise<UserProfile | null> {
+    throw new Error('Email OTP cần kết nối Supabase Auth.')
+  },
+
+  async completeProfile(): Promise<UserProfile> {
+    throw new Error('Tạo hồ sơ cần kết nối Supabase Auth.')
+  },
+
+  async login(): Promise<UserProfile> {
+    throw new Error('Đăng nhập cần Supabase Auth; chế độ lưu trên thiết bị không xác thực mật khẩu.')
   },
 
   async logout(): Promise<void> {
@@ -184,15 +178,12 @@ export const localAdapter = {
     clearSession()
   },
 
-  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
-    const users = readUsers()
-    const index = users.findIndex((user) => user.id === userId)
-    if (index < 0) throw new Error('Không tìm thấy tài khoản')
-    if (users[index].passwordHash !== simpleHash(currentPassword)) {
-      throw new Error('Mật khẩu hiện tại không đúng')
-    }
-    users[index] = { ...users[index], passwordHash: simpleHash(newPassword), updatedAt: now() }
-    writeUsers(users)
+  async changePassword(): Promise<void> {
+    throw new Error('Đổi mật khẩu cần Supabase Auth; chế độ lưu trên thiết bị không xác thực mật khẩu.')
+  },
+
+  async getPublicBookCount(): Promise<number> {
+    return readBooks().length
   },
 
   async updateProfile(userId: string, input: UpdateProfileInput): Promise<UserProfile> {

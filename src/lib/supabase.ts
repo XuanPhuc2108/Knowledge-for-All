@@ -1,4 +1,5 @@
-import { createClient, type Provider, type SupabaseClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { buildAuthRedirectUrl, startOAuthSignIn } from './authFlow'
 
 function normalizeSupabaseUrl(raw: string | undefined): string | undefined {
   if (!raw?.trim()) return undefined
@@ -23,6 +24,7 @@ const PUBLIC_APP_URL = ((import.meta.env.VITE_PUBLIC_APP_URL as string | undefin
 export const isSupabaseConfigured = Boolean(SUPABASE_URL && anonKey)
 
 let client: SupabaseClient | null = null
+let anonymousClient: SupabaseClient | null = null
 
 export function getSupabaseClient(): SupabaseClient | null {
   if (!isSupabaseConfigured) return null
@@ -38,17 +40,31 @@ export function getSupabaseClient(): SupabaseClient | null {
   return client
 }
 
-export async function signInWithOAuthProvider(provider: Extract<Provider, 'google' | 'facebook'>) {
+export function getAnonymousSupabaseClient(): SupabaseClient | null {
+  if (!isSupabaseConfigured) return null
+  if (!anonymousClient) {
+    anonymousClient = createClient(SUPABASE_URL!, anonKey!, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    })
+  }
+  return anonymousClient
+}
+
+export async function signInWithOAuthProvider(
+  provider: 'google',
+  redirectPath = '/app',
+) {
   const supabase = getSupabaseClient()
   if (!supabase) {
     throw new Error('Supabase chưa được cấu hình')
   }
-  return supabase.auth.signInWithOAuth({
-    provider,
-    options: { redirectTo: PUBLIC_APP_URL },
-  })
+  return startOAuthSignIn(supabase.auth, provider, getAuthRedirectUrl(redirectPath))
 }
 
-export function getAuthRedirectUrl() {
-  return PUBLIC_APP_URL
+export function getAuthRedirectUrl(path = '/') {
+  return buildAuthRedirectUrl(PUBLIC_APP_URL, path)
 }

@@ -72,22 +72,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshUser])
 
-  const register = useCallback(async (fullName: string, email: string, password: string) => {
+  const sendEmailOtp = useCallback(async (email: string) => {
+    setError(null)
+    await getAdapter().sendEmailOtp(email)
+  }, [])
+
+  const resendEmailOtp = useCallback(async (email: string) => {
+    setError(null)
+    await getAdapter().resendEmailOtp(email)
+  }, [])
+
+  const verifyEmailOtp = useCallback(async (email: string, token: string) => {
     setError(null)
     try {
-      const profile = await getAdapter().register({ fullName, email, password })
+      const profile = await getAdapter().verifyEmailOtp(email, token)
       if (profile) setUser(profile)
       return profile
     } catch (e) {
-      console.error('Unable to register the account', e)
-      const msg = userFacingError(e, 'Chưa thể tạo tài khoản. Hãy thử lại nha.')
-      setError(msg)
+      console.error('Unable to verify the passwordless email OTP', e)
+      setError(userFacingError(e, 'Mã OTP không chính xác hoặc đã hết hạn. Vui lòng thử lại.'))
       throw e
     }
   }, [])
 
-  const resendSignupConfirmation = useCallback(async (email: string) => {
-    await getAdapter().resendSignupConfirmation(email)
+  const completeProfile = useCallback(async (fullName: string) => {
+    setError(null)
+    try {
+      const profile = await getAdapter().completeProfile(fullName)
+      setUser(profile)
+      return profile
+    } catch (e) {
+      console.error('Unable to complete the authenticated profile', e)
+      setError(userFacingError(e, 'Chưa thể lưu tên hiển thị. Hãy thử lại nha.'))
+      throw e
+    }
   }, [])
 
   const sendPasswordReset = useCallback(async (email: string) => {
@@ -103,25 +121,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await refreshUser()
   }, [passwordRecovery, refreshUser])
 
-  const verifySignupOtp = useCallback(async (email: string, token: string) => {
-    setError(null)
-    try {
-      const profile = await getAdapter().verifySignupOtp(email, token)
-      setUser(profile)
-      return profile
-    } catch (e) {
-      console.error('Unable to verify the signup email OTP', e)
-      const msg = userFacingError(e, 'Mã OTP không chính xác hoặc đã hết hạn. Vui lòng thử lại.')
-      setError(msg)
-      throw e
-    }
-  }, [])
-
   const login = useCallback(async (email: string, password: string) => {
     setError(null)
     try {
       const profile = await getAdapter().login({ email, password })
-      setUser(profile)
+      if (profile) setUser(profile)
+      return profile
     } catch (e) {
       console.error('Unable to sign in the account', e)
       const msg = userFacingError(e, 'Chưa thể đăng nhập. Hãy thử lại nha.')
@@ -161,8 +166,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, error, passwordRecovery, register, verifySignupOtp, resendSignupConfirmation, sendPasswordReset, completePasswordReset, login, logout, deleteAccount, changePassword, updateProfile, refreshUser }),
-    [user, loading, error, passwordRecovery, register, verifySignupOtp, resendSignupConfirmation, sendPasswordReset, completePasswordReset, login, logout, deleteAccount, changePassword, updateProfile, refreshUser],
+    () => ({
+      user,
+      loading,
+      error,
+      passwordRecovery,
+      sendEmailOtp,
+      resendEmailOtp,
+      verifyEmailOtp,
+      completeProfile,
+      sendPasswordReset,
+      completePasswordReset,
+      login,
+      logout,
+      deleteAccount,
+      changePassword,
+      updateProfile,
+      refreshUser,
+    }),
+    [
+      user,
+      loading,
+      error,
+      passwordRecovery,
+      sendEmailOtp,
+      resendEmailOtp,
+      verifyEmailOtp,
+      completeProfile,
+      sendPasswordReset,
+      completePasswordReset,
+      login,
+      logout,
+      deleteAccount,
+      changePassword,
+      updateProfile,
+      refreshUser,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
