@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --test tests/authFlow.test.ts tests/bookImageEditor.test.ts tests/bookImageFlow.test.ts tests/bookiGuard.test.ts tests/publicBookCount.test.ts",
+    "test": "node --experimental-strip-types --test tests/authFlow.test.ts tests/bookImageFlow.test.ts tests/bookiGuard.test.ts tests/publicBookCount.test.ts",
     "test:guard": "node --experimental-strip-types --test tests/bookiGuard.test.ts",
     "migrate:book-covers": "node scripts/migrate-book-cover-data-urls.mjs",
     "preview": "vite preview"

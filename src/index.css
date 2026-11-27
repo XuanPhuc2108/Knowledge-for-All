@@ -1048,19 +1048,6 @@
     .booki-credit-mark { right: 1rem; bottom: 1rem; }
   }
 
-  .mobile-menu-panel {
-    height: 100vh;
-    height: 100dvh;
-    max-height: 100dvh;
-  }
-
-  .mobile-menu-scroll {
-    padding: max(1.25rem, env(safe-area-inset-top)) 1.25rem max(1.25rem, env(safe-area-inset-bottom));
-    overscroll-behavior-y: contain;
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
-  }
-
   @media (hover: hover) and (prefers-reduced-motion: no-preference) {
     .upload-preview-card:hover {
       transform: translateY(-3px);

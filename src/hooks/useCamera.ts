@@ -153,15 +153,6 @@ export function useCamera(context = 'Add Book') {
     previousCompressionInfoRef.current = null
   }, [stopCamera])
 
-  const setEditedPreview = useCallback((dataUrl: string) => {
-    const blob = dataUrlToBlob(dataUrl)
-    setPreview(dataUrl)
-    setCompressionInfo((current) => ({
-      originalBytes: current?.originalBytes ?? blob.size,
-      optimizedBytes: blob.size,
-    }))
-  }, [])
-
   return {
     videoRef,
     active,
@@ -177,6 +168,5 @@ export function useCamera(context = 'Add Book') {
     retake,
     clearPreview,
     cancelRetake,
-    setEditedPreview,
   }
 }
