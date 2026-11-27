@@ -26,7 +26,7 @@
 
 - Google OAuth uses the existing Supabase provider; the prior audit verified it was enabled. No live sign-in was attempted.
 - The registration entry point is shared by `/login` and `/register`; it asks for only an email OTP and, when needed, a display name. Existing password login and recovery remain secondary options.
-- Google is enabled in the existing Supabase project. The application preserves the existing Supabase Auth callback and targets the configured Booki origin, but no live OAuth flow was tested. Google Cloud consent-screen branding could not be verified because the console requires an authorized sign-in; no branding or OAuth credentials were changed.
+- Google is enabled in the existing Supabase project. The application preserves the existing Supabase Auth callback and targets the configured Booki origin, but no live OAuth flow was tested. Read-only inspection of Google Auth Platform project `booki-web-510009` confirms the consent-screen app name is `Booki`, a support contact is configured, and the homepage is `https://booki-vn.vercel.app/`. No app logo is configured; privacy-policy and terms links are blank. The authorized domains include the Booki hostname and correct Supabase Auth hostname, plus an additional apparent Supabase-hostname typo (`eprtkfsbywwwyljnpucx.supabase.co`). Nothing was changed; confirm before removing that extra domain or adding approved logo/legal URLs.
 
 ## Code files changed
 
