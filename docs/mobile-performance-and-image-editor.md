@@ -54,12 +54,20 @@ and 240 points per stroke.
 Applying edits exports a WebP image where supported, with PNG/JPEG output
 accepted when the browser chooses a fallback format. Canvas processing remains
 on-device, and canvas export strips metadata as a normal canvas re-encode does.
-The result returns to the existing book form and is uploaded only when the
-existing form is submitted, using the existing Supabase Storage workflow.
+The non-empty result is validated before it replaces the pending image. The
+prominent **"Áp dụng ảnh"** action returns the edited preview to the existing
+book form; it never submits the listing. **"Hủy"** keeps the current original
+preview, and the edited image is uploaded only when the user submits the form,
+using the existing Supabase Storage workflow.
 Image decoding falls back from `createImageBitmap` to an object-URL-backed
 `Image` element; temporary object URLs and image bitmaps are released. Export
 falls back from `toBlob` to `toDataURL` when needed. HEIC is not accepted by the
 file picker; unsupported image decoding shows a localized error.
+
+On small screens, image controls scroll independently from a persistent action
+toolbar. The preview is constrained to the dynamic viewport and the modal
+accounts for top and bottom safe areas, so cancel, undo/redo, reset, and apply
+remain reachable above mobile browser controls.
 
 Editing a remote image requires the existing image host to allow canvas CORS.
 If it does not, the browser prevents pixel export and the editor reports an
@@ -69,7 +77,7 @@ error; this change does not alter storage permissions.
 
 | Verification | Result |
 | --- | --- |
-| Automated tests | `npm test` — 48 passed, 0 failed |
+| Automated tests | `npm test` — 55 passed, 0 failed |
 | Lint | `npm run lint` — passed |
 | Production build | `npm run build` — passed |
 | Patch whitespace | `git diff --check` — passed |

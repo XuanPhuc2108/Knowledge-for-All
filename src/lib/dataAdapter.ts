@@ -29,6 +29,7 @@ import { dataUrlToBlob } from './imageCompression'
 import { completeBookCreation, scheduleBookImageCleanup } from './bookCreatePipeline'
 import { isValidMessengerUrl, isValidZaloUrl } from './validation'
 import { classifyUserFacingErrorMessage } from './userFacingError'
+import { bookDescriptionUpdate, normalizeBookDescription } from './bookDescription'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import {
   buildMinimalProfilePayload,
@@ -353,7 +354,7 @@ function mapBook(row: Record<string, unknown>): Book {
     category: row.category as string,
     condition: row.condition as Book['condition'],
     exchangeType: row.exchange_type as Book['exchangeType'],
-    description: row.description as string,
+    description: typeof row.description === 'string' ? row.description : '',
     imageUrls: bookImageUrls(row.image_urls),
     latitude: row.latitude as number | undefined,
     longitude: row.longitude as number | undefined,
@@ -752,7 +753,7 @@ const supabaseAdapter: DataAdapter = {
       category: input.category,
       condition: input.condition,
       exchange_type: input.exchangeType,
-      description: input.description,
+      description: normalizeBookDescription(input.description),
       image_urls: imageUrls,
       latitude: input.latitude,
       longitude: input.longitude,
@@ -796,7 +797,7 @@ const supabaseAdapter: DataAdapter = {
     if (input.category !== undefined) payload.category = input.category
     if (input.condition !== undefined) payload.condition = input.condition
     if (input.exchangeType !== undefined) payload.exchange_type = input.exchangeType
-    if (input.description !== undefined) payload.description = input.description
+    Object.assign(payload, bookDescriptionUpdate(input.description))
     let oldImageUrls: string[] = []
     let newImagePaths: string[] = []
     if (input.imageUrls !== undefined) {
@@ -1060,7 +1061,7 @@ const supabaseAdapter: DataAdapter = {
         title: row.title as string,
         author: optionalText(row.author),
         category: row.category as string,
-        description: row.description as string,
+        description: typeof row.description === 'string' ? row.description : '',
         bookStatus: row.book_status as Book['status'],
         createdAt: row.created_at as string,
         moderationStatus: row.moderation_status as BookGuardQueueItem['moderationStatus'],

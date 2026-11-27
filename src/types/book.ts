@@ -33,7 +33,7 @@ export interface CreateBookInput {
   category: string
   condition: BookCondition
   exchangeType: ExchangeType
-  description: string
+  description?: string
   imageUrls: string[]
   latitude?: number
   longitude?: number

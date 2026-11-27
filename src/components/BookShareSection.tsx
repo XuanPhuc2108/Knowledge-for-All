@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { Button } from './Button'
 import { useToast } from '../hooks/useToast'
+import { trackBookiEvent } from '../lib/bookiAnalytics'
+import { createBookiShareUrl } from '../lib/bookSharing'
 
 interface BookShareSectionProps {
   bookId: string
@@ -12,7 +14,7 @@ interface BookShareSectionProps {
 export function BookShareSection({ bookId, title, ownerName }: BookShareSectionProps) {
   const { showToast } = useToast()
   const [qr, setQr] = useState<{ url: string; png?: string; svg?: string; failed?: boolean }>({ url: '' })
-  const publicUrl = new URL(`/books/${encodeURIComponent(bookId)}`, window.location.origin).toString()
+  const publicUrl = createBookiShareUrl(`/books/${encodeURIComponent(bookId)}`)
 
   useEffect(() => {
     let cancelled = false
@@ -37,6 +39,7 @@ export function BookShareSection({ bookId, title, ownerName }: BookShareSectionP
   const copyLink = async () => {
     try {
       await copyText(publicUrl)
+      trackBookiEvent('booki_share', { method: 'copy-link', content: 'book' })
       showToast('Đã sao chép liên kết sách.', 'success')
       return true
     } catch (cause) {
@@ -50,11 +53,13 @@ export function BookShareSection({ bookId, title, ownerName }: BookShareSectionP
     if (navigator.share) {
       try {
         await navigator.share({ title, url: publicUrl })
+        trackBookiEvent('booki_share', { method: 'native', content: 'book' })
         return
       } catch (cause) {
         if (cause instanceof DOMException && cause.name === 'AbortError') return
         console.error('Native sharing failed; falling back to copying the public book link', cause)
         if (await copyText(publicUrl).catch(() => false)) {
+          trackBookiEvent('booki_share', { method: 'copy-link', content: 'book' })
           showToast('Không thể mở bảng chia sẻ. Đã sao chép liên kết sách.', 'info')
           return
         }
@@ -66,7 +71,10 @@ export function BookShareSection({ bookId, title, ownerName }: BookShareSectionP
   }
 
   const downloadPng = () => {
-    if (qrPng) downloadDataUrl(qrPng, `booki-${safeFilename(bookId)}-qr.png`)
+    if (qrPng) {
+      downloadDataUrl(qrPng, `booki-${safeFilename(bookId)}-qr.png`)
+      trackBookiEvent('booki_share', { method: 'qr-download', content: 'book' })
+    }
   }
 
   const downloadSvg = () => {
@@ -74,6 +82,7 @@ export function BookShareSection({ bookId, title, ownerName }: BookShareSectionP
     const blobUrl = URL.createObjectURL(new Blob([qrSvg], { type: 'image/svg+xml;charset=utf-8' }))
     downloadUrl(blobUrl, `booki-${safeFilename(bookId)}-qr.svg`)
     window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+    trackBookiEvent('booki_share', { method: 'qr-download', content: 'book' })
   }
 
   return (

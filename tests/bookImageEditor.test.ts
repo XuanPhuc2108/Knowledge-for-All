@@ -9,6 +9,7 @@ import {
   pushImageEditHistory,
   redoImageEdit,
   undoImageEdit,
+  validateEditedImageBlob,
   type CropRect,
   type ImageEditHistory,
   type ImageEditState,
@@ -86,5 +87,18 @@ test('edit history has a fixed memory bound and reset state is neutral', () => {
     strokes: [],
     brushSize: 44,
     blurStrength: 12,
+  })
+
+  test('edited image exports must contain supported non-empty image data', () => {
+    const image = new Blob(['encoded pixels'], { type: 'image/webp' })
+    assert.equal(validateEditedImageBlob(image), image)
+    assert.throws(
+      () => validateEditedImageBlob(new Blob([], { type: 'image/webp' })),
+      /Không thể xuất ảnh đã chỉnh sửa/,
+    )
+    assert.throws(
+      () => validateEditedImageBlob(new Blob(['pixels'], { type: 'text/plain' })),
+      /Không thể xuất ảnh đã chỉnh sửa/,
+    )
   })
 })

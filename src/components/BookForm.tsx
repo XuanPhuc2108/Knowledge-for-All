@@ -181,14 +181,14 @@ export function BookForm({
 
       <div>
         <label htmlFor="description" className="mb-1.5 block text-sm font-medium text-text-primary">
-          Mô tả *
+          Mô tả sách (không bắt buộc)
         </label>
         <textarea
           id="description"
           name="description"
           rows={4}
           defaultValue={initial?.description}
-          required
+          placeholder="Thêm một vài thông tin về cuốn sách nếu bạn muốn..."
           className={clsx(liquidControlClass, 'resize-none')}
         />
       </div>
