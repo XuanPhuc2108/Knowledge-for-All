@@ -67,7 +67,11 @@ file picker; unsupported image decoding shows a localized error.
 On small screens, image controls scroll independently from a persistent action
 toolbar. The preview is constrained to the dynamic viewport and the modal
 accounts for top and bottom safe areas, so cancel, undo/redo, reset, and apply
-remain reachable above mobile browser controls.
+remain reachable above mobile browser controls. In view mode, vertical swipes
+over the preview scroll the editor instead of being blocked by the canvas.
+Selecting **"Tự căn ảnh"** creates a centered portrait 3:4 crop locally; this
+is a center crop rather than face/object detection, so users can still fine-tune
+the crop manually.
 
 Editing a remote image requires the existing image host to allow canvas CORS.
 If it does not, the browser prevents pixel export and the editor reports an
