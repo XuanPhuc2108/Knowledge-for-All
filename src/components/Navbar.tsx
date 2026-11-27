@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { BookOpen, LogIn, Plus, Search, UserPlus, Volume2, VolumeX } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuthState'
 import { useAppSettings } from '../hooks/useAppSettings'
@@ -19,6 +19,7 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
   const { user, logout } = useAuth()
   const { settings, setSettings } = useAppSettings()
   const navigate = useNavigate()
+  const closeMobileMenu = useCallback(() => setMobileOpen(false), [])
 
   useEffect(() => {
     let frame = 0
@@ -150,9 +151,11 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
 
           <button
             data-sound="tap"
-            className="rounded-xl border border-glass/10 bg-[rgb(var(--color-interactive-surface)/.75)] p-2 text-text-primary transition-colors hover:bg-[rgb(var(--color-interactive-hover)/.9)] md:hidden"
+            className="min-h-11 min-w-11 rounded-xl border border-glass/10 bg-[rgb(var(--color-interactive-surface)/.75)] p-2 text-text-primary transition-colors hover:bg-[rgb(var(--color-interactive-hover)/.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-yellow md:hidden"
             onClick={() => setMobileOpen(true)}
-            aria-label="Mở menu"
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-navigation-menu"
+            aria-label={mobileOpen ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'}
           >
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -163,7 +166,7 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
 
       <MobileMenu
         open={mobileOpen}
-        onClose={() => setMobileOpen(false)}
+        onClose={closeMobileMenu}
         user={user}
         onLogout={() => void handleLogout()}
         variant={variant}

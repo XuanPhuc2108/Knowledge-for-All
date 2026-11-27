@@ -1,12 +1,14 @@
 import { Camera, ImagePlus, RotateCcw, Trash2 } from 'lucide-react'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from './Button'
+import { BookImageEditor } from './BookImageEditor'
 import { useCamera } from '../hooks/useCamera'
 import { ImageWithSkeleton } from './ImageWithSkeleton'
 
 interface CameraCaptureProps {
   onImageCapture: (dataUrl: string) => void
   onImageRemove: () => void
+  imageUrl?: string
   disabled?: boolean
   logContext?: 'Add Book' | 'Edit Book'
 }
@@ -14,6 +16,7 @@ interface CameraCaptureProps {
 export function CameraCapture({
   onImageCapture,
   onImageRemove,
+  imageUrl,
   disabled = false,
   logContext = 'Add Book',
 }: CameraCaptureProps) {
@@ -32,11 +35,17 @@ export function CameraCapture({
     retake,
     clearPreview,
     cancelRetake,
+    setEditedPreview,
   } = useCamera(logContext)
+  const [editingSource, setEditingSource] = useState<string | null>(null)
+  const displayedPreview = preview ?? imageUrl ?? null
 
   const onCapture = async () => {
     const data = await capturePhoto()
-    if (data) onImageCapture(data)
+    if (data) {
+      onImageCapture(data)
+      setEditingSource(data)
+    }
   }
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,10 +53,14 @@ export function CameraCapture({
     e.currentTarget.value = ''
     if (!file) return
     const data = await handleFileUpload(file)
-    if (data) onImageCapture(data)
+    if (data) {
+      onImageCapture(data)
+      setEditingSource(data)
+    }
   }
 
   return (
+    <>
     <div className="space-y-4" aria-busy={processing}>
       <input
         ref={fileInputRef}
@@ -57,12 +70,12 @@ export function CameraCapture({
         disabled={processing || disabled}
         onChange={(e) => void onFileChange(e)}
       />
-      {preview ? (
+      {displayedPreview ? (
         <div className="glass-card relative overflow-hidden rounded-2xl ring-1 ring-accent-yellow/20">
           <div className="aspect-[3/4] w-full">
             <ImageWithSkeleton
-              src={preview}
-              alt="Ảnh bìa đã tối ưu, xem trước"
+              src={displayedPreview}
+              alt="Ảnh bìa sách, xem trước"
               width={800}
               height={1067}
               loading="eager"
@@ -71,6 +84,9 @@ export function CameraCapture({
             />
           </div>
           <div className="flex flex-wrap justify-end gap-2 border-t border-glass/10 p-3">
+            <Button type="button" size="sm" variant="primary" disabled={processing || disabled} onClick={() => setEditingSource(displayedPreview)} aria-label="Chỉnh sửa ảnh bìa">
+              Chỉnh ảnh
+            </Button>
             <Button type="button" size="sm" variant="secondary" disabled={processing || disabled} onClick={retake} aria-label="Chụp ảnh khác">
               <RotateCcw className="h-4 w-4" />
               Chụp ảnh khác
@@ -100,7 +116,7 @@ export function CameraCapture({
               Xóa ảnh
             </Button>
           </div>
-          {compressionInfo && (
+          {compressionInfo && preview && (
             <p className="px-3 pb-3 text-xs text-text-muted">
               Đã chọn ảnh · Dung lượng: {formatBytes(compressionInfo.originalBytes)} → {formatBytes(compressionInfo.optimizedBytes)}
             </p>
@@ -147,6 +163,18 @@ export function CameraCapture({
         </p>
       )}
     </div>
+    {editingSource && (
+      <BookImageEditor
+        source={editingSource}
+        onClose={() => setEditingSource(null)}
+        onApply={(editedImage) => {
+          setEditedPreview(editedImage)
+          onImageCapture(editedImage)
+          setEditingSource(null)
+        }}
+      />
+    )}
+    </>
   )
 }
 

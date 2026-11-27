@@ -88,6 +88,7 @@ export function EditBookPage() {
           isSubmitting={saving}
           cameraSlot={(
             <CameraCapture
+              imageUrl={imageUrls[0]}
               onImageCapture={(url) => setImageUrls([url])}
               onImageRemove={() => setImageUrls([])}
               disabled={saving}
