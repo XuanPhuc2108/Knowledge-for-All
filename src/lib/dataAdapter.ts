@@ -16,14 +16,28 @@ import type {
   StaffPlatformSummary,
   UpdateBookInput,
 } from '../types/book'
-import type { LoginInput, RegisterInput, UpdateProfileInput, UserProfile } from '../types/user'
+import type { LoginInput, UpdateProfileInput, UserProfile } from '../types/user'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { getAuthRedirectUrl, getSupabaseClient, isSupabaseConfigured } from './supabase'
+import {
+  getAuthRedirectUrl,
+  getAnonymousSupabaseClient,
+  getSupabaseClient,
+  isSupabaseConfigured,
+} from './supabase'
 import { localAdapter } from './localAdapter'
 import { dataUrlToBlob } from './imageCompression'
 import { isValidMessengerUrl, isValidZaloUrl } from './validation'
 import { classifyUserFacingErrorMessage } from './userFacingError'
 import type { RealtimeChannel } from '@supabase/supabase-js'
+import {
+  buildMinimalProfilePayload,
+  completeEmailOtpVerification,
+  getOAuthDisplayName,
+  loginWithEmail,
+  sendEmailOtp as sendPasswordlessEmailOtp,
+  sendPasswordResetEmail,
+} from './authFlow'
+import { fetchPublicBookCount } from './publicBookCount'
 
 const BOOK_COVER_BUCKET = 'book-covers'
 const PROFILE_AVATAR_BUCKET = 'profile-avatars'
@@ -43,16 +57,18 @@ export type BookCreateProgress = 'uploading-cover' | 'saving-record'
 
 export interface DataAdapter {
   getCurrentUser(): Promise<UserProfile | null>
-  register(input: RegisterInput): Promise<UserProfile | null>
-  verifySignupOtp(email: string, token: string): Promise<UserProfile>
-  resendSignupConfirmation(email: string): Promise<void>
+  sendEmailOtp(email: string): Promise<void>
+  resendEmailOtp(email: string): Promise<void>
+  verifyEmailOtp(email: string, token: string): Promise<UserProfile | null>
+  completeProfile(fullName: string): Promise<UserProfile>
   sendPasswordReset(email: string): Promise<void>
   completePasswordReset(newPassword: string): Promise<void>
-  login(input: LoginInput): Promise<UserProfile>
+  login(input: LoginInput): Promise<UserProfile | null>
   logout(): Promise<void>
   updateProfile(userId: string, input: UpdateProfileInput): Promise<UserProfile>
   deleteAccount(userId: string): Promise<void>
   changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void>
+  getPublicBookCount(): Promise<number>
   getBooks(limit?: number, offset?: number): Promise<Book[]>
   getBookById(id: string): Promise<Book | null>
   getRelatedBooks(category: string, excludeId: string, limit?: number): Promise<Book[]>
@@ -105,7 +121,7 @@ function mapProfile(row: Record<string, unknown>): UserProfile {
   return {
     id: row.id as string,
     fullName: row.full_name as string,
-    email: row.email as string,
+    email: optionalText(row.email) ?? '',
     avatarUrl: row.avatar_url as string | undefined,
     bio: optionalText(row.bio),
     contactPhone: optionalText(row.contact_phone),
@@ -413,23 +429,11 @@ const supabaseAdapter: DataAdapter = {
     if (data) return mapProfile(data)
     if (error) throw new Error(error.message)
 
-    const timestamp = new Date().toISOString()
-    const fullName =
-      (typeof user.user_metadata?.full_name === 'string' && user.user_metadata.full_name) ||
-      (typeof user.user_metadata?.name === 'string' && user.user_metadata.name) ||
-      user.email?.split('@')[0] ||
-      'Người dùng'
-    const profile = {
-      id: user.id,
-      full_name: fullName,
-      email: user.email ?? '',
-      location_enabled: false,
-      created_at: timestamp,
-      updated_at: timestamp,
-    }
+    const fullName = getOAuthDisplayName(user.user_metadata)
+    if (!fullName) return null
     const { data: created, error: upsertError } = await supabase
       .from('profiles')
-      .upsert(profile)
+      .upsert(buildMinimalProfilePayload(user, fullName), { onConflict: 'id' })
       .select()
       .single()
     if (upsertError) throw new Error(upsertError.message)
@@ -437,48 +441,9 @@ const supabaseAdapter: DataAdapter = {
     return mapProfile(created)
   },
 
-  async register(input) {
-    const supabase = getSupabaseClient()!
-    const { data, error } = await supabase.auth.signUp({
-      email: input.email.trim().toLowerCase(),
-      password: input.password,
-      options: {
-        data: { full_name: input.fullName },
-        emailRedirectTo: getAuthRedirectUrl(),
-      },
-    })
-    if (error) throw new Error(error.message)
-    if (!data.user) throw new Error('Đăng ký thất bại')
-    if (!data.session) return null
-    if (!data.user.email_confirmed_at) {
-      const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' })
-      if (signOutError) throw new Error(signOutError.message)
-      return null
-    }
-    const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' })
-    if (signOutError) throw new Error(signOutError.message)
-    throw new Error(
-      'Supabase đang cho phép đăng nhập trước khi xác nhận email. ' +
-      'Hãy bật Email confirmations trong Authentication → Providers → Email rồi thử lại.',
-    )
-  },
-
-  async resendSignupConfirmation(email) {
-    const supabase = getSupabaseClient()!
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email: email.trim().toLowerCase(),
-      options: { emailRedirectTo: getAuthRedirectUrl() },
-    })
-    if (error) throw new Error(error.message)
-  },
-
   async sendPasswordReset(email) {
     const supabase = getSupabaseClient()!
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${getAuthRedirectUrl()}/reset-password`,
-    })
-    if (error) throw new Error(error.message)
+    return sendPasswordResetEmail(supabase.auth, email, getAuthRedirectUrl('/reset-password'))
   },
 
   async completePasswordReset(newPassword) {
@@ -487,44 +452,59 @@ const supabaseAdapter: DataAdapter = {
     if (error) throw new Error(error.message)
   },
 
-  async verifySignupOtp(email, token) {
+  async sendEmailOtp(email) {
     const supabase = getSupabaseClient()!
-    const { data, error } = await supabase.auth.verifyOtp({
-      email: email.trim().toLowerCase(),
-      token: token.trim(),
-      type: 'signup',
-    })
-    if (error) throw new Error(error.message)
-    if (!data.user?.email_confirmed_at) {
-      throw new Error('Chưa xác nhận được email. Vui lòng kiểm tra lại mã OTP.')
+    await sendPasswordlessEmailOtp(supabase.auth, email)
+  },
+
+  async resendEmailOtp(email) {
+    const supabase = getSupabaseClient()!
+    await sendPasswordlessEmailOtp(supabase.auth, email)
+  },
+
+  async verifyEmailOtp(email, token) {
+    const supabase = getSupabaseClient()!
+    return completeEmailOtpVerification(supabase.auth, email, token, () => supabaseAdapter.getCurrentUser())
+  },
+
+  async completeProfile(fullName) {
+    const supabase = getSupabaseClient()!
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError) throw new Error(authError.message)
+    if (!user) throw new Error('Phiên đăng nhập không còn hiệu lực.')
+
+    const provider = user.app_metadata.provider
+    const verifiedEmail = Boolean(user.email && user.email_confirmed_at)
+    const trustedOAuth = provider === 'google'
+    if (!verifiedEmail && !trustedOAuth) {
+      throw new Error('Hãy xác nhận email trước khi tạo hồ sơ.')
     }
-    const profile = await this.getCurrentUser()
-    if (!profile) throw new Error('Email đã xác nhận nhưng chưa tải được hồ sơ. Vui lòng đăng nhập lại.')
-    return profile
+
+    const { data: existing, error: lookupError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle()
+    if (lookupError) throw new Error(lookupError.message)
+    if (existing && optionalText(existing.full_name)) return mapProfile(existing)
+
+    const profileQuery = existing
+      ? supabase
+        .from('profiles')
+        .update({ full_name: buildMinimalProfilePayload(user, fullName).full_name, updated_at: new Date().toISOString() })
+        .eq('id', user.id)
+      : supabase
+        .from('profiles')
+        .upsert(buildMinimalProfilePayload(user, fullName), { onConflict: 'id' })
+    const { data: saved, error: saveError } = await profileQuery.select().single()
+    if (saveError) throw new Error(saveError.message)
+    if (!saved) throw new Error('Không thể lưu hồ sơ người dùng.')
+    return mapProfile(saved)
   },
 
   async login(input) {
     const supabase = getSupabaseClient()!
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: input.email.trim().toLowerCase(),
-      password: input.password,
-    })
-    if (error) {
-      if (/email not confirmed/i.test(error.message)) {
-        throw new Error('Xác nhận email bằng mã OTP trước khi đăng nhập.')
-      }
-      throw new Error(error.message)
-    }
-    if (
-      data.user?.app_metadata.provider === 'email' &&
-      !data.user.email_confirmed_at
-    ) {
-      await supabase.auth.signOut({ scope: 'local' })
-      throw new Error('Xác nhận email bằng mã OTP trước khi đăng nhập.')
-    }
-    const user = await supabaseAdapter.getCurrentUser()
-    if (!user) throw new Error('Không tìm thấy hồ sơ người dùng')
-    return user
+    return loginWithEmail(supabase.auth, input, () => supabaseAdapter.getCurrentUser())
   },
 
   async logout() {
@@ -609,6 +589,12 @@ const supabaseAdapter: DataAdapter = {
     if (reauthError) throw new Error('Mật khẩu hiện tại không đúng')
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     if (error) throw new Error(error.message)
+  },
+
+  async getPublicBookCount() {
+    const supabase = getAnonymousSupabaseClient()
+    if (!supabase) throw new Error('Supabase chưa được cấu hình.')
+    return fetchPublicBookCount(supabase)
   },
 
   getBooks(limit, offset = 0) {

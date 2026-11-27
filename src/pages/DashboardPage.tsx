@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, ChevronDown, Dices, Search, X } from 'lucide-react'
+import { BookOpen, Check, ChevronDown, Dices, Search, X } from 'lucide-react'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { BookCard } from '../components/BookCard'
@@ -10,6 +10,7 @@ import { useBooks } from '../hooks/useBooks'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useFavorites } from '../hooks/useFavorites'
 import { BOOK_CATEGORIES, RADIUS_OPTIONS } from '../lib/constants'
+import { getAdapter } from '../lib/dataAdapter'
 import { haversineDistance } from '../lib/geo'
 import { normalizeBookSearch } from '../lib/search'
 import { userFacingError } from '../lib/userFacingError'
@@ -86,6 +87,10 @@ export function DashboardPage({ publicMode = false }: { publicMode?: boolean }) 
   const location = useLocation()
   const [previewBook, setPreviewBook] = useState<BookWithDistance | null>(null)
   const [recentlyViewed] = useState(readRecentlyViewedBooks)
+  const [publicBookCount, setPublicBookCount] = useState<number | null>(null)
+  const [publicBookCountLoading, setPublicBookCountLoading] = useState(true)
+  const [publicBookCountError, setPublicBookCountError] = useState(false)
+  const publicBookCountRequestId = useRef(0)
   const search = searchParams.get('q') ?? ''
   const filter = parseExchangeType(searchParams.get('type'))
   const statusFilter = parseBookStatus(searchParams.get('status'))
@@ -118,6 +123,55 @@ export function DashboardPage({ publicMode = false }: { publicMode?: boolean }) 
   }, [setSearchParams])
   const searchInputRef = useRef<HTMLInputElement>(null)
   const debouncedSearch = useDebouncedValue(search, 250)
+
+  const refreshPublicBookCount = useCallback(async () => {
+    const requestId = ++publicBookCountRequestId.current
+    try {
+      const count = await getAdapter().getPublicBookCount()
+      if (requestId === publicBookCountRequestId.current) {
+        setPublicBookCount(count)
+        setPublicBookCountError(false)
+      }
+    } catch (cause) {
+      if (requestId === publicBookCountRequestId.current) {
+        console.error('Unable to load the public Booki catalog count', cause)
+        setPublicBookCount(null)
+        setPublicBookCountError(true)
+      }
+    } finally {
+      if (requestId === publicBookCountRequestId.current) setPublicBookCountLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    const requestId = ++publicBookCountRequestId.current
+    void getAdapter().getPublicBookCount()
+      .then((count) => {
+        if (requestId === publicBookCountRequestId.current) {
+          setPublicBookCount(count)
+          setPublicBookCountError(false)
+        }
+      })
+      .catch((cause: unknown) => {
+        if (requestId === publicBookCountRequestId.current) {
+          console.error('Unable to load the public Booki catalog count', cause)
+          setPublicBookCount(null)
+          setPublicBookCountError(true)
+        }
+      })
+      .finally(() => {
+        if (requestId === publicBookCountRequestId.current) setPublicBookCountLoading(false)
+      })
+    const refreshOnFocus = () => {
+      setPublicBookCountLoading(true)
+      void refreshPublicBookCount()
+    }
+    window.addEventListener('focus', refreshOnFocus)
+    return () => {
+      publicBookCountRequestId.current += 1
+      window.removeEventListener('focus', refreshOnFocus)
+    }
+  }, [refreshPublicBookCount])
   const hasLocation = Boolean(user?.locationEnabled && user.latitude !== undefined && user.longitude !== undefined)
   const latitude = user?.latitude
   const longitude = user?.longitude
@@ -160,10 +214,6 @@ export function DashboardPage({ publicMode = false }: { publicMode?: boolean }) 
     }
     return result
   }, [books, categoryFilter, debouncedSearch, favoritesOnly, favoriteIds, filter, latitude, longitude, radius, sortNearby, statusFilter])
-  const availableCount = useMemo(
-    () => books.filter((book) => book.status === 'available').length,
-    [books],
-  )
   const savedBooks = useMemo(
     () => books.filter((book) => favoriteIds.has(book.id)).slice(0, 4),
     [books, favoriteIds],
@@ -257,18 +307,36 @@ export function DashboardPage({ publicMode = false }: { publicMode?: boolean }) 
         </div>
       </div>
 
-      <section aria-label="Tổng quan sách" className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <div className="glass-card rounded-2xl p-4">
-          <p className="text-xs text-text-muted">Sách đã tải</p>
-          <p className="mt-1 text-2xl font-black text-text-primary">{books.length}</p>
-        </div>
-        <div className="glass-card rounded-2xl p-4">
-          <p className="text-xs text-text-muted">Có sẵn trong lượt này</p>
-          <p className="mt-1 text-2xl font-black text-accent-yellow">{availableCount}</p>
-        </div>
-        <div className="glass-card col-span-2 rounded-2xl p-4 sm:col-span-1">
-          <p className="text-xs text-text-muted">Kết quả đã tải phù hợp</p>
-          <p className="mt-1 text-2xl font-black text-text-primary">{filtered.length}</p>
+      <section aria-label="Tổng quan sách" className="mb-5">
+        <div aria-busy={publicBookCountLoading} className="glass-card flex items-center justify-between gap-4 rounded-2xl p-4 sm:p-5">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-text-muted">Tổng sách đã đăng</p>
+            <p aria-live="polite" className="mt-1 text-3xl font-black tracking-tight text-text-primary">
+              {publicBookCount !== null
+                ? new Intl.NumberFormat('vi-VN').format(publicBookCount)
+                : publicBookCountLoading
+                  ? <span aria-label="Đang tải tổng số sách" className="inline-block h-8 w-20 animate-pulse rounded-lg bg-glass/20 align-middle" />
+                  : '—'}
+            </p>
+            <p className="mt-1 text-xs text-text-muted">Trên toàn Booki</p>
+            {publicBookCountError && (
+              <p role="status" className="mt-2 text-xs text-text-muted">Chưa thể tải tổng số sách.</p>
+            )}
+          </div>
+          {publicBookCountError ? (
+            <button
+              type="button"
+              onClick={() => {
+                setPublicBookCountLoading(true)
+                void refreshPublicBookCount()
+              }}
+              className="min-h-11 shrink-0 rounded-xl border border-glass/15 px-3 text-sm font-semibold text-text-muted transition-colors hover:border-accent-yellow/30 hover:text-text-primary"
+            >
+              Thử lại
+            </button>
+          ) : (
+            <BookOpen className="h-7 w-7 shrink-0 text-accent-yellow/80" aria-hidden="true" />
+          )}
         </div>
       </section>
 

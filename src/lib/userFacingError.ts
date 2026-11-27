@@ -27,7 +27,6 @@ const SAFE_VIETNAMESE_MESSAGES = [
   'Đăng nhập để lưu sách yêu thích',
   'Đang tải sách yêu thích, vui lòng thử lại.',
   'Bạn đã báo cáo sách này',
-  'Đăng ký mới cần Supabase Auth',
   'Xác nhận email cần được cấu hình qua Supabase',
   'Không tìm thấy tài khoản',
   'Không tìm thấy người dùng',
@@ -74,6 +73,26 @@ export function classifyUserFacingErrorMessage(
   const normalized = message.trim()
   if (!normalized) return undefined
   const { context, bucket = 'book-covers', statusCode } = options
+
+  if (/user already registered|email.{0,30}already registered|already.{0,20}registered/i.test(normalized)) {
+    return 'Chưa thể tạo tài khoản. Nếu bạn đã có tài khoản, hãy đăng nhập hoặc dùng tính năng quên mật khẩu nha.'
+  }
+
+  if (/unsupported provider|provider.{0,30}(?:not enabled|disabled)|provider_not_enabled/i.test(normalized)) {
+    return 'Phương thức đăng nhập này chưa được bật trong Supabase. Hãy thử cách khác nha.'
+  }
+  if (/redirect_uri_mismatch|redirect[ _-]?(?:uri|url).{0,40}(?:mismatch|not allowed|invalid)/i.test(normalized)) {
+    return 'URL chuyển hướng chưa được cho phép trong Supabase. Hãy kiểm tra danh sách Redirect URLs.'
+  }
+  if (/rate.?limit|too many requests/i.test(normalized)) {
+    return 'Bạn vừa thử quá nhiều lần. Chờ một chút rồi thử lại nha.'
+  }
+  if (/email not confirmed/i.test(normalized)) {
+    return 'Xác nhận email bằng mã OTP trước khi đăng nhập.'
+  }
+  if (/token has expired|token is invalid|invalid.*otp|otp.*expired/i.test(normalized)) {
+    return 'Mã OTP đã hết hạn hoặc không chính xác. Hãy gửi mã mới.'
+  }
 
   if (/failed to fetch|fetch failed|networkerror|network request failed|request timed out|timed out|timeout|temporary connection failure|connection (?:reset|refused|closed)/i.test(normalized)) {
     return 'Kết nối đang không ổn định. Kiểm tra mạng rồi thử lại nha.'

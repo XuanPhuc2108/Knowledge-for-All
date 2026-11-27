@@ -8,12 +8,13 @@ export interface AuthState {
 
 export interface AuthContextValue extends AuthState {
   passwordRecovery: boolean
-  register: (fullName: string, email: string, password: string) => Promise<UserProfile | null>
-  verifySignupOtp: (email: string, token: string) => Promise<UserProfile>
-  resendSignupConfirmation: (email: string) => Promise<void>
+  sendEmailOtp: (email: string) => Promise<void>
+  resendEmailOtp: (email: string) => Promise<void>
+  verifyEmailOtp: (email: string, token: string) => Promise<UserProfile | null>
+  completeProfile: (fullName: string) => Promise<UserProfile>
   sendPasswordReset: (email: string) => Promise<void>
   completePasswordReset: (newPassword: string) => Promise<void>
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<UserProfile | null>
   logout: () => Promise<void>
   deleteAccount: () => Promise<void>
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>

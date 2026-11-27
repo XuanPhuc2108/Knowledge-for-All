@@ -20,7 +20,7 @@ export function AuthCard({
   footerLinkLabel,
 }: AuthCardProps) {
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-16 sm:px-6">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-8 sm:px-6 sm:py-16">
       <div className="noise-overlay absolute inset-0" aria-hidden="true" />
       <div className="pointer-events-none absolute -left-20 top-1/4 h-72 w-72 rounded-full bg-accent-yellow/[0.07] blur-3xl" aria-hidden="true" />
       <FadeIn className="relative z-10 w-full max-w-md">
