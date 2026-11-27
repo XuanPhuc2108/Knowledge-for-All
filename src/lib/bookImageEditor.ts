@@ -44,6 +44,29 @@ export function validateEditedImageBlob(blob: Blob): Blob {
 
 export const ORIGINAL_CROP: CropRect = { x: 0, y: 0, width: 1, height: 1 }
 
+export function getCenteredAspectCrop(
+  imageWidth: number,
+  imageHeight: number,
+  targetAspect = 3 / 4,
+): CropRect {
+  if (
+    !Number.isFinite(imageWidth) || imageWidth <= 0
+    || !Number.isFinite(imageHeight) || imageHeight <= 0
+    || !Number.isFinite(targetAspect) || targetAspect <= 0
+  ) {
+    throw new Error('Ảnh không hợp lệ để tự căn khung.')
+  }
+
+  const imageAspect = imageWidth / imageHeight
+  if (imageAspect > targetAspect) {
+    const width = targetAspect / imageAspect
+    return { x: (1 - width) / 2, y: 0, width, height: 1 }
+  }
+
+  const height = imageAspect / targetAspect
+  return { x: 0, y: (1 - height) / 2, width: 1, height }
+}
+
 export function createInitialImageEditState(): ImageEditState {
   return {
     crop: ORIGINAL_CROP,

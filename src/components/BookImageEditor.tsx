@@ -4,6 +4,7 @@ import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import {
   createInitialImageEditState,
   drawBookImagePreview,
+  getCenteredAspectCrop,
   getCropFromDrag,
   getCropPixelBounds,
   MAX_IMAGE_EDIT_POINTS_PER_STROKE,
@@ -317,6 +318,15 @@ export function BookImageEditor({ source, onApply, onClose }: BookImageEditorPro
   }
 
   const resetToOriginalCrop = () => changeState({ ...state, crop: createInitialImageEditState().crop })
+  const autoAlignImage = () => {
+    if (!image) return
+    changeState({
+      ...state,
+      crop: getCenteredAspectCrop(image.naturalWidth, image.naturalHeight),
+    })
+    setAspectRatio(3 / 4)
+    setTool('view')
+  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center bg-dark/85 p-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4">
@@ -348,7 +358,7 @@ export function BookImageEditor({ source, onApply, onClose }: BookImageEditorPro
           ) : (
             <>
               <div className="mb-4 rounded-xl border border-glass/10 bg-black/20 p-2">
-                <div className="relative mx-auto w-fit max-w-full touch-none">
+                <div className={`relative mx-auto w-fit max-w-full ${tool === 'view' ? 'touch-pan-y' : 'touch-none'}`}>
                   <canvas ref={canvasRef} aria-label="Ảnh xem trước sau chỉnh sửa" className="block max-h-[34dvh] max-w-full rounded-lg object-contain sm:max-h-[45dvh]" />
                   <canvas
                     ref={overlayRef}
@@ -366,10 +376,14 @@ export function BookImageEditor({ source, onApply, onClose }: BookImageEditorPro
                 <Button type="button" size="sm" variant={tool === 'crop' ? 'primary' : 'secondary'} onClick={() => setTool(tool === 'crop' ? 'view' : 'crop')} aria-pressed={tool === 'crop'}>
                   Cắt ảnh
                 </Button>
+                <Button type="button" size="sm" variant="secondary" onClick={autoAlignImage} disabled={!image || saving}>
+                  Tự căn ảnh
+                </Button>
                 <Button type="button" size="sm" variant={tool === 'blur' ? 'primary' : 'secondary'} onClick={() => setTool(tool === 'blur' ? 'view' : 'blur')} aria-pressed={tool === 'blur'}>
                   Cọ làm mờ
                 </Button>
               </div>
+              <p className="mb-4 text-xs text-text-muted">Tự căn sẽ cắt giữa ảnh theo khung dọc 3:4. Khi xem ảnh, bạn có thể vuốt dọc ngay trên ảnh để cuộn.</p>
 
               {tool === 'crop' && (
                 <fieldset className="mb-4 space-y-3 rounded-xl border border-glass/10 p-3">

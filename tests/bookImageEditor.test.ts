@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   adjustImageChannel,
   createInitialImageEditState,
+  getCenteredAspectCrop,
   getCropFromDrag,
   getCropPixelBounds,
   MAX_IMAGE_EDIT_HISTORY,
@@ -38,6 +39,27 @@ test('crop pixel bounds produce the expected output dimensions', () => {
     getCropPixelBounds({ x: 0.25, y: 0.1, width: 0.5, height: 0.6 }, 1200, 1000),
     { left: 300, top: 100, width: 600, height: 600 },
   )
+})
+
+test('auto-align centers a 3:4 crop without exceeding the source image', () => {
+  const wide = getCenteredAspectCrop(1200, 800)
+  assert.deepEqual(wide, { x: 0.25, y: 0, width: 0.5, height: 1 })
+
+  const tall = getCenteredAspectCrop(800, 1200)
+  assert.equal(tall.x, 0)
+  assert.equal(tall.width, 1)
+  assert.ok(Math.abs((800 / (1200 * tall.height)) - 3 / 4) < 0.0001)
+  assert.ok(tall.y >= 0 && tall.y + tall.height <= 1)
+
+  const square = getCenteredAspectCrop(1000, 1000)
+  assert.equal(square.y, 0)
+  assert.equal(square.height, 1)
+  assert.ok(Math.abs(square.width * 1000 / 1000 - 3 / 4) < 0.0001)
+})
+
+test('auto-align rejects invalid source or target dimensions', () => {
+  assert.throws(() => getCenteredAspectCrop(0, 1000), /Ảnh không hợp lệ/)
+  assert.throws(() => getCenteredAspectCrop(1000, 1000, Number.NaN), /Ảnh không hợp lệ/)
 })
 
 test('brightness and contrast retain neutral pixels and clamp output values', () => {
@@ -89,16 +111,17 @@ test('edit history has a fixed memory bound and reset state is neutral', () => {
     blurStrength: 12,
   })
 
-  test('edited image exports must contain supported non-empty image data', () => {
-    const image = new Blob(['encoded pixels'], { type: 'image/webp' })
-    assert.equal(validateEditedImageBlob(image), image)
-    assert.throws(
-      () => validateEditedImageBlob(new Blob([], { type: 'image/webp' })),
-      /Không thể xuất ảnh đã chỉnh sửa/,
-    )
-    assert.throws(
-      () => validateEditedImageBlob(new Blob(['pixels'], { type: 'text/plain' })),
-      /Không thể xuất ảnh đã chỉnh sửa/,
-    )
-  })
+})
+
+test('edited image exports must contain supported non-empty image data', () => {
+  const image = new Blob(['encoded pixels'], { type: 'image/webp' })
+  assert.equal(validateEditedImageBlob(image), image)
+  assert.throws(
+    () => validateEditedImageBlob(new Blob([], { type: 'image/webp' })),
+    /Không thể xuất ảnh đã chỉnh sửa/,
+  )
+  assert.throws(
+    () => validateEditedImageBlob(new Blob(['pixels'], { type: 'text/plain' })),
+    /Không thể xuất ảnh đã chỉnh sửa/,
+  )
 })
