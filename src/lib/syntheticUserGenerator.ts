@@ -1,9 +1,6 @@
 import type { StaffAppUser } from '../types/book.ts'
 import { SYNTHETIC_USERS_MARKER } from './syntheticQaUsers.ts'
 
-export const MODERATION_DEMO_COUNT = 439
-export const MODERATION_DEMO_SOURCE = 'BOOKI_MODERATION_DEMO_V1'
-
 export interface GeneratedSyntheticUser extends StaffAppUser {
   source: string
 }
@@ -12,8 +9,6 @@ interface GenerateSyntheticUsersOptions {
   count?: number
   seed?: number
   now?: Date
-  source?: string
-  emailPrefix?: string
 }
 
 const HCM_OFFSET_MS = 7 * 60 * 60 * 1000
@@ -181,8 +176,6 @@ export function generateSyntheticUsers({
   count = 450,
   seed = 20261128,
   now = new Date(),
-  source = SYNTHETIC_USERS_MARKER,
-  emailPrefix = 'qa',
 }: GenerateSyntheticUsersOptions = {}): GeneratedSyntheticUser[] {
   if (!Number.isInteger(count) || count < 1 || count > 5000) {
     throw new Error('Số lượng phải là số nguyên từ 1 đến 5000.')
@@ -201,26 +194,15 @@ export function generateSyntheticUsers({
     const user: GeneratedSyntheticUser = {
       userId: id,
       fullName,
-      email: `${emailPrefix}-${emailTag}@example.test`,
+      email: `qa-${emailTag}@example.test`,
       role: 'user',
       joinedAt: pickRegistrationTime(random, now, seenTimestamps),
       synthetic: true,
-      syntheticKind: source === SYNTHETIC_USERS_MARKER ? 'local-qa' : 'demo',
-      source,
+      source: SYNTHETIC_USERS_MARKER,
     }
     if (index % 7 !== 0) user.bio = index % 3 === 0 ? 'Đang tìm thêm sách hay để đọc.' : undefined
     if (index % 5 !== 0) user.avatarUrl = undefined
     users.push(user)
   }
   return users
-}
-
-export function generateModerationDemoUsers(now = new Date()): StaffAppUser[] {
-  return generateSyntheticUsers({
-    count: MODERATION_DEMO_COUNT,
-    seed: 20261128,
-    now,
-    source: MODERATION_DEMO_SOURCE,
-    emailPrefix: 'demo',
-  })
 }

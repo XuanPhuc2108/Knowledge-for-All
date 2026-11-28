@@ -49,7 +49,6 @@ export function parseSyntheticUserFile(input: unknown): StaffAppUser[] {
       role: 'user',
       joinedAt: user.joinedAt,
       synthetic: true,
-      syntheticKind: 'local-qa',
       avatarUrl: typeof user.avatarUrl === 'string' ? user.avatarUrl : undefined,
       bio: typeof user.bio === 'string' ? user.bio : undefined,
     }

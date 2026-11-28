@@ -5,7 +5,6 @@ import { generateSyntheticUsers } from '../src/lib/syntheticUserGenerator.ts'
 import { SYNTHETIC_USERS_MARKER } from '../src/lib/syntheticQaUsers.ts'
 
 export { generateSyntheticUsers } from '../src/lib/syntheticUserGenerator.ts'
-export { generateModerationDemoUsers } from '../src/lib/syntheticUserGenerator.ts'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const OUTPUT_DIR = path.join(ROOT, '.local-qa')

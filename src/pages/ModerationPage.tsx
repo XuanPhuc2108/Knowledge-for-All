@@ -11,7 +11,6 @@ import {
   parseSyntheticUserFile,
   readStoredSyntheticUsers,
 } from '../lib/syntheticQaUsers'
-import { generateModerationDemoUsers } from '../lib/syntheticUserGenerator'
 import { normalizeBookSearch } from '../lib/search'
 import { userFacingError } from '../lib/userFacingError'
 import type { AppLayoutContext } from '../components/AppLayout'
@@ -85,10 +84,6 @@ export function ModerationPage() {
   const [memberSort, setMemberSort] = useState<'newest' | 'oldest'>('newest')
   const [memberPage, setMemberPage] = useState(1)
   const importInputRef = useRef<HTMLInputElement>(null)
-  const demoUsers = useMemo(
-    () => role === 'admin' || role === 'owner' ? generateModerationDemoUsers() : [],
-    [role],
-  )
 
   useEffect(() => {
     if (!role || role === 'user') return
@@ -267,14 +262,14 @@ export function ModerationPage() {
   })
   const filteredMembers = useMemo(() => {
     const normalizedSearch = normalizeBookSearch(memberSearch.trim())
-    return [...staffUsers, ...syntheticUsers, ...demoUsers]
+    return [...staffUsers, ...syntheticUsers]
       .filter((member) => memberRoleFilter === 'all' || member.role === memberRoleFilter)
       .filter((member) => !normalizedSearch || normalizeBookSearch(member.fullName).includes(normalizedSearch))
       .sort((left, right) => {
         const difference = Date.parse(left.joinedAt) - Date.parse(right.joinedAt)
         return memberSort === 'newest' ? -difference : difference
       })
-  }, [staffUsers, syntheticUsers, demoUsers, memberRoleFilter, memberSearch, memberSort])
+  }, [staffUsers, syntheticUsers, memberRoleFilter, memberSearch, memberSort])
   const memberPageCount = Math.max(1, Math.ceil(filteredMembers.length / 25))
   const visibleMembers = filteredMembers.slice((memberPage - 1) * 25, memberPage * 25)
 
@@ -367,8 +362,7 @@ export function ModerationPage() {
         <section aria-label="Thống kê nền tảng" className="grid grid-cols-2 gap-3 md:grid-cols-5">
           <SummaryCard
             label="Thành viên"
-            value={summary.userCount + demoUsers.length + (localQaAvailable ? syntheticUsers.length : 0)}
-            detail={`${summary.userCount} thật${localQaAvailable && syntheticUsers.length > 0 ? ` + ${syntheticUsers.length} QA local` : ''} + ${demoUsers.length} kiểm thử`}
+            value={summary.userCount}
           />
           <SummaryCard label="Bài đăng sách" value={summary.bookCount} />
           <SummaryCard label="Báo cáo chờ" value={summary.pendingReportCount} />
@@ -554,11 +548,6 @@ export function ModerationPage() {
                 </p>
               </div>
             </div>
-            {(role === 'admin' || role === 'owner') && (
-              <p className="text-xs text-text-muted" role="status">
-                Hồ sơ gắn nhãn “Kiểm thử” chỉ phục vụ kiểm tra danh sách; không được lưu và không tính vào thống kê thật.
-              </p>
-            )}
             <div className="grid gap-3 sm:grid-cols-3">
               <input
                 type="search"
@@ -618,7 +607,7 @@ export function ModerationPage() {
                           {member.fullName}
                           {member.synthetic && (
                             <span className="ml-2 rounded-full border border-accent-yellow/25 px-2 py-0.5 text-[10px] font-bold text-accent-yellow">
-                              {member.syntheticKind === 'demo' ? 'Kiểm thử' : 'QA local'}
+                              QA local
                             </span>
                           )}
                         </td>
@@ -707,12 +696,11 @@ export function ModerationPage() {
   )
 }
 
-function SummaryCard({ label, value, detail }: { label: string; value: number; detail?: string }) {
+function SummaryCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="glass-card rounded-xl p-3 sm:rounded-2xl sm:p-4">
       <p className="text-xs text-text-muted">{label}</p>
       <p className="mt-1 text-xl font-black text-text-primary sm:text-2xl">{value}</p>
-      {detail && <p className="mt-1 text-xs text-text-muted">{detail}</p>}
     </div>
   )
 }
