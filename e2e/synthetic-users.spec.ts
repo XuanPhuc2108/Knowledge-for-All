@@ -19,18 +19,18 @@ test('Booki Guard keeps the imported 450-user QA fixture distinct and searchable
   await expect(page.getByText('DỮ LIỆU KIỂM THỬ — KHÔNG PHẢI THÀNH VIÊN THẬT')).toBeVisible()
   await page.locator('input[type="file"]').setInputFiles('.local-qa/synthetic-users.json')
   await expect(page.getByText('Đang nạp 450 hồ sơ QA riêng biệt.')).toBeVisible()
-  await expect(page.getByText('Hiển thị 1-25 / 451')).toBeVisible()
+  await expect(page.getByText('Hiển thị 1-25 / 890')).toBeVisible()
 
   const search = page.getByRole('searchbox', { name: 'Tìm thành viên' })
-  await search.fill('Gia Han Do')
-  await expect(page.getByText('Gia Hân Đỗ')).toBeVisible()
+  await search.fill('Người kiểm thử')
+  await expect(page.getByText('Người kiểm thử', { exact: true }).last()).toBeVisible()
   await expect(page.getByText('Hiển thị 1-1 / 1')).toBeVisible()
   await search.clear()
   await page.getByRole('button', { name: 'Sau' }).click()
-  await expect(page.getByText('Trang 2 / 19')).toBeVisible()
+  await expect(page.getByText('Trang 2 / 36')).toBeVisible()
 })
 
-test('Booki Guard displays the 439-profile demo only while the browser session has it enabled', async ({ page }) => {
+test('Booki Guard includes 439 clearly marked test profiles in the member list without changing real totals', async ({ page }) => {
   await page.addInitScript(() => {
     const id = '11111111-1111-4111-8111-111111111111'
     const user = {
@@ -46,11 +46,10 @@ test('Booki Guard displays the 439-profile demo only while the browser session h
   })
 
   await page.goto('/app/moderation')
-  await page.getByRole('button', { name: 'Mở 439 hồ sơ demo' }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'Đang hiển thị 439 hồ sơ minh họa' })).toBeVisible()
-  await expect(page.getByText('Thành viên thật: 1.', { exact: false })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: 'không tính vào thống kê thật' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Thống kê nền tảng' }).getByText('1', { exact: true })).toBeVisible()
   await expect(page.getByText('Hiển thị 1-25 / 440')).toBeVisible()
-  await expect(page.getByText('DEMO').first()).toBeVisible()
+  await expect(page.getByText('Kiểm thử', { exact: true }).first()).toBeVisible()
 
   const search = page.getByRole('searchbox', { name: 'Tìm thành viên' })
   await search.fill('Gia Han Do')
@@ -60,10 +59,7 @@ test('Booki Guard displays the 439-profile demo only while the browser session h
   await expect(page.getByText('Hiển thị 1-25 / 440')).toBeVisible()
   await page.getByRole('button', { name: 'Sau' }).click()
   await expect(page.getByText('Trang 2 / 18')).toBeVisible()
-  await page.getByRole('button', { name: 'Tắt mô phỏng' }).click()
-  await expect(page.getByText('Hiển thị 1-1 / 1')).toBeVisible()
 
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Mở 439 hồ sơ demo' })).toBeVisible()
-  await expect(page.getByText('Hiển thị 1-1 / 1')).toBeVisible()
+  await expect(page.getByText('Hiển thị 1-25 / 440')).toBeVisible()
 })
