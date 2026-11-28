@@ -65,7 +65,6 @@ export function ModerationPage() {
   const [memberRoleFilter, setMemberRoleFilter] = useState<MemberRoleFilter>('all')
   const [memberSort, setMemberSort] = useState<'newest' | 'oldest'>('newest')
   const [memberPage, setMemberPage] = useState(1)
-  const importInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!role || role === 'user') return
