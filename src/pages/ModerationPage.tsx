@@ -11,7 +11,7 @@ import {
   parseSyntheticUserFile,
   readStoredSyntheticUsers,
 } from '../lib/syntheticQaUsers'
-import { generateModerationDemoUsers, MODERATION_DEMO_COUNT } from '../lib/syntheticUserGenerator'
+import { generateModerationDemoUsers } from '../lib/syntheticUserGenerator'
 import { normalizeBookSearch } from '../lib/search'
 import { userFacingError } from '../lib/userFacingError'
 import type { AppLayoutContext } from '../components/AppLayout'
@@ -84,9 +84,11 @@ export function ModerationPage() {
   const [memberRoleFilter, setMemberRoleFilter] = useState<MemberRoleFilter>('all')
   const [memberSort, setMemberSort] = useState<'newest' | 'oldest'>('newest')
   const [memberPage, setMemberPage] = useState(1)
-  const [memberDemoEnabled, setMemberDemoEnabled] = useState(false)
-  const [demoUsers, setDemoUsers] = useState<StaffAppUser[]>([])
   const importInputRef = useRef<HTMLInputElement>(null)
+  const demoUsers = useMemo(
+    () => role === 'admin' || role === 'owner' ? generateModerationDemoUsers() : [],
+    [role],
+  )
 
   useEffect(() => {
     if (!role || role === 'user') return
@@ -243,17 +245,6 @@ export function ModerationPage() {
     if (!localQaAvailable) return
     localStorage.removeItem(LOCAL_QA_ADMIN_KEY)
     window.location.reload()
-  }
-
-  const toggleMemberDemo = () => {
-    if (memberDemoEnabled) {
-      setDemoUsers([])
-      setMemberDemoEnabled(false)
-    } else {
-      setDemoUsers(generateModerationDemoUsers())
-      setMemberDemoEnabled(true)
-    }
-    setMemberPage(1)
   }
 
   const needsReviewCount = items.filter((item) => (
@@ -551,30 +542,19 @@ export function ModerationPage() {
         <>
           <section className="space-y-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-yellow">QUẢN LÝ THÀNH VIÊN</p>
-              <h2 className="mt-1 text-xl font-bold text-text-primary">Vai trò trong Booki</h2>
-              <p className="mt-1 text-sm text-text-muted">
-                Email và tọa độ riêng tư không hiển thị. Chỉ Owner được cấp vai trò; Moderator có thể xem xét tín hiệu, xử lý báo cáo và gỡ nội dung.
-              </p>
-            </div>
-            <section aria-label="Mô phỏng danh sách thành viên" className="rounded-2xl border border-accent-yellow/25 bg-accent-yellow/[0.05] p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="max-w-2xl">
-                  <h3 className="text-sm font-bold text-text-primary">Xem thử danh sách với {MODERATION_DEMO_COUNT} hồ sơ demo</h3>
-                  <p className="mt-1 text-xs leading-5 text-text-muted">
-                    Chỉ tạo trong bộ nhớ của tab này; không lưu, không ghi vào Supabase/Auth và không cộng vào thống kê thành viên thật. Mỗi hồ sơ được đánh dấu DEMO.
-                  </p>
-                </div>
-                <Button type="button" size="sm" variant={memberDemoEnabled ? 'secondary' : 'outline'} aria-pressed={memberDemoEnabled} onClick={toggleMemberDemo}>
-                  {memberDemoEnabled ? 'Tắt mô phỏng' : `Mở ${MODERATION_DEMO_COUNT} hồ sơ demo`}
-                </Button>
-              </div>
-              {memberDemoEnabled && (
-                <p className="mt-3 text-xs font-semibold text-accent-yellow" role="status">
-                  Đang hiển thị {MODERATION_DEMO_COUNT} hồ sơ minh họa — dữ liệu này chỉ tồn tại trong phiên trình duyệt hiện tại.
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-yellow">QUẢN LÝ THÀNH VIÊN</p>
+                <h2 className="mt-1 text-xl font-bold text-text-primary">Vai trò trong Booki</h2>
+                <p className="mt-1 text-sm text-text-muted">
+                  Email và tọa độ riêng tư không hiển thị. Chỉ Owner được cấp vai trò; Moderator có thể xem xét tín hiệu, xử lý báo cáo và gỡ nội dung.
                 </p>
-              )}
-            </section>
+              </div>
+            </div>
+            {(role === 'admin' || role === 'owner') && (
+              <p className="text-xs text-text-muted" role="status">
+                Hồ sơ gắn nhãn “Kiểm thử” chỉ phục vụ kiểm tra danh sách; không được lưu và không tính vào thống kê thật.
+              </p>
+            )}
             <div className="grid gap-3 sm:grid-cols-3">
               <input
                 type="search"
@@ -612,12 +592,9 @@ export function ModerationPage() {
                 <option value="oldest">Tham gia cũ nhất</option>
               </select>
             </div>
-            {((localQaAvailable && syntheticUsers.length > 0) || memberDemoEnabled) && (
+            {localQaAvailable && syntheticUsers.length > 0 && (
               <p className="text-sm text-text-muted">
-                Thành viên thật: {staffUsers.length}.
-                {localQaAvailable && syntheticUsers.length > 0 && ` Hồ sơ QA local: ${syntheticUsers.length}.`}
-                {memberDemoEnabled && ` Hồ sơ demo: ${demoUsers.length}.`}
-                {' '}Tổng dòng đang hiển thị: {staffUsers.length + (localQaAvailable ? syntheticUsers.length : 0) + demoUsers.length}.
+                Thành viên thật: {staffUsers.length}. Hồ sơ QA local: {syntheticUsers.length}. Tổng dòng có thể duyệt: {staffUsers.length + syntheticUsers.length}.
               </p>
             )}
             {usersError ? (
@@ -637,7 +614,7 @@ export function ModerationPage() {
                           {member.fullName}
                           {member.synthetic && (
                             <span className="ml-2 rounded-full border border-accent-yellow/25 px-2 py-0.5 text-[10px] font-bold text-accent-yellow">
-                              {member.syntheticKind === 'demo' ? 'DEMO' : 'QA local'}
+                              {member.syntheticKind === 'demo' ? 'Kiểm thử' : 'QA local'}
                             </span>
                           )}
                         </td>
