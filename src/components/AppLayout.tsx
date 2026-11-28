@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { BookOpen, Home, Inbox, MapPin, Plus, Settings, ShieldAlert, User } from 'lucide-react'
+import { BookOpen, HandHeart, Home, Inbox, MapPin, Plus, Settings, ShieldAlert, User } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuthState'
@@ -13,12 +13,18 @@ const SIDEBAR_LINKS = [
   { to: '/app/add-book', icon: Plus, label: 'Đăng sách' },
   { to: '/app/nearby', icon: MapPin, label: 'Gần bạn' },
   { to: '/app/my-books', icon: BookOpen, label: 'Sách của tôi' },
+  { to: '/app/borrowing', icon: HandHeart, label: 'Tìm mượn sách' },
   { to: '/app/requests', icon: Inbox, label: 'Lời nhắn' },
   { to: '/app/profile', icon: User, label: 'Hồ sơ' },
   { to: '/app/settings', icon: Settings, label: 'Cài đặt' },
 ]
 
 const MOBILE_LINKS = SIDEBAR_LINKS.filter((link) => link.to !== '/app/add-book')
+
+function isActiveAppRoute(pathname: string, route: string) {
+  const currentPath = pathname.replace(/\/+$/, '') || '/'
+  return currentPath === route || (route !== '/app' && currentPath.startsWith(`${route}/`))
+}
 
 export interface AppLayoutContext {
   role: AppRole | null
@@ -80,9 +86,10 @@ export function AppLayout() {
               <Link
                 key={to}
                 to={to}
+                aria-current={isActiveAppRoute(location.pathname, to) ? 'page' : undefined}
                 className={clsx(
                   'app-sidebar-link flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-[background-color,color,transform] duration-200',
-                  location.pathname === to || (to !== '/app' && location.pathname.startsWith(to))
+                  isActiveAppRoute(location.pathname, to)
                     ? 'is-active bg-accent-yellow/10 text-accent-yellow'
                     : 'text-text-muted hover:translate-x-0.5 hover:bg-[rgb(var(--color-interactive-surface)/.8)] hover:text-text-primary',
                 )}
@@ -110,10 +117,10 @@ export function AppLayout() {
             <Link
               key={to}
               to={to}
-              aria-current={location.pathname === to ? 'page' : undefined}
+              aria-current={isActiveAppRoute(location.pathname, to) ? 'page' : undefined}
               className={clsx(
                 'app-mobile-nav-link flex flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 text-[10px] font-medium transition-[background-color,color,transform] duration-200',
-                location.pathname === to ? 'is-active bg-accent-yellow/10 text-accent-yellow' : 'text-text-muted hover:text-text-primary',
+                isActiveAppRoute(location.pathname, to) ? 'is-active bg-accent-yellow/10 text-accent-yellow' : 'text-text-muted hover:text-text-primary',
               )}
             >
               <Icon className="h-[18px] w-[18px]" aria-hidden="true" />

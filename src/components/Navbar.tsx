@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { BookOpen, LogIn, Plus, Search, UserPlus, Volume2, VolumeX } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuthState'
 import { useAppSettings } from '../hooks/useAppSettings'
 import { APP_NAME } from '../lib/constants'
@@ -11,15 +11,20 @@ import { MobileMenu } from './MobileMenu'
 
 const openCommandPalette = () => window.dispatchEvent(new Event('booki:open-command-palette'))
 
-const NAV_LINKS = [{ href: '#upload', label: 'Đăng sách' }]
-
 export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' }) {
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const { user, logout } = useAuth()
   const { settings, setSettings } = useAppSettings()
   const navigate = useNavigate()
+  const location = useLocation()
   const closeMobileMenu = useCallback(() => setMobileOpen(false), [])
+  const currentPath = location.pathname.replace(/\/+$/, '') || '/'
+  const isHomeActive = currentPath === '/'
+  const isExploreActive = currentPath === '/explore' || currentPath === '/app'
+  const isAddBookActive = currentPath === '/app/add-book'
+  const explorePath = user ? '/app' : '/explore'
+  const isPublicRoute = currentPath !== '/app' && !currentPath.startsWith('/app/')
 
   useEffect(() => {
     let frame = 0
@@ -63,36 +68,73 @@ export function Navbar({ variant = 'landing' }: { variant?: 'landing' | 'app' })
           </Link>
           {variant === 'landing' && (
             <>
-              <Link to={user ? '/app' : '/'} className="landing-home-link md:hidden">
+              <Link
+                to="/"
+                aria-current={isHomeActive ? 'page' : undefined}
+                className="landing-home-link md:hidden"
+              >
                 Trang chủ
               </Link>
-              <Link to="/explore" className="landing-explore-link md:hidden">
+              <Link
+                to={explorePath}
+                aria-current={isExploreActive ? 'page' : undefined}
+                className="landing-explore-link md:hidden"
+              >
                 Khám phá
               </Link>
               <ul className="hidden items-center gap-3 lg:gap-5 md:flex">
                 <li>
-                  <Link to={user ? '/app' : '/'} className="landing-home-link">
+                  <Link
+                    to="/"
+                    aria-current={isHomeActive ? 'page' : undefined}
+                    className="landing-home-link"
+                  >
                     Trang chủ
                   </Link>
                 </li>
                 <li>
-                  <Link to="/explore" className="landing-explore-link">
+                  <Link
+                    to={explorePath}
+                    aria-current={isExploreActive ? 'page' : undefined}
+                    className="landing-explore-link"
+                  >
                     Khám phá
                   </Link>
                 </li>
-                {NAV_LINKS.map((link) => (
-                  <li key={link.href}>
-                    <button
-                      type="button"
-                      onClick={() => navigate(user ? '/app/add-book' : '/register')}
-                      className="landing-nav-link text-sm text-text-muted transition-colors duration-150 hover:text-text-primary"
-                    >
-                      {link.label}
-                    </button>
-                  </li>
-                ))}
+                <li>
+                  <Link
+                    to={user ? '/app/add-book' : '/register'}
+                    aria-current={isAddBookActive ? 'page' : undefined}
+                    className="landing-nav-link text-sm text-text-muted transition-colors duration-150 hover:text-text-primary"
+                  >
+                    Đăng sách
+                  </Link>
+                </li>
               </ul>
             </>
+          )}
+
+          {variant === 'app' && isPublicRoute && (
+            <ul className="hidden items-center gap-3 md:flex">
+              <li>
+                <Link
+                  to="/"
+                  aria-current={isHomeActive ? 'page' : undefined}
+                  className="landing-home-link"
+                >
+                  Trang chủ
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to={explorePath}
+                  aria-current={isExploreActive ? 'page' : undefined}
+                  className="landing-explore-link"
+                >
+                  Khám phá
+                </Link>
+              </li>
+            </ul>
           )}
 
           <div className="hidden items-center gap-3 md:flex">
