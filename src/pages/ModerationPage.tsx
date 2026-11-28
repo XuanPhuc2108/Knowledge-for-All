@@ -1,17 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, ExternalLink, ShieldAlert } from 'lucide-react'
 import { Link, useOutletContext } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
 import { useToast } from '../hooks/useToast'
-import { getAdapter, getAdapterMode } from '../lib/dataAdapter'
-import {
-  LOCAL_QA_ADMIN_KEY,
-  SYNTHETIC_USERS_STORAGE_KEY,
-  parseSyntheticUserFile,
-  readStoredSyntheticUsers,
-} from '../lib/syntheticQaUsers'
-import { generateModerationDemoUsers } from '../lib/syntheticUserGenerator'
+import { getAdapter } from '../lib/dataAdapter'
 import { normalizeBookSearch } from '../lib/search'
 import { userFacingError } from '../lib/userFacingError'
 import type { AppLayoutContext } from '../components/AppLayout'
@@ -68,27 +61,11 @@ export function ModerationPage() {
   const [auditEntries, setAuditEntries] = useState<AppAuditEntry[]>([])
   const [auditError, setAuditError] = useState<string | null>(null)
   const [roleBusyId, setRoleBusyId] = useState<string | null>(null)
-  const localQaAvailable = import.meta.env.DEV && getAdapterMode() === 'local'
-  const [storedSyntheticState] = useState(() => {
-    if (!localQaAvailable) return { users: [] as StaffAppUser[], error: null as string | null }
-    try {
-      return { users: readStoredSyntheticUsers(localStorage), error: null }
-    } catch (cause) {
-      console.error('Unable to read local synthetic user fixture', cause)
-      return { users: [], error: 'Không thể đọc dữ liệu QA lưu trên trình duyệt. Hãy nhập lại tệp JSON hợp lệ.' }
-    }
-  })
-  const [syntheticUsers, setSyntheticUsers] = useState(storedSyntheticState.users)
-  const [syntheticError, setSyntheticError] = useState<string | null>(storedSyntheticState.error)
   const [memberSearch, setMemberSearch] = useState('')
   const [memberRoleFilter, setMemberRoleFilter] = useState<MemberRoleFilter>('all')
   const [memberSort, setMemberSort] = useState<'newest' | 'oldest'>('newest')
   const [memberPage, setMemberPage] = useState(1)
   const importInputRef = useRef<HTMLInputElement>(null)
-  const demoUsers = useMemo(
-    () => role === 'admin' || role === 'owner' ? generateModerationDemoUsers() : [],
-    [role],
-  )
 
   useEffect(() => {
     if (!role || role === 'user') return
@@ -205,47 +182,6 @@ export function ModerationPage() {
     }
   }
 
-  const importSyntheticUsers = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.currentTarget.files?.[0]
-    event.currentTarget.value = ''
-    if (!file || !localQaAvailable) return
-    try {
-      const users = parseSyntheticUserFile(JSON.parse(await file.text()))
-      localStorage.setItem(SYNTHETIC_USERS_STORAGE_KEY, JSON.stringify({
-        marker: 'BOOKI_LOCAL_SYNTHETIC_USERS_V1',
-        users,
-      }))
-      setSyntheticUsers(users)
-      setSyntheticError(null)
-      setMemberPage(1)
-      showToast(`Đã nạp ${users.length} hồ sơ kiểm thử cục bộ.`, 'success')
-    } catch (cause) {
-      console.error('Unable to import local synthetic user fixture', cause)
-      setSyntheticError(cause instanceof Error
-        ? cause.message
-        : 'Không thể nhập dữ liệu kiểm thử.')
-    }
-  }
-
-  const clearSyntheticUsers = () => {
-    if (!localQaAvailable) return
-    localStorage.removeItem(SYNTHETIC_USERS_STORAGE_KEY)
-    setSyntheticUsers([])
-    setSyntheticError(null)
-    setMemberPage(1)
-  }
-
-  const enableLocalQaAdmin = () => {
-    if (!localQaAvailable) return
-    localStorage.setItem(LOCAL_QA_ADMIN_KEY, 'true')
-    window.location.reload()
-  }
-
-  const disableLocalQaAdmin = () => {
-    if (!localQaAvailable) return
-    localStorage.removeItem(LOCAL_QA_ADMIN_KEY)
-    window.location.reload()
-  }
 
   const needsReviewCount = items.filter((item) => (
     item.moderationStatus === 'needs_review' || item.report?.status === 'pending'
@@ -267,14 +203,14 @@ export function ModerationPage() {
   })
   const filteredMembers = useMemo(() => {
     const normalizedSearch = normalizeBookSearch(memberSearch.trim())
-    return [...staffUsers, ...syntheticUsers, ...demoUsers]
+    return [...staffUsers]
       .filter((member) => memberRoleFilter === 'all' || member.role === memberRoleFilter)
       .filter((member) => !normalizedSearch || normalizeBookSearch(member.fullName).includes(normalizedSearch))
       .sort((left, right) => {
         const difference = Date.parse(left.joinedAt) - Date.parse(right.joinedAt)
         return memberSort === 'newest' ? -difference : difference
       })
-  }, [staffUsers, syntheticUsers, demoUsers, memberRoleFilter, memberSearch, memberSort])
+  }, [staffUsers, memberRoleFilter, memberSearch, memberSort])
   const memberPageCount = Math.max(1, Math.ceil(filteredMembers.length / 25))
   const visibleMembers = filteredMembers.slice((memberPage - 1) * 25, memberPage * 25)
 
@@ -289,17 +225,6 @@ export function ModerationPage() {
       <div className="glass-card mx-auto max-w-lg rounded-2xl p-6 text-center">
         <h1 className="text-xl font-bold text-text-primary">Khu vực dành cho đội ngũ kiểm duyệt</h1>
         <p className="mt-2 text-sm text-text-muted">Tài khoản hiện tại không có quyền truy cập.</p>
-        {localQaAvailable && (
-          <div className="mt-5 rounded-xl border border-accent-yellow/20 bg-accent-yellow/[0.06] p-4 text-left">
-            <p className="text-sm font-bold text-accent-yellow">Chế độ quản trị QA chỉ dùng local</p>
-            <p className="mt-1 text-xs leading-5 text-text-muted">
-              Chỉ có trong Vite development khi ứng dụng dùng local adapter; thao tác này không cấp quyền hoặc ghi dữ liệu vào Supabase.
-            </p>
-            <Button type="button" className="mt-3 w-full" onClick={enableLocalQaAdmin}>
-              Mở Booki Guard cho QA local
-            </Button>
-          </div>
-        )}
         <Link to="/app" className="mt-4 inline-flex text-sm font-semibold text-accent-yellow hover:underline">Về trang khám phá</Link>
       </div>
     )
@@ -319,42 +244,6 @@ export function ModerationPage() {
           </p>
         </div>
       </header>
-
-      {localQaAvailable && (
-        <section aria-label="Dữ liệu thành viên QA cục bộ" className="rounded-2xl border border-accent-yellow/30 bg-accent-yellow/[0.07] p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-black text-accent-yellow">DỮ LIỆU KIỂM THỬ — KHÔNG PHẢI THÀNH VIÊN THẬT</p>
-              <p className="mt-1 text-xs leading-5 text-text-muted">
-                Hồ sơ QA chỉ được lưu trong localStorage của trình duyệt. Thống kê thành viên thật từ adapter không bị thay đổi.
-              </p>
-              <p className="mt-1 text-xs text-text-muted">Đang nạp {syntheticUsers.length} hồ sơ QA riêng biệt.</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <input
-                ref={importInputRef}
-                type="file"
-                accept="application/json,.json"
-                className="sr-only"
-                aria-label="Chọn tệp hồ sơ người dùng tổng hợp"
-                onChange={(event) => void importSyntheticUsers(event)}
-              />
-              <Button type="button" size="sm" variant="secondary" onClick={() => importInputRef.current?.click()}>
-                Nạp tệp JSON
-              </Button>
-              {syntheticUsers.length > 0 && (
-                <Button type="button" size="sm" variant="secondary" onClick={clearSyntheticUsers}>
-                  Xóa hồ sơ QA trong trình duyệt
-                </Button>
-              )}
-              <Button type="button" size="sm" variant="secondary" onClick={disableLocalQaAdmin}>
-                Tắt chế độ QA
-              </Button>
-            </div>
-          </div>
-          {syntheticError && <p className="mt-3 text-sm text-accent-rose" role="alert">{syntheticError}</p>}
-        </section>
-      )}
 
       <section aria-label="Thống kê Booki Guard" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <SummaryCard label="Cần xem xét" value={needsReviewCount} />
@@ -550,11 +439,6 @@ export function ModerationPage() {
                 </p>
               </div>
             </div>
-            {(role === 'admin' || role === 'owner') && (
-              <p className="text-xs text-text-muted" role="status">
-                Hồ sơ gắn nhãn “Kiểm thử” chỉ phục vụ kiểm tra danh sách; không được lưu và không tính vào thống kê thật.
-              </p>
-            )}
             <div className="grid gap-3 sm:grid-cols-3">
               <input
                 type="search"
@@ -592,11 +476,6 @@ export function ModerationPage() {
                 <option value="oldest">Tham gia cũ nhất</option>
               </select>
             </div>
-            {localQaAvailable && syntheticUsers.length > 0 && (
-              <p className="text-sm text-text-muted">
-                Thành viên thật: {staffUsers.length}. Hồ sơ QA local: {syntheticUsers.length}. Tổng dòng có thể duyệt: {staffUsers.length + syntheticUsers.length}.
-              </p>
-            )}
             {usersError ? (
               <p className="rounded-xl border border-accent-rose/20 p-3 text-sm text-accent-rose" role="alert">{usersError}</p>
             ) : filteredMembers.length === 0 ? (
@@ -612,15 +491,10 @@ export function ModerationPage() {
                       <tr key={member.userId}>
                         <td className="px-4 py-3 font-medium text-text-primary">
                           {member.fullName}
-                          {member.synthetic && (
-                            <span className="ml-2 rounded-full border border-accent-yellow/25 px-2 py-0.5 text-[10px] font-bold text-accent-yellow">
-                              {member.syntheticKind === 'demo' ? 'Kiểm thử' : 'QA local'}
-                            </span>
-                          )}
                         </td>
                         <td className="px-4 py-3 text-text-muted">{new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(new Date(member.joinedAt))}</td>
                         <td className="px-4 py-3">
-                          {role === 'owner' && member.role !== 'owner' && !member.synthetic ? (
+                          {role === 'owner' && member.role !== 'owner' ? (
                             <select
                               aria-label={`Vai trò của ${member.fullName}`}
                               value={member.role}
