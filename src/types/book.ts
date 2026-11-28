@@ -180,6 +180,9 @@ export interface StaffAppUser {
   userId: string
   fullName: string
   avatarUrl?: string
+  email?: string
+  bio?: string
+  synthetic?: boolean
   role: 'user' | 'moderator' | 'admin' | 'owner'
   joinedAt: string
 }

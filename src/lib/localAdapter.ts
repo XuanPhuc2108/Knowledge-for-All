@@ -397,8 +397,11 @@ export const localAdapter = {
     throw new Error('Đánh giá sau tương tác cần kết nối Supabase.')
   },
 
-  async getMyAppRole(userId: string): Promise<'user'> {
+  async getMyAppRole(userId: string): Promise<'user' | 'admin'> {
     void userId
+    if (import.meta.env.DEV && localStorage.getItem('booki_local_qa_admin_v1') === 'true') {
+      return 'admin'
+    }
     return 'user'
   },
 
@@ -410,8 +413,14 @@ export const localAdapter = {
     return []
   },
 
-  async getStaffUsers(): Promise<[]> {
-    return []
+  async getStaffUsers() {
+    return readUsers().map((user) => ({
+      userId: user.id,
+      fullName: user.fullName,
+      avatarUrl: user.avatarUrl,
+      role: 'user' as const,
+      joinedAt: user.createdAt,
+    }))
   },
 
   async setStaffUserRole(): Promise<void> {
