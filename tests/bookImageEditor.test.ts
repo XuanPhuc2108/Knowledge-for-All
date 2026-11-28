@@ -4,8 +4,11 @@ import {
   adjustImageChannel,
   createInitialImageEditState,
   getCenteredAspectCrop,
+  getConservativeContentCrop,
   getCropFromDrag,
   getCropPixelBounds,
+  getRotatedImageDimensions,
+  getVisibleImageCrop,
   MAX_IMAGE_EDIT_HISTORY,
   pushImageEditHistory,
   redoImageEdit,
@@ -104,13 +107,69 @@ test('edit history has a fixed memory bound and reset state is neutral', () => {
   assert.equal(state.brightness, 125)
   assert.deepEqual(createInitialImageEditState(), {
     crop: fullCrop,
+    rotation: 0,
+    zoom: 1,
+    fitMode: 'smart',
     brightness: 100,
     contrast: 100,
     strokes: [],
     brushSize: 44,
     blurStrength: 12,
   })
+})
 
+test('right-angle rotations preserve exact image bounds and arbitrary angles remain crop-safe', () => {
+  assert.deepEqual(getRotatedImageDimensions(600, 800, 90), { width: 800, height: 600 })
+  assert.deepEqual(getRotatedImageDimensions(600, 800, 180), { width: 600, height: 800 })
+
+  for (const rotation of [-5, 3, 90, 180]) {
+    const dimensions = getRotatedImageDimensions(600, 800, rotation)
+    const crop = getVisibleImageCrop(
+      getCenteredAspectCrop(dimensions.width, dimensions.height),
+      600,
+      800,
+      rotation,
+      1.15,
+    )
+    assert.ok(crop.width > 0 && crop.height > 0)
+    assert.ok(crop.x >= 0 && crop.y >= 0)
+    assert.ok(crop.x + crop.width <= 1)
+    assert.ok(crop.y + crop.height <= 1)
+  }
+})
+
+test('smart crop trims clear uniform borders but falls back when the background is ambiguous', () => {
+  const width = 100
+  const height = 140
+  const pixels = new Uint8ClampedArray(width * height * 4)
+  for (let index = 0; index < pixels.length; index += 4) {
+    pixels[index] = 238
+    pixels[index + 1] = 236
+    pixels[index + 2] = 228
+    pixels[index + 3] = 255
+  }
+  for (let y = 20; y < 120; y += 1) {
+    for (let x = 30; x < 70; x += 1) {
+      const offset = (y * width + x) * 4
+      pixels[offset] = 65
+      pixels[offset + 1] = 42
+      pixels[offset + 2] = 28
+    }
+  }
+  const crop = getConservativeContentCrop(pixels, width, height)
+  assert.ok(crop)
+  assert.ok(Math.abs((crop.width * width) / (crop.height * height) - 3 / 4) < 0.01)
+  assert.ok(crop.x * width <= 30)
+  assert.ok((crop.x + crop.width) * width >= 70)
+  assert.ok(crop.y * height <= 20)
+  assert.ok((crop.y + crop.height) * height >= 120)
+
+  for (let y = 0; y < 8; y += 1) {
+    for (let x = 0; x < 8; x += 1) {
+      pixels[(y * width + x) * 4] = 0
+    }
+  }
+  assert.equal(getConservativeContentCrop(pixels, width, height), null)
 })
 
 test('edited image exports must contain supported non-empty image data', () => {
