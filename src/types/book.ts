@@ -183,6 +183,7 @@ export interface StaffAppUser {
   email?: string
   bio?: string
   synthetic?: boolean
+  syntheticKind?: 'local-qa' | 'demo'
   role: 'user' | 'moderator' | 'admin' | 'owner'
   joinedAt: string
 }

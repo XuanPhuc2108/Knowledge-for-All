@@ -11,6 +11,7 @@ import {
   parseSyntheticUserFile,
   readStoredSyntheticUsers,
 } from '../lib/syntheticQaUsers'
+import { generateModerationDemoUsers, MODERATION_DEMO_COUNT } from '../lib/syntheticUserGenerator'
 import { normalizeBookSearch } from '../lib/search'
 import { userFacingError } from '../lib/userFacingError'
 import type { AppLayoutContext } from '../components/AppLayout'
@@ -83,6 +84,8 @@ export function ModerationPage() {
   const [memberRoleFilter, setMemberRoleFilter] = useState<MemberRoleFilter>('all')
   const [memberSort, setMemberSort] = useState<'newest' | 'oldest'>('newest')
   const [memberPage, setMemberPage] = useState(1)
+  const [memberDemoEnabled, setMemberDemoEnabled] = useState(false)
+  const [demoUsers, setDemoUsers] = useState<StaffAppUser[]>([])
   const importInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -242,6 +245,17 @@ export function ModerationPage() {
     window.location.reload()
   }
 
+  const toggleMemberDemo = () => {
+    if (memberDemoEnabled) {
+      setDemoUsers([])
+      setMemberDemoEnabled(false)
+    } else {
+      setDemoUsers(generateModerationDemoUsers())
+      setMemberDemoEnabled(true)
+    }
+    setMemberPage(1)
+  }
+
   const needsReviewCount = items.filter((item) => (
     item.moderationStatus === 'needs_review' || item.report?.status === 'pending'
   )).length
@@ -262,14 +276,14 @@ export function ModerationPage() {
   })
   const filteredMembers = useMemo(() => {
     const normalizedSearch = normalizeBookSearch(memberSearch.trim())
-    return [...staffUsers, ...syntheticUsers]
+    return [...staffUsers, ...syntheticUsers, ...demoUsers]
       .filter((member) => memberRoleFilter === 'all' || member.role === memberRoleFilter)
       .filter((member) => !normalizedSearch || normalizeBookSearch(member.fullName).includes(normalizedSearch))
       .sort((left, right) => {
         const difference = Date.parse(left.joinedAt) - Date.parse(right.joinedAt)
         return memberSort === 'newest' ? -difference : difference
       })
-  }, [staffUsers, syntheticUsers, memberRoleFilter, memberSearch, memberSort])
+  }, [staffUsers, syntheticUsers, demoUsers, memberRoleFilter, memberSearch, memberSort])
   const memberPageCount = Math.max(1, Math.ceil(filteredMembers.length / 25))
   const visibleMembers = filteredMembers.slice((memberPage - 1) * 25, memberPage * 25)
 
@@ -543,6 +557,24 @@ export function ModerationPage() {
                 Email và tọa độ riêng tư không hiển thị. Chỉ Owner được cấp vai trò; Moderator có thể xem xét tín hiệu, xử lý báo cáo và gỡ nội dung.
               </p>
             </div>
+            <section aria-label="Mô phỏng danh sách thành viên" className="rounded-2xl border border-accent-yellow/25 bg-accent-yellow/[0.05] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="max-w-2xl">
+                  <h3 className="text-sm font-bold text-text-primary">Xem thử danh sách với {MODERATION_DEMO_COUNT} hồ sơ demo</h3>
+                  <p className="mt-1 text-xs leading-5 text-text-muted">
+                    Chỉ tạo trong bộ nhớ của tab này; không lưu, không ghi vào Supabase/Auth và không cộng vào thống kê thành viên thật. Mỗi hồ sơ được đánh dấu DEMO.
+                  </p>
+                </div>
+                <Button type="button" size="sm" variant={memberDemoEnabled ? 'secondary' : 'outline'} aria-pressed={memberDemoEnabled} onClick={toggleMemberDemo}>
+                  {memberDemoEnabled ? 'Tắt mô phỏng' : `Mở ${MODERATION_DEMO_COUNT} hồ sơ demo`}
+                </Button>
+              </div>
+              {memberDemoEnabled && (
+                <p className="mt-3 text-xs font-semibold text-accent-yellow" role="status">
+                  Đang hiển thị {MODERATION_DEMO_COUNT} hồ sơ minh họa — dữ liệu này chỉ tồn tại trong phiên trình duyệt hiện tại.
+                </p>
+              )}
+            </section>
             <div className="grid gap-3 sm:grid-cols-3">
               <input
                 type="search"
@@ -580,9 +612,12 @@ export function ModerationPage() {
                 <option value="oldest">Tham gia cũ nhất</option>
               </select>
             </div>
-            {localQaAvailable && syntheticUsers.length > 0 && (
+            {((localQaAvailable && syntheticUsers.length > 0) || memberDemoEnabled) && (
               <p className="text-sm text-text-muted">
-                Thành viên thật: {staffUsers.length}. Hồ sơ QA riêng biệt: {syntheticUsers.length}. Tổng dòng có thể duyệt: {staffUsers.length + syntheticUsers.length}.
+                Thành viên thật: {staffUsers.length}.
+                {localQaAvailable && syntheticUsers.length > 0 && ` Hồ sơ QA local: ${syntheticUsers.length}.`}
+                {memberDemoEnabled && ` Hồ sơ demo: ${demoUsers.length}.`}
+                {' '}Tổng dòng đang hiển thị: {staffUsers.length + (localQaAvailable ? syntheticUsers.length : 0) + demoUsers.length}.
               </p>
             )}
             {usersError ? (
@@ -600,7 +635,11 @@ export function ModerationPage() {
                       <tr key={member.userId}>
                         <td className="px-4 py-3 font-medium text-text-primary">
                           {member.fullName}
-                          {member.synthetic && <span className="ml-2 rounded-full border border-accent-yellow/25 px-2 py-0.5 text-[10px] font-bold text-accent-yellow">QA local</span>}
+                          {member.synthetic && (
+                            <span className="ml-2 rounded-full border border-accent-yellow/25 px-2 py-0.5 text-[10px] font-bold text-accent-yellow">
+                              {member.syntheticKind === 'demo' ? 'DEMO' : 'QA local'}
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-text-muted">{new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(new Date(member.joinedAt))}</td>
                         <td className="px-4 py-3">

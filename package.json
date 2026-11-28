@@ -10,9 +10,9 @@
     "test": "node --experimental-strip-types --test tests/authFlow.test.ts tests/bookCreatePipeline.test.ts tests/bookImageEditor.test.ts tests/bookImageFlow.test.ts tests/bookSharing.test.ts tests/bookiGuard.test.ts tests/publicBookCount.test.ts tests/syntheticUsers.test.mjs",
     "test:guard": "node --experimental-strip-types --test tests/bookiGuard.test.ts",
     "test:e2e": "playwright test",
-    "qa:users": "node scripts/synthetic-users.mjs generate --local",
-    "qa:users:inspect": "node scripts/synthetic-users.mjs inspect --local",
-    "qa:users:clean": "node scripts/synthetic-users.mjs clean --local",
+    "qa:users": "node --experimental-strip-types scripts/synthetic-users.mjs generate --local",
+    "qa:users:inspect": "node --experimental-strip-types scripts/synthetic-users.mjs inspect --local",
+    "qa:users:clean": "node --experimental-strip-types scripts/synthetic-users.mjs clean --local",
     "migrate:book-covers": "node scripts/migrate-book-cover-data-urls.mjs",
     "preview": "vite preview"
   },

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { generateSyntheticUsers } from '../scripts/synthetic-users.mjs'
+import { generateModerationDemoUsers, generateSyntheticUsers } from '../scripts/synthetic-users.mjs'
 
 const fixedNow = new Date('2026-11-28T13:00:00.000Z')
 
@@ -38,4 +38,13 @@ test('synthetic generator rejects invalid quantities and seeds', () => {
   assert.throws(() => generateSyntheticUsers({ count: 0 }), /1 đến 5000/)
   assert.throws(() => generateSyntheticUsers({ count: 2.5 }), /1 đến 5000/)
   assert.throws(() => generateSyntheticUsers({ count: 2, seed: Number.NaN }), /Seed/)
+})
+
+test('moderation demo creates exactly 439 clearly marked ordinary member profiles', () => {
+  const users = generateModerationDemoUsers(fixedNow)
+  assert.equal(users.length, 439)
+  assert.equal(new Set(users.map((user) => user.userId)).size, 439)
+  assert.equal(new Set(users.map((user) => user.fullName)).size, 439)
+  assert.ok(users.every((user) => user.synthetic && user.syntheticKind === 'demo' && user.role === 'user'))
+  assert.ok(users.every((user) => user.email?.endsWith('@example.test')))
 })
