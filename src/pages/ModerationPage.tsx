@@ -365,7 +365,11 @@ export function ModerationPage() {
 
       {(role === 'admin' || role === 'owner') && summary ? (
         <section aria-label="Thống kê nền tảng" className="grid grid-cols-2 gap-3 md:grid-cols-5">
-          <SummaryCard label="Thành viên" value={summary.userCount} />
+          <SummaryCard
+            label="Thành viên"
+            value={summary.userCount + demoUsers.length + (localQaAvailable ? syntheticUsers.length : 0)}
+            detail={`${summary.userCount} thật${localQaAvailable && syntheticUsers.length > 0 ? ` + ${syntheticUsers.length} QA local` : ''} + ${demoUsers.length} kiểm thử`}
+          />
           <SummaryCard label="Bài đăng sách" value={summary.bookCount} />
           <SummaryCard label="Báo cáo chờ" value={summary.pendingReportCount} />
           <SummaryCard label="Lượt đang kết nối" value={summary.activeRequestCount} />
@@ -703,11 +707,12 @@ export function ModerationPage() {
   )
 }
 
-function SummaryCard({ label, value }: { label: string; value: number }) {
+function SummaryCard({ label, value, detail }: { label: string; value: number; detail?: string }) {
   return (
     <div className="glass-card rounded-xl p-3 sm:rounded-2xl sm:p-4">
       <p className="text-xs text-text-muted">{label}</p>
       <p className="mt-1 text-xl font-black text-text-primary sm:text-2xl">{value}</p>
+      {detail && <p className="mt-1 text-xs text-text-muted">{detail}</p>}
     </div>
   )
 }

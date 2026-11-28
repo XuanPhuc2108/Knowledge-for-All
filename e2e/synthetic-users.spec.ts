@@ -47,7 +47,8 @@ test('Booki Guard includes 439 clearly marked test profiles in the member list w
 
   await page.goto('/app/moderation')
   await expect(page.getByRole('status').filter({ hasText: 'không tính vào thống kê thật' })).toBeVisible()
-  await expect(page.getByRole('region', { name: 'Thống kê nền tảng' }).getByText('1', { exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Thống kê nền tảng' }).getByText('440', { exact: true })).toBeVisible()
+  await expect(page.getByText('1 thật + 439 kiểm thử')).toBeVisible()
   await expect(page.getByText('Hiển thị 1-25 / 440')).toBeVisible()
   await expect(page.getByText('Kiểm thử', { exact: true }).first()).toBeVisible()
 
