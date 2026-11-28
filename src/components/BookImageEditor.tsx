@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { Redo2, RotateCcw, Undo2, X } from 'lucide-react'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import {
@@ -9,6 +10,7 @@ import {
   getCropPixelBounds,
   MAX_IMAGE_EDIT_POINTS_PER_STROKE,
   MAX_IMAGE_EDIT_STROKES,
+  ORIGINAL_CROP,
   pushImageEditHistory,
   redoImageEdit,
   renderBookImage,
@@ -36,6 +38,7 @@ export function BookImageEditor({ source, onApply, onClose }: BookImageEditorPro
   const [imageError, setImageError] = useState<string | null>(null)
   const [tool, setTool] = useState<Tool>('view')
   const [aspectRatio, setAspectRatio] = useState<number | null>(null)
+  const [fitMode, setFitMode] = useState<'smart' | 'fill' | 'contain' | 'original'>('smart')
   const [state, setState] = useState<ImageEditState>(createInitialImageEditState)
   const [history, setHistory] = useState<ImageEditHistory>({ past: [], future: [] })
   const [saving, setSaving] = useState(false)
@@ -64,6 +67,12 @@ export function BookImageEditor({ source, onApply, onClose }: BookImageEditorPro
     imageElement.onload = () => {
       setImage(imageElement)
       setImageError(null)
+      setState((current) => ({
+        ...current,
+        crop: getCenteredAspectCrop(imageElement.naturalWidth, imageElement.naturalHeight),
+      }))
+      setAspectRatio(3 / 4)
+      setFitMode('smart')
     }
     imageElement.onerror = () => setImageError(
       'Chưa thể xử lý ảnh này. Bạn có thể dùng ảnh gốc hoặc chọn ảnh khác.',
@@ -286,6 +295,7 @@ export function BookImageEditor({ source, onApply, onClose }: BookImageEditorPro
     setHistory({ past: [], future: [] })
     setTool('view')
     setAspectRatio(null)
+    setFitMode('original')
     setSaveError(null)
   }
 
@@ -325,17 +335,42 @@ export function BookImageEditor({ source, onApply, onClose }: BookImageEditorPro
       crop: getCenteredAspectCrop(image.naturalWidth, image.naturalHeight),
     })
     setAspectRatio(3 / 4)
+    setFitMode('smart')
     setTool('view')
   }
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-dark/85 p-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4">
+  const applyFitMode = (mode: 'smart' | 'fill' | 'contain' | 'original') => {
+    if (!image) return
+    setFitMode(mode)
+    setTool('view')
+    setSaveError(null)
+    if (mode === 'smart' || mode === 'fill') {
+      changeState({
+        ...state,
+        crop: getCenteredAspectCrop(image.naturalWidth, image.naturalHeight),
+      })
+      setAspectRatio(3 / 4)
+    } else if (mode === 'contain') {
+      changeState({ ...state, crop: ORIGINAL_CROP })
+      setAspectRatio(null)
+    } else {
+      reset()
+    }
+  }
+
+  const dialog = (
+    <div
+      className="fixed inset-0 z-[1000] flex h-[100dvh] items-end justify-center bg-dark/90 p-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:items-center sm:p-4"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !saving) onClose()
+      }}
+    >
       <section
         id="book-image-editor"
         role="dialog"
         aria-modal="true"
         aria-labelledby="book-image-editor-title"
-        className="book-image-editor flex max-h-full min-h-0 w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-glass/12 bg-dark-secondary p-4 shadow-2xl sm:rounded-2xl sm:p-6"
+        className="book-image-editor flex h-[100dvh] min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-none border-0 bg-dark-secondary p-3 shadow-2xl sm:h-[min(780px,calc(100dvh-2rem))] sm:max-w-3xl sm:rounded-2xl sm:border sm:border-glass/12 sm:p-5"
       >
         <header className="mb-3 flex shrink-0 items-center justify-between gap-3">
           <div>
@@ -357,18 +392,51 @@ export function BookImageEditor({ source, onApply, onClose }: BookImageEditorPro
             <p role="status" className="py-16 text-center text-sm text-text-muted">Đang mở ảnh...</p>
           ) : (
             <>
-              <div className="mb-4 rounded-xl border border-glass/10 bg-black/20 p-2">
-                <div className={`relative mx-auto w-fit max-w-full ${tool === 'view' ? 'touch-pan-y' : 'touch-none'}`}>
-                  <canvas ref={canvasRef} aria-label="Ảnh xem trước sau chỉnh sửa" className="block max-h-[34dvh] max-w-full rounded-lg object-contain sm:max-h-[45dvh]" />
-                  <canvas
-                    ref={overlayRef}
-                    aria-hidden="true"
-                    className={`absolute inset-0 h-full w-full rounded-lg ${tool === 'view' ? 'pointer-events-none' : 'cursor-crosshair touch-none'}`}
-                    onPointerDown={onPointerDown}
-                    onPointerMove={onPointerMove}
-                    onPointerUp={onPointerUp}
-                    onPointerCancel={onPointerCancel}
-                  />
+              <fieldset className="mb-4 rounded-xl border border-glass/10 p-3">
+                <legend className="px-1 text-sm font-semibold text-text-primary">Cách vừa khung bìa</legend>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {([
+                    ['smart', 'Tự động'],
+                    ['fill', 'Đầy khung'],
+                    ['contain', 'Giữ toàn ảnh'],
+                    ['original', 'Ảnh gốc'],
+                  ] as const).map(([mode, label]) => (
+                    <Button
+                      key={mode}
+                      type="button"
+                      size="sm"
+                      variant={fitMode === mode ? 'primary' : 'secondary'}
+                      aria-pressed={fitMode === mode}
+                      onClick={() => applyFitMode(mode)}
+                      disabled={saving}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <div className="mb-4 grid gap-3 rounded-xl border border-glass/10 bg-black/20 p-2 sm:grid-cols-2">
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Ảnh gốc</p>
+                  <div className="flex min-h-40 items-center justify-center rounded-lg bg-black/30">
+                    <img src={source} alt="Ảnh bìa gốc" className="block max-h-[28dvh] max-w-full rounded-lg object-contain" />
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Ảnh sẽ đăng</p>
+                  <div className={`relative mx-auto flex min-h-40 w-fit max-w-full items-center justify-center ${tool === 'view' ? 'touch-pan-y' : 'touch-none'}`}>
+                    <canvas ref={canvasRef} aria-label="Ảnh xem trước sau chỉnh sửa" className="block max-h-[28dvh] max-w-full rounded-lg object-contain sm:max-h-[34dvh]" />
+                    <canvas
+                      ref={overlayRef}
+                      aria-hidden="true"
+                      className={`absolute inset-0 h-full w-full rounded-lg ${tool === 'view' ? 'pointer-events-none' : 'cursor-crosshair touch-none'}`}
+                      onPointerDown={onPointerDown}
+                      onPointerMove={onPointerMove}
+                      onPointerUp={onPointerUp}
+                      onPointerCancel={onPointerCancel}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -477,6 +545,7 @@ export function BookImageEditor({ source, onApply, onClose }: BookImageEditorPro
       </section>
     </div>
   )
+  return createPortal(dialog, document.body)
 }
 
 function SliderControl({

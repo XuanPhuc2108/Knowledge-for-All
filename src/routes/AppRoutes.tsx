@@ -32,6 +32,7 @@ const BookDetailsPage = lazy(() => import('../pages/BookDetailsPage').then((m) =
 const EditBookPage = lazy(() => import('../pages/EditBookPage').then((m) => ({ default: m.EditBookPage })))
 const ModerationPage = lazy(() => import('../pages/ModerationPage').then((m) => ({ default: m.ModerationPage })))
 const RequestsPage = lazy(() => import('../pages/RequestsPage').then((m) => ({ default: m.RequestsPage })))
+const BorrowingPage = lazy(() => import('../pages/BorrowingPage').then((m) => ({ default: m.BorrowingPage })))
 const ChatPage = lazy(() => import('../pages/ChatPage').then((m) => ({ default: m.ChatPage })))
 
 function Loading() {
@@ -193,6 +194,14 @@ export function AppRoutes({ onInitialRouteReady }: { onInitialRouteReady: () => 
               element={
                 <PageTransition>
                   <RequestsPage />
+                </PageTransition>
+              }
+            />
+            <Route
+              path="borrowing"
+              element={
+                <PageTransition>
+                  <BorrowingPage />
                 </PageTransition>
               }
             />
